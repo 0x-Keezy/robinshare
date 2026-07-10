@@ -19,14 +19,22 @@ export async function POST(req: NextRequest) {
     const website = String(form.get("website") ?? "");
     const telegram = String(form.get("telegram") ?? "");
 
-    // Fuente de la imagen: archivo subido, o una URL (avatar de github) que bajamos.
+    // Fuente de la imagen: archivo subido, o el AVATAR DE GITHUB del receptor.
+    // sourceUrl se restringe a github.com/<handle>.png para evitar SSRF (el server
+    // no debe hacer fetch a URLs arbitrarias del cliente: metadata del cloud, localhost, etc.).
     let file = form.get("image") as File | null;
     const sourceUrl = form.get("sourceUrl");
     if (!file && typeof sourceUrl === "string" && sourceUrl) {
-      const r = await fetch(sourceUrl);
+      if (!/^https:\/\/github\.com\/[A-Za-z0-9-]{1,39}\.png$/.test(sourceUrl)) {
+        return NextResponse.json({ error: "sourceUrl must be a github avatar (github.com/<handle>.png)" }, { status: 400 });
+      }
+      const r = await fetch(sourceUrl, { redirect: "follow" });
       if (!r.ok) return NextResponse.json({ error: `image source ${r.status}` }, { status: 400 });
-      const buf = await r.arrayBuffer();
       const ct = r.headers.get("content-type") ?? "image/png";
+      if (!ct.startsWith("image/")) {
+        return NextResponse.json({ error: "source is not an image" }, { status: 400 });
+      }
+      const buf = await r.arrayBuffer();
       file = new File([buf], "token.png", { type: ct });
     }
     if (!file) return NextResponse.json({ error: "image or sourceUrl required" }, { status: 400 });
