@@ -1,0 +1,57 @@
+import { NextRequest, NextResponse } from "next/server";
+
+export const dynamic = "force-dynamic";
+
+const FLAP_UPLOAD = "https://flap.sh/api/upload?warmup=true";
+
+/// Sube la imagen + metadata al /api/upload de Flap (abierto) y devuelve el CID que va
+/// on-chain en `meta`. Se hace server-side para evitar CORS desde el browser.
+///
+/// Body (multipart/form-data): campos name, symbol, description, twitter?, website?,
+/// telegram? y O BIEN un archivo `image`, O BIEN `sourceUrl` (p.ej. el avatar de GitHub).
+export async function POST(req: NextRequest) {
+  try {
+    const form = await req.formData();
+    const name = String(form.get("name") ?? "");
+    const symbol = String(form.get("symbol") ?? "");
+    const description = String(form.get("description") ?? "");
+    const twitter = String(form.get("twitter") ?? "");
+    const website = String(form.get("website") ?? "");
+    const telegram = String(form.get("telegram") ?? "");
+
+    // Fuente de la imagen: archivo subido, o una URL (avatar de github) que bajamos.
+    let file = form.get("image") as File | null;
+    const sourceUrl = form.get("sourceUrl");
+    if (!file && typeof sourceUrl === "string" && sourceUrl) {
+      const r = await fetch(sourceUrl);
+      if (!r.ok) return NextResponse.json({ error: `image source ${r.status}` }, { status: 400 });
+      const buf = await r.arrayBuffer();
+      const ct = r.headers.get("content-type") ?? "image/png";
+      file = new File([buf], "token.png", { type: ct });
+    }
+    if (!file) return NextResponse.json({ error: "image or sourceUrl required" }, { status: 400 });
+
+    // GraphQL multipart, mismo shape que usa flap.sh:
+    const meta = { name, symbol, description, website, twitter, telegram };
+    const out = new FormData();
+    out.append(
+      "operations",
+      JSON.stringify({
+        query: "mutation Create($file: Upload!, $meta: MetadataInput!) { create(file: $file, meta: $meta) }",
+        variables: { file: null, meta },
+      }),
+    );
+    out.append("map", JSON.stringify({ "0": ["variables.file"] }));
+    out.append("0", file);
+
+    const res = await fetch(FLAP_UPLOAD, { method: "POST", body: out });
+    const json = await res.json();
+    const cid: string | undefined = json?.data?.create;
+    if (!cid) {
+      return NextResponse.json({ error: json?.errors?.[0]?.message ?? "upload failed" }, { status: 502 });
+    }
+    return NextResponse.json({ cid });
+  } catch (e) {
+    return NextResponse.json({ error: e instanceof Error ? e.message : String(e) }, { status: 500 });
+  }
+}

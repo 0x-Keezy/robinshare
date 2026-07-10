@@ -28,6 +28,7 @@ export default function CreatePage() {
   const [wallet, setWallet] = useState("");
   const [recoveryDays, setRecoveryDays] = useState("0");
   const [devBuy, setDevBuy] = useState("0.01");
+  const [imageFile, setImageFile] = useState<File | null>(null);
 
   const [busy, setBusy] = useState<string | null>(null);
   const [msg, setMsg] = useState<string | null>(null);
@@ -55,7 +56,31 @@ export default function CreatePage() {
       const { salt, token } = await mineSalt((t) => setBusy(`Minando salt… (${t} intentos)`));
 
       const vaultData = encodeVaultData(type, handle.trim(), recipientWallet, Number(recoveryDays) || 0);
-      const meta = JSON.stringify({ description: description || `${name} — fees on FLEDGE` });
+
+      // Arte + metadata del token: subir a Flap (/api/upload via nuestro proxy) -> CID on-chain.
+      // Sin imagen propia y con identidad github: usamos el avatar del dev por defecto.
+      let meta = "{}";
+      const ghAvatar = type === "github" && handle.trim() ? `https://github.com/${handle.trim()}.png` : null;
+      if (imageFile || ghAvatar) {
+        setBusy("Uploading token art to Flap…");
+        const fd = new FormData();
+        fd.append("name", name);
+        fd.append("symbol", symbol);
+        fd.append("description", description || `${name} — fees on FLEDGE`);
+        if (type === "twitter") fd.append("twitter", handle.trim());
+        if (type === "github") fd.append("website", `https://github.com/${handle.trim()}`);
+        if (imageFile) fd.append("image", imageFile);
+        else if (ghAvatar) fd.append("sourceUrl", ghAvatar);
+        try {
+          const r = await fetch("/api/token-image", { method: "POST", body: fd });
+          const j = await r.json();
+          if (j.cid) meta = j.cid;
+          else setMsg(`Token art skipped (${j.error}). Launching without image.`);
+        } catch {
+          setMsg("Token art upload failed. Launching without image.");
+        }
+      }
+
       const devBuyWei = parseEther(devBuy || "0");
       const params = buildLaunchParams({
         name,
@@ -151,6 +176,23 @@ export default function CreatePage() {
             placeholder="Short description (optional)"
             className="rounded-md border border-neutral-700 bg-neutral-900 px-3 py-2"
           />
+
+          <label className="flex flex-col gap-1 text-sm text-neutral-400">
+            Token image {imageFile ? `· ${imageFile.name}` : "(optional)"}
+            <input
+              type="file"
+              accept="image/*"
+              onChange={(e) => setImageFile(e.target.files?.[0] ?? null)}
+              className="rounded-md border border-neutral-700 bg-neutral-900 px-3 py-2 text-neutral-300 file:mr-3 file:rounded file:border-0 file:bg-neutral-800 file:px-3 file:py-1 file:text-neutral-200"
+            />
+            {type === "github" && !imageFile && (
+              <span className="text-xs text-neutral-500">
+                No image? We&apos;ll use{" "}
+                <span className="text-neutral-300">{handle.trim() ? `@${handle.trim()}` : "the dev"}</span>&apos;s
+                GitHub avatar as the coin art.
+              </span>
+            )}
+          </label>
 
           <div className="rounded-lg border border-neutral-800 p-4">
             <div className="text-sm font-medium text-neutral-300">Who gets the fees?</div>
