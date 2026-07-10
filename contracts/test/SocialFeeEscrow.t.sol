@@ -195,4 +195,90 @@ contract SocialFeeEscrowTest is Test {
         assertEq(e.boundWallet(), w2);
         assertEq(w2.balance, 1 ether);
     }
+
+    // ───────────────────────── Task 5: sweep + reentrancia inocua ─────────────────────────
+
+    function test_sweep_walletType_pagaDirecto() public {
+        address person = makeAddr("person");
+        SocialFeeEscrow e = new SocialFeeEscrow(taxToken, creator, 0, "", person, address(0), 0);
+        (bool ok,) = address(e).call{value: 1.5 ether}("");
+        assertTrue(ok);
+        vm.prank(makeAddr("cualquiera")); // permissionless
+        e.sweep();
+        assertEq(person.balance, 1.5 ether);
+        assertEq(e.totalPaid(), 1.5 ether);
+    }
+
+    function test_sweep_sinBind_reverts() public {
+        SocialFeeEscrow e = _newGithub(0);
+        vm.expectRevert(bytes(unicode"not bound yet / 尚未绑定"));
+        e.sweep();
+    }
+
+    function test_sweep_sinBalance_reverts() public {
+        address person = makeAddr("person");
+        SocialFeeEscrow e = new SocialFeeEscrow(taxToken, creator, 0, "", person, address(0), 0);
+        vm.expectRevert(bytes(unicode"nothing to sweep / 无可领取余额"));
+        e.sweep();
+    }
+
+    function test_sweep_receptorReentrante_esInocuo() public {
+        ReentrantPayout payout = new ReentrantPayout();
+        SocialFeeEscrow e = _newGithub(0);
+        uint256 deadline = block.timestamp + 15 minutes;
+        e.claimAndBind(address(payout), deadline, _sign(e, address(payout), deadline));
+        (bool ok,) = address(e).call{value: 1 ether}("");
+        assertTrue(ok);
+        payout.setTarget(e);
+        e.sweep(); // el reentrante intenta sweep() anidado; debe fallar el anidado sin robar
+        assertEq(address(payout).balance, 1 ether); // cobro exactamente una vez
+    }
+
+    // ───────────────────────── Task 6: recoverUnclaimed ─────────────────────────
+
+    function test_recover_deshabilitado_reverts() public {
+        SocialFeeEscrow e = _newGithub(0); // recoveryAfter = 0
+        vm.expectRevert(bytes(unicode"recovery disabled / 回收未启用"));
+        e.recoverUnclaimed();
+    }
+
+    function test_recover_antesDeTiempo_reverts() public {
+        SocialFeeEscrow e = _newGithub(uint64(block.timestamp + 30 days));
+        vm.expectRevert(bytes(unicode"too early / 未到回收时间"));
+        e.recoverUnclaimed();
+    }
+
+    function test_recover_despuesDeBind_reverts() public {
+        SocialFeeEscrow e = _newGithub(uint64(block.timestamp + 30 days));
+        address payout = makeAddr("p");
+        uint256 deadline = block.timestamp + 15 minutes;
+        e.claimAndBind(payout, deadline, _sign(e, payout, deadline));
+        vm.warp(block.timestamp + 31 days);
+        vm.expectRevert(bytes(unicode"already bound / 已绑定"));
+        e.recoverUnclaimed(); // una vez bound, JAMAS recuperable por el creator
+    }
+
+    function test_recover_happyPath() public {
+        SocialFeeEscrow e = _newGithub(uint64(block.timestamp + 30 days));
+        (bool ok,) = address(e).call{value: 1 ether}("");
+        assertTrue(ok);
+        vm.warp(block.timestamp + 30 days);
+        e.recoverUnclaimed(); // permissionless; paga al creator
+        assertEq(creator.balance, 1 ether);
+        assertEq(e.totalPaid(), 1 ether);
+    }
+}
+
+contract ReentrantPayout {
+    SocialFeeEscrow target;
+
+    function setTarget(SocialFeeEscrow t) external {
+        target = t;
+    }
+
+    receive() external payable {
+        if (address(target) != address(0) && address(target).balance > 0) {
+            try target.sweep() {} catch {} // el anidado ve balance 0 y revierte; lo tragamos
+        }
+    }
 }

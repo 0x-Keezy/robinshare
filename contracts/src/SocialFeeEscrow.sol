@@ -100,6 +100,32 @@ contract SocialFeeEscrow is VaultBaseV2, EIP712 {
         }
     }
 
+    /// @notice Envia todo el balance a la wallet ya probada. Permissionless a proposito:
+    ///         cualquiera puede pagar el gas para empujar los fees a su dueno.
+    function sweep() external {
+        require(boundWallet != address(0), unicode"not bound yet / 尚未绑定");
+        uint256 amount = address(this).balance;
+        require(amount > 0, unicode"nothing to sweep / 无可领取余额");
+        totalPaid += amount;
+        emit Swept(boundWallet, amount);
+        (bool ok,) = boundWallet.call{value: amount}("");
+        require(ok, unicode"payout failed / 支付失败");
+    }
+
+    /// @notice Si la persona nunca aparecio y el creator fijo un plazo al launch,
+    ///         devuelve el balance al creator. Nunca disponible despues de un bind.
+    function recoverUnclaimed() external {
+        require(recoveryAfter != 0, unicode"recovery disabled / 回收未启用");
+        require(boundWallet == address(0), unicode"already bound / 已绑定");
+        require(block.timestamp >= recoveryAfter, unicode"too early / 未到回收时间");
+        uint256 amount = address(this).balance;
+        require(amount > 0, unicode"nothing to recover / 无可回收余额");
+        totalPaid += amount;
+        emit Recovered(creator, amount);
+        (bool ok,) = creator.call{value: amount}("");
+        require(ok, unicode"payout failed / 支付失败");
+    }
+
     // ---- stubs que la Task 7 completa (necesarios para que VaultBaseV2 compile) ----
     function description() public view virtual override returns (string memory) {
         return "FLEDGE fee escrow";
