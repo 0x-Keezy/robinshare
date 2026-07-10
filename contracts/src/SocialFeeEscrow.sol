@@ -126,12 +126,95 @@ contract SocialFeeEscrow is VaultBaseV2, EIP712 {
         require(ok, unicode"payout failed / 支付失败");
     }
 
-    // ---- stubs que la Task 7 completa (necesarios para que VaultBaseV2 compile) ----
-    function description() public view virtual override returns (string memory) {
-        return "FLEDGE fee escrow";
+    function description() public view override returns (string memory) {
+        string memory id = identityType == TYPE_WALLET
+            ? Strings.toHexString(boundWallet)
+            : string.concat(identityType == TYPE_GITHUB ? "github:" : "x:", identityValue);
+        string memory state;
+        if (boundWallet != address(0)) {
+            state = string.concat("bound to ", Strings.toHexString(boundWallet));
+        } else if (recoveryAfter != 0 && block.timestamp >= recoveryAfter) {
+            state = "unclaimed (recoverable by creator)";
+        } else {
+            state = "waiting for its person";
+        }
+        return string.concat(
+            "FLEDGE fee escrow for ",
+            id,
+            ": ",
+            _fmtEth(address(this).balance),
+            " ETH pending, ",
+            _fmtEth(totalPaid),
+            " ETH paid out. Status: ",
+            state,
+            "."
+        );
     }
 
-    function vaultUISchema() public pure virtual override returns (VaultUISchema memory schema) {
+    function _fmtEth(uint256 weiAmount) internal pure returns (string memory) {
+        uint256 milli = weiAmount / 1e15; // resolucion 0.001 ETH
+        string memory frac = Strings.toString(milli % 1000);
+        if (milli % 1000 < 10) frac = string.concat("00", frac);
+        else if (milli % 1000 < 100) frac = string.concat("0", frac);
+        return string.concat(Strings.toString(milli / 1000), ".", frac);
+    }
+
+    function vaultUISchema() public pure override returns (VaultUISchema memory schema) {
         schema.vaultType = "SocialFeeEscrow";
+        schema.description =
+            "Trading-fee escrow for one identity (wallet, GitHub or X). Funds can only ever go to the wallet that proved the identity.";
+        schema.methods = new VaultMethodSchema[](4);
+
+        FieldDescriptor[] memory claimIn = new FieldDescriptor[](3);
+        claimIn[0] = FieldDescriptor("payoutWallet", "address", "Wallet that will receive the fees", 0);
+        claimIn[1] = FieldDescriptor("deadline", "time", "Voucher expiry (unix seconds)", 0);
+        claimIn[2] = FieldDescriptor("signature", "bytes", "Attester voucher signature", 0);
+        schema.methods[0] = VaultMethodSchema(
+            "claimAndBind",
+            "Prove the identity with an attester voucher, bind the payout wallet and claim all pending ETH.",
+            claimIn,
+            new FieldDescriptor[](0),
+            new ApproveAction[](0),
+            false,
+            false,
+            true
+        );
+
+        schema.methods[1] = VaultMethodSchema(
+            "sweep",
+            "Push all pending ETH to the already-bound wallet. Anyone may pay the gas.",
+            new FieldDescriptor[](0),
+            new FieldDescriptor[](0),
+            new ApproveAction[](0),
+            false,
+            false,
+            true
+        );
+
+        FieldDescriptor[] memory pendingOut = new FieldDescriptor[](1);
+        pendingOut[0] = FieldDescriptor("pending", "uint256", "ETH currently claimable", 18);
+        schema.methods[2] = VaultMethodSchema(
+            "pendingAmount",
+            "ETH accumulated and not yet paid out.",
+            new FieldDescriptor[](0),
+            pendingOut,
+            new ApproveAction[](0),
+            false,
+            false,
+            false
+        );
+
+        FieldDescriptor[] memory boundOut = new FieldDescriptor[](1);
+        boundOut[0] = FieldDescriptor("wallet", "address", "Wallet bound to the identity (zero until proven)", 0);
+        schema.methods[3] = VaultMethodSchema(
+            "boundWallet",
+            "The wallet that proved ownership of the identity.",
+            new FieldDescriptor[](0),
+            boundOut,
+            new ApproveAction[](0),
+            false,
+            false,
+            false
+        );
     }
 }

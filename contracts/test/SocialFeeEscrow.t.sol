@@ -267,6 +267,49 @@ contract SocialFeeEscrowTest is Test {
         assertEq(creator.balance, 1 ether);
         assertEq(e.totalPaid(), 1 ether);
     }
+
+    // ───────────────────────── Task 7: description + vaultUISchema ─────────────────────────
+
+    function test_description_reflejaEstado() public {
+        SocialFeeEscrow e = _newGithub(0);
+        assertTrue(bytes(e.description()).length > 20);
+        // pre-bind: menciona la identidad
+        assertTrue(_contains(e.description(), "github:torvalds"));
+        (bool ok,) = address(e).call{value: 1 ether}("");
+        assertTrue(ok);
+        assertTrue(_contains(e.description(), "1.000")); // 1 ether formateado
+    }
+
+    function test_vaultUISchema_tieneMetodos() public {
+        SocialFeeEscrow e = _newGithub(0);
+        VaultUISchema memory s = e.vaultUISchema();
+        assertEq(s.vaultType, "SocialFeeEscrow");
+        assertEq(s.methods.length, 4);
+        assertEq(s.methods[0].name, "claimAndBind");
+        assertTrue(s.methods[0].isWriteMethod);
+        assertEq(s.methods[0].inputs.length, 3);
+        assertEq(s.methods[1].name, "sweep");
+        assertEq(s.methods[2].name, "pendingAmount");
+        assertEq(s.methods[2].outputs[0].decimals, 18);
+        assertEq(s.methods[3].name, "boundWallet");
+    }
+
+    function _contains(string memory haystack, string memory needle) internal pure returns (bool) {
+        bytes memory h = bytes(haystack);
+        bytes memory n = bytes(needle);
+        if (n.length > h.length) return false;
+        for (uint256 i = 0; i <= h.length - n.length; i++) {
+            bool m = true;
+            for (uint256 j = 0; j < n.length; j++) {
+                if (h[i + j] != n[j]) {
+                    m = false;
+                    break;
+                }
+            }
+            if (m) return true;
+        }
+        return false;
+    }
 }
 
 contract ReentrantPayout {
