@@ -45,6 +45,17 @@ TOKEN_NAME="Fledge Test" TOKEN_SYMBOL=GIFT \
 
 Del output anotá: **FACTORY**, **TOKEN**, **ESCROW**. (Para lanzar más tokens con la misma factory, pasá `FACTORY=0x…` y no la re-despliega.)
 
+**Arte del token (opcional, para que se vea lindo en flap.sh):** subí una imagen (o el avatar del dev) al `/api/upload` de Flap y pasá el CID como `META_CID`:
+```bash
+# ej. avatar de github del receptor:
+CID=$(curl -s "https://flap.sh/api/upload?warmup=true" \
+  -F 'operations={"query":"mutation Create($file: Upload!, $meta: MetadataInput!){ create(file:$file, meta:$meta) }","variables":{"file":null,"meta":{"name":"Fund <dev>","symbol":"GIFT","description":"Fees for <dev>, claimable via GitHub","website":"https://github.com/<dev>"}}}' \
+  -F 'map={"0":["variables.file"]}' \
+  -F "0=@<(curl -sL https://github.com/<dev>.png);type=image/png" | node -e "let s='';process.stdin.on('data',d=>s+=d).on('end',()=>console.log(JSON.parse(s).data.create))")
+# y agregá  META_CID=$CID  al comando forge script de arriba
+```
+(La página `/create` hace todo esto solo — la imagen es solo para el launch por CLI.)
+
 ## Paso 2 — Generar fees en el escrow
 
 - **Real:** entrá a `flap.sh/robinhood`, buscá tu token (o `dexscreener.com/robinhood/<TOKEN>`) y comprá/vendé una pizca — el tax cae al escrow (puede demorar, se despacha por lotes).

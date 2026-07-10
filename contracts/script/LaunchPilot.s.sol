@@ -55,6 +55,9 @@ contract LaunchPilot is Script {
         uint256 devBuy = vm.envOr("DEV_BUY_WEI", uint256(0.005 ether));
         string memory name = vm.envOr("TOKEN_NAME", string("Fledge Gift"));
         string memory symbol = vm.envOr("TOKEN_SYMBOL", string("GIFT"));
+        // Opcional: CID de metadata (subí imagen antes con web/api/token-image o el /api/upload de Flap).
+        // Sin CID el token sale sin arte; la pagina /create lo arma solo (avatar de github por defecto).
+        string memory metaCid = vm.envOr("META_CID", string("{}"));
         address factory = vm.envOr("FACTORY", address(0));
         if (isWallet) require(recipient != address(0), "set RECIPIENT for wallet mode");
 
@@ -75,7 +78,7 @@ contract LaunchPilot is Script {
         IVaultPortalTypes.NewTokenV6WithVaultParams memory p;
         p.name = name;
         p.symbol = symbol;
-        p.meta = "{}";
+        p.meta = metaCid;
         p.dexThresh = IPortalCommonTypes.DexThreshType.FOUR_FIFTHS;
         p.salt = salt;
         p.migratorType = IPortalTypes.MigratorType.V2_MIGRATOR;
