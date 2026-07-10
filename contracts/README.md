@@ -43,10 +43,18 @@ El fork test lanza un token real vía el `VaultPortal` de Robinhood Chain y corr
 - **Params válidos del launch (verificados):** `dexThresh = FOUR_FIFTHS (1)`, `migratorType = V2_MIGRATOR (1)`, `dexId = DEX0 (0)`, `lpFeeProfile = LP_FEE_PROFILE_STANDARD (0)`, `tokenVersion = TOKEN_TAXED_V3 (6)`, `quoteToken = address(0)` (ETH nativo), `value = quoteAmt` (dev-buy). Receta piloto: `buyTaxRate/sellTaxRate = 300` (3%), `mktBps = 10000` (100% al escrow), `antiFarmerDuration = 3 days`, `taxDuration = 3153600000` (~100 años).
 - **Enums:** `DexThreshType` vive en `IPortalCommonTypes`; el resto (`MigratorType`, `DEXId`, `V3LPFeeProfile`, `TokenVersion`) en `IPortalTypes`.
 
+## Seguridad — review adversarial (2026-07-10)
+
+Review multi-lente (4 auditores independientes + síntesis). **Veredicto: robo por tercero IMPOSIBLE** — unánime en los 4 lentes (egress, firma/replay, normalización, receive/reentrancia). El ETH solo sale hacia la wallet que probó la identidad, o al creator vía `recoverUnclaimed` (solo si nunca hubo bind + venció el plazo). Dos hallazgos, ambos resueltos:
+
+- **[important] Attester elegible por el creator → RESUELTO.** En el diseño original el creator pasaba el `attester` en `vaultData`, así que un creator malicioso podía nombrar su propia key, auto-firmarse un voucher y bindear su wallet — rugueando los fees mientras el token decía "para @torvalds". No era robo por tercero (el destino era el propio creator), pero rompía la garantía marketeada. **Fix:** el `attester` ahora es **canónico de la factory** (arg del constructor `SocialFeeEscrowFactory(vaultPortal, attester)`), se inyecta en TODO escrow social, y el creator **no puede elegirlo**. `vaultData` bajó de 5 a 4 campos (sin attester). Quien quiera otro oráculo despliega su propia factory.
+- **[minor] TYPE_WALLET con boundWallet que revierte en receive → fondos trabados (documentado).** Si el creator fija como `identityWallet` un contrato que revierte al recibir ETH, `sweep()` revierte para siempre y `recoverUnclaimed` no aplica (ya hay bind). Es **stuck, no robo** (invariante #1 intacta), y auto-infligido (el creator eligió esa wallet). NO se agrega un check `code.length==0` porque rechazaría multisigs/Safe legítimas. Para tipos sociales no aplica: se re-bindea a otra wallet con un voucher fresco.
+
 ## Deploy
 
 ```bash
-forge script script/Deploy.s.sol --rpc-url robinhood --broadcast --private-key $DEPLOYER_PK
+# ATTESTER_ADDRESS = la wallet dedicada del oraculo FLEDGE (attester canonico de la factory)
+ATTESTER_ADDRESS=0x... forge script script/Deploy.s.sol --rpc-url robinhood --broadcast --private-key $DEPLOYER_PK
 ```
 
 ## ⚠️ GUARDIAN placeholder

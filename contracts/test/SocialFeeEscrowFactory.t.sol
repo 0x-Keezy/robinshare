@@ -16,11 +16,24 @@ contract SocialFeeEscrowFactoryTest is Test {
     address predictedToken = address(0x7777);
 
     function setUp() public {
-        factory = new SocialFeeEscrowFactory(portal);
+        factory = new SocialFeeEscrowFactory(portal, attester);
     }
 
-    function _data(string memory t, string memory v, address w, uint256 days_) internal view returns (bytes memory) {
-        return abi.encode(t, v, w, attester, days_);
+    function _data(string memory t, string memory v, address w, uint256 days_) internal pure returns (bytes memory) {
+        return abi.encode(t, v, w, days_);
+    }
+
+    function test_constructor_zeroAttester_reverts() public {
+        vm.expectRevert(bytes(unicode"zero attester / 认证者地址为空"));
+        new SocialFeeEscrowFactory(portal, address(0));
+    }
+
+    function test_attester_esCanonico_noElegibleporCreator() public {
+        // El vaultData ya no lleva attester: todo escrow social usa el canonico de la factory.
+        vm.prank(portal);
+        address vault = factory.newVault(predictedToken, address(0), creator, _data("github", "torvalds", address(0), 0));
+        assertEq(SocialFeeEscrow(payable(vault)).attester(), factory.attester());
+        assertEq(factory.attester(), attester);
     }
 
     // ───────────────────────── Task 8: newVault + normalización + registro ─────────────────────────
@@ -120,17 +133,17 @@ contract SocialFeeEscrowFactoryTest is Test {
 
     // ───────────────────────── Task 9: schema + policies + validación v2.2 ─────────────────────────
 
-    function test_vaultDataSchema_cincoCampos() public view {
+    function test_vaultDataSchema_cuatroCampos() public view {
         VaultDataSchema memory s = factory.vaultDataSchema();
-        assertEq(s.fields.length, 5);
+        // 4 campos: el attester ya NO lo pone el creator (es canonico de la factory).
+        assertEq(s.fields.length, 4);
         assertEq(s.fields[0].name, "identityType");
         assertEq(s.fields[0].fieldType, "string");
         assertEq(s.fields[1].name, "identityValue");
         assertEq(s.fields[2].name, "identityWallet");
         assertEq(s.fields[2].fieldType, "address");
-        assertEq(s.fields[3].name, "attester");
-        assertEq(s.fields[4].name, "recoveryDays");
-        assertEq(s.fields[4].fieldType, "uint256");
+        assertEq(s.fields[3].name, "recoveryDays");
+        assertEq(s.fields[3].fieldType, "uint256");
         assertFalse(s.isArray);
     }
 

@@ -12,6 +12,12 @@ import {SocialFeeEscrow} from "./SocialFeeEscrow.sol";
 ///         el registro identidad -> vaults. Sin funciones privilegiadas.
 contract SocialFeeEscrowFactory is VaultFactoryBaseV2 {
     address public immutable vaultPortal;
+    /// @notice El attester CANONICO de esta factory. Se fija al desplegar la factory y
+    ///         se inyecta en TODO escrow social que crea — el creator NO puede elegirlo.
+    ///         Esto cierra el rug: un creator malicioso no puede nombrar su propia key,
+    ///         auto-firmarse un voucher y bindear su wallet salteando la verificacion real.
+    ///         Quien quiera otro oraculo despliega su propia factory.
+    address public immutable attester;
 
     mapping(bytes32 => address[]) internal _vaultsByIdentity;
     address[] public allVaults;
@@ -27,9 +33,11 @@ contract SocialFeeEscrowFactory is VaultFactoryBaseV2 {
         uint64 recoveryAfter
     );
 
-    constructor(address vaultPortal_) {
+    constructor(address vaultPortal_, address attester_) {
         require(vaultPortal_ != address(0), unicode"zero portal / portal 地址为空");
+        require(attester_ != address(0), unicode"zero attester / 认证者地址为空");
         vaultPortal = vaultPortal_;
+        attester = attester_;
     }
 
     /// @dev taxToken es una direccion PREDICHA: el token NO existe todavia. Solo almacenar.
@@ -40,13 +48,8 @@ contract SocialFeeEscrowFactory is VaultFactoryBaseV2 {
         require(msg.sender == vaultPortal, unicode"only vault portal / 仅限 VaultPortal");
         require(quoteToken == address(0), unicode"native quote only / 仅支持原生代币");
 
-        (
-            string memory typeStr,
-            string memory rawValue,
-            address identityWallet,
-            address attester,
-            uint256 recoveryDays
-        ) = abi.decode(vaultData, (string, string, address, address, uint256));
+        (string memory typeStr, string memory rawValue, address identityWallet, uint256 recoveryDays) =
+            abi.decode(vaultData, (string, string, address, uint256));
 
         uint8 t = _parseType(typeStr);
         require(recoveryDays <= 3650, unicode"recovery too long / 回收期过长");
@@ -54,6 +57,8 @@ contract SocialFeeEscrowFactory is VaultFactoryBaseV2 {
 
         bytes32 identityHash;
         string memory normalized = "";
+        // Attester canonico de la factory para tipos sociales; 0x0 para wallet (no se usa).
+        address vaultAttester = t == 0 ? address(0) : attester;
         if (t == 0) {
             require(bytes(rawValue).length == 0, unicode"value must be empty for wallet / wallet 类型不需要句柄");
             require(identityWallet != address(0), unicode"wallet required / 需要钱包地址");
@@ -64,11 +69,11 @@ contract SocialFeeEscrowFactory is VaultFactoryBaseV2 {
         }
 
         vault = address(
-            new SocialFeeEscrow(taxToken, creator, t, normalized, identityWallet, attester, recoveryAfter)
+            new SocialFeeEscrow(taxToken, creator, t, normalized, identityWallet, vaultAttester, recoveryAfter)
         );
         _vaultsByIdentity[identityHash].push(vault);
         allVaults.push(vault);
-        emit VaultCreated(identityHash, t, normalized, vault, taxToken, creator, attester, recoveryAfter);
+        emit VaultCreated(identityHash, t, normalized, vault, taxToken, creator, vaultAttester, recoveryAfter);
     }
 
     function getVaults(bytes32 identityHash) external view returns (address[] memory) {
@@ -130,15 +135,15 @@ contract SocialFeeEscrowFactory is VaultFactoryBaseV2 {
         schema.description =
             "Escrows 100% of the vault share of trading fees for ONE identity. "
             "identityType is 'wallet', 'github' or 'twitter'. For wallet: set identityWallet and leave identityValue empty. "
-            "For github/twitter: set identityValue to the handle (no @ needed) and attester to the voucher signer. "
+            "For github/twitter: set identityValue to the handle (no @ needed) - the FLEDGE factory's canonical attester "
+            "verifies ownership, the creator cannot choose it. "
             "recoveryDays: 0 = funds wait forever; N = creator can recover if unclaimed after N days.";
-        schema.fields = new FieldDescriptor[](5);
+        schema.fields = new FieldDescriptor[](4);
         schema.fields[0] = FieldDescriptor("identityType", "string", "wallet | github | twitter", 0);
         schema.fields[1] = FieldDescriptor("identityValue", "string", "Handle for github/twitter (empty for wallet)", 0);
         schema.fields[2] =
             FieldDescriptor("identityWallet", "address", "Recipient wallet (only for identityType=wallet, else 0x0)", 0);
-        schema.fields[3] = FieldDescriptor("attester", "address", "Voucher signer for github/twitter (0x0 for wallet)", 0);
-        schema.fields[4] =
+        schema.fields[3] =
             FieldDescriptor("recoveryDays", "uint256", "Days until creator may recover unclaimed funds (0 = never)", 0);
         schema.isArray = false;
     }

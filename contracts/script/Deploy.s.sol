@@ -9,10 +9,14 @@ import {RobinhoodAddresses} from "../src/flap/RobinhoodAddresses.sol";
 contract Deploy is Script {
     function run() external {
         require(block.chainid == RobinhoodAddresses.CHAIN_ID, "wrong chain (expected 4663)");
+        // Attester CANONICO de la factory (wallet dedicada del oraculo FLEDGE). Env obligatoria.
+        address attester = vm.envAddress("ATTESTER_ADDRESS");
+        require(attester != address(0), "set ATTESTER_ADDRESS");
         vm.startBroadcast();
-        SocialFeeEscrowFactory factory = new SocialFeeEscrowFactory(RobinhoodAddresses.VAULT_PORTAL);
+        SocialFeeEscrowFactory factory = new SocialFeeEscrowFactory(RobinhoodAddresses.VAULT_PORTAL, attester);
         vm.stopBroadcast();
         console2.log("SocialFeeEscrowFactory:", address(factory));
         console2.log("VaultPortal:", factory.vaultPortal());
+        console2.log("Canonical attester:", factory.attester());
     }
 }
