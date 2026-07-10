@@ -7,3 +7,7 @@ contracts/broadcast/
 node_modules/
 .env
 .env.local
+
+contracts/node_modules/
+contracts/package.json
+contracts/package-lock.json
