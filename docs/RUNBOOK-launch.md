@@ -43,7 +43,11 @@ node scripts/mine-salt.mjs 7777      # -> {"salt":"0x..","token":"0x..7777","ite
 # guardar SALT=0x.. y TOKEN_PREDICHO=0x..7777
 ```
 
-## 4. Launch (llamada directa al VaultPortal)
+## 4. Launch
+
+**Opción A — página `/create` (recomendada, la vía del producto):** con la web deployada y `NEXT_PUBLIC_FACTORY_ADDRESS` seteada, entrás a `https://<dominio>/create`, conectás la wallet, elegís nombre/símbolo + a quién van las fees (github/x/wallet) + dev-buy, y firmás. La página mina el salt local, arma los params y llama al VaultPortal. Verificado end-to-end por la vía JS contra un anvil fork (token real == predicho, escrow creado, attester canónico).
+
+**Opción B — CLI (llamada directa al VaultPortal), para automatizar:**
 
 Params verificados en fork: `dexThresh=1 (FOUR_FIFTHS)`, `migratorType=1 (V2_MIGRATOR)`, `dexId=0 (DEX0)`, `lpFeeProfile=0`, `tokenVersion=6 (TOKEN_TAXED_V3)`, `quoteToken=0x0`, `mktBps=10000`, tax 3%/3%, `taxDuration=3153600000`, `antiFarmerDuration=259200`. `value = quoteAmt` (dev-buy, ej. 0.01 ETH).
 

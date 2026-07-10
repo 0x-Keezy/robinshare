@@ -69,6 +69,12 @@ export default function Home() {
         Trading fees, escrowed to a wallet, GitHub or X identity on Robinhood Chain. Find the vaults that fund you and
         claim them.
       </p>
+      <Link
+        href="/create"
+        className="mt-4 inline-block rounded-md bg-white px-4 py-2 text-sm font-medium text-black"
+      >
+        + Create a coin
+      </Link>
 
       <div className="mt-8 flex flex-col gap-3 sm:flex-row">
         <select
