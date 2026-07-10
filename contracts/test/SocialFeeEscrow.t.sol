@@ -27,6 +27,11 @@ contract SocialFeeEscrowTest is Test {
         return new SocialFeeEscrow(taxToken, creator, 1, "torvalds", address(0), attester, recoveryAfter);
     }
 
+    function _sign(SocialFeeEscrow e, address payout, uint256 deadline) internal view returns (bytes memory) {
+        (uint8 v, bytes32 r, bytes32 s) = vm.sign(ATTESTER_PK, e.bindDigest(payout, deadline));
+        return abi.encodePacked(r, s, v);
+    }
+
     // ───────────────────────── Task 2: constructor + receive() ─────────────────────────
 
     function test_constructor_github_setsFields() public {
@@ -84,5 +89,110 @@ contract SocialFeeEscrowTest is Test {
         vm.deal(address(this), amount);
         (bool ok,) = address(e).call{value: amount}("");
         assertTrue(ok);
+    }
+
+    // ───────────────────────── Task 3: bindDigest + claimAndBind ─────────────────────────
+
+    function test_claimAndBind_paysAndBinds() public {
+        SocialFeeEscrow e = _newGithub(0);
+        (bool ok,) = address(e).call{value: 2 ether}("");
+        assertTrue(ok);
+        address payout = makeAddr("torvalds-wallet");
+        uint256 deadline = block.timestamp + 15 minutes;
+
+        vm.expectEmit(true, false, false, true, address(e));
+        emit SocialFeeEscrow.Bound(payout, 0);
+        e.claimAndBind(payout, deadline, _sign(e, payout, deadline));
+
+        assertEq(e.boundWallet(), payout);
+        assertEq(e.bindNonce(), 1);
+        assertEq(payout.balance, 2 ether);
+        assertEq(address(e).balance, 0);
+        assertEq(e.totalPaid(), 2 ether);
+    }
+
+    function test_claimAndBind_zeroBalance_bindsWithoutPaying() public {
+        SocialFeeEscrow e = _newGithub(0);
+        address payout = makeAddr("early-bird");
+        uint256 deadline = block.timestamp + 15 minutes;
+        e.claimAndBind(payout, deadline, _sign(e, payout, deadline)); // no revierte
+        assertEq(e.boundWallet(), payout);
+        assertEq(e.totalPaid(), 0);
+    }
+
+    function test_pendingAmount_tracksBalance() public {
+        SocialFeeEscrow e = _newGithub(0);
+        assertEq(e.pendingAmount(), 0);
+        (bool ok,) = address(e).call{value: 3 ether}("");
+        assertTrue(ok);
+        assertEq(e.pendingAmount(), 3 ether);
+    }
+
+    // ───────────────────────── Task 4: matriz adversarial + re-bind ─────────────────────────
+
+    function test_claim_wrongSigner_reverts() public {
+        SocialFeeEscrow e = _newGithub(0);
+        uint256 deadline = block.timestamp + 15 minutes;
+        address payout = makeAddr("p");
+        (uint8 v, bytes32 r, bytes32 s) = vm.sign(0xBAD, e.bindDigest(payout, deadline)); // otra key
+        vm.expectRevert(bytes(unicode"bad attester signature / 认证签名无效"));
+        e.claimAndBind(payout, deadline, abi.encodePacked(r, s, v));
+    }
+
+    function test_claim_expired_reverts() public {
+        SocialFeeEscrow e = _newGithub(0);
+        uint256 deadline = block.timestamp + 1;
+        address payout = makeAddr("p");
+        bytes memory sig = _sign(e, payout, deadline);
+        vm.warp(deadline + 1);
+        vm.expectRevert(bytes(unicode"voucher expired / 凭证已过期"));
+        e.claimAndBind(payout, deadline, sig);
+    }
+
+    function test_claim_replay_reverts() public {
+        SocialFeeEscrow e = _newGithub(0);
+        address payout = makeAddr("p");
+        uint256 deadline = block.timestamp + 15 minutes;
+        bytes memory sig = _sign(e, payout, deadline);
+        e.claimAndBind(payout, deadline, sig);
+        // mismo voucher otra vez: el nonce ya avanzo -> digest distinto -> firma invalida
+        vm.expectRevert(bytes(unicode"bad attester signature / 认证签名无效"));
+        e.claimAndBind(payout, deadline, sig);
+    }
+
+    function test_claim_voucherDeOtroVault_reverts() public {
+        SocialFeeEscrow e1 = _newGithub(0);
+        SocialFeeEscrow e2 = _newGithub(0);
+        address payout = makeAddr("p");
+        uint256 deadline = block.timestamp + 15 minutes;
+        bytes memory sigParaE1 = _sign(e1, payout, deadline);
+        vm.expectRevert(bytes(unicode"bad attester signature / 认证签名无效"));
+        e2.claimAndBind(payout, deadline, sigParaE1); // verifyingContract distinto
+    }
+
+    function test_claim_zeroPayout_reverts() public {
+        SocialFeeEscrow e = _newGithub(0);
+        uint256 deadline = block.timestamp + 15 minutes;
+        vm.expectRevert(bytes(unicode"zero payout / 收款地址为空"));
+        e.claimAndBind(address(0), deadline, hex"00");
+    }
+
+    function test_claim_onWalletType_reverts() public {
+        SocialFeeEscrow e = new SocialFeeEscrow(taxToken, creator, 0, "", makeAddr("w"), address(0), 0);
+        vm.expectRevert(bytes(unicode"wallet identity: use sweep / 钱包身份请用 sweep"));
+        e.claimAndBind(makeAddr("p"), block.timestamp + 1, hex"00");
+    }
+
+    function test_rebind_conVoucherFresco() public {
+        SocialFeeEscrow e = _newGithub(0);
+        address w1 = makeAddr("w1");
+        address w2 = makeAddr("w2");
+        uint256 deadline = block.timestamp + 15 minutes;
+        e.claimAndBind(w1, deadline, _sign(e, w1, deadline)); // nonce 0 -> 1
+        (bool ok,) = address(e).call{value: 1 ether}("");
+        assertTrue(ok);
+        e.claimAndBind(w2, deadline, _sign(e, w2, deadline)); // _sign lee bindNonce()=1
+        assertEq(e.boundWallet(), w2);
+        assertEq(w2.balance, 1 ether);
     }
 }
