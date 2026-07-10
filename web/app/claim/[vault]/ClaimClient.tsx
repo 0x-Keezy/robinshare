@@ -1,0 +1,221 @@
+"use client";
+
+import { useCallback, useEffect, useState } from "react";
+import Link from "next/link";
+import QRCode from "react-qr-code";
+import { formatEther, type Address, type Hex } from "viem";
+import { useAccount, useConnect, useWriteContract } from "wagmi";
+import { injected } from "wagmi/connectors";
+import { publicClient } from "@/lib/chain";
+import { escrowAbi } from "@/lib/abis";
+
+const ZERO = "0x0000000000000000000000000000000000000000";
+
+type Voucher = { signature: Hex; deadline: string; payout: Address };
+
+type State = {
+  identityType: number;
+  identityValue: string;
+  pending: bigint;
+  bound: Address;
+  totalPaid: bigint;
+  description: string;
+};
+
+export function ClaimClient({ vault }: { vault: Address }) {
+  const { address, isConnected } = useAccount();
+  const { connect } = useConnect();
+  const { writeContractAsync, isPending } = useWriteContract();
+
+  const [s, setS] = useState<State | null>(null);
+  const [voucher, setVoucher] = useState<Voucher | null>(null);
+  const [qr, setQr] = useState<string | null>(null);
+  const [msg, setMsg] = useState<string | null>(null);
+  const [txHash, setTxHash] = useState<Hex | null>(null);
+
+  const refresh = useCallback(async () => {
+    const [identityType, identityValue, pending, bound, totalPaid, description] = await Promise.all([
+      publicClient.readContract({ address: vault, abi: escrowAbi, functionName: "identityType" }),
+      publicClient.readContract({ address: vault, abi: escrowAbi, functionName: "identityValue" }),
+      publicClient.readContract({ address: vault, abi: escrowAbi, functionName: "pendingAmount" }),
+      publicClient.readContract({ address: vault, abi: escrowAbi, functionName: "boundWallet" }),
+      publicClient.readContract({ address: vault, abi: escrowAbi, functionName: "totalPaid" }),
+      publicClient.readContract({ address: vault, abi: escrowAbi, functionName: "description" }),
+    ]);
+    setS({
+      identityType: Number(identityType),
+      identityValue: identityValue as string,
+      pending: pending as bigint,
+      bound: bound as Address,
+      totalPaid: totalPaid as bigint,
+      description: description as string,
+    });
+  }, [vault]);
+
+  useEffect(() => {
+    refresh().catch((e) => setMsg(String(e)));
+  }, [refresh]);
+
+  // voucher de retorno del OAuth de GitHub (viene en el fragment #)
+  useEffect(() => {
+    if (typeof window === "undefined" || !window.location.hash) return;
+    const p = new URLSearchParams(window.location.hash.slice(1));
+    const signature = p.get("signature") as Hex | null;
+    const deadline = p.get("deadline");
+    const payout = p.get("payout") as Address | null;
+    if (signature && deadline && payout) {
+      setVoucher({ signature, deadline, payout });
+      history.replaceState(null, "", window.location.pathname); // limpia el fragment
+    }
+  }, []);
+
+  async function sendTx(fn: "sweep" | "claimAndBind", args: readonly unknown[] = []) {
+    setMsg(null);
+    try {
+      const hash = await writeContractAsync({ address: vault, abi: escrowAbi, functionName: fn, args } as never);
+      setTxHash(hash);
+      setMsg("Sent — waiting for confirmation…");
+      await publicClient.waitForTransactionReceipt({ hash });
+      setMsg("Done.");
+      setVoucher(null);
+      await refresh();
+    } catch (e) {
+      setMsg(e instanceof Error ? e.message : String(e));
+    }
+  }
+
+  function verifyGithub() {
+    if (!address) return;
+    window.location.href = `/api/attest/github/start?vault=${vault}&payout=${address}`;
+  }
+
+  async function verifyTwitter() {
+    if (!address) return;
+    setMsg("Starting Reclaim…");
+    try {
+      const initRes = await fetch("/api/attest/twitter/init", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ vault, payout: address }),
+      });
+      const { reclaimConfigJson, providerVersion, state } = await initRes.json();
+      const { ReclaimProofRequest } = await import("@reclaimprotocol/js-sdk");
+      const rpr = await ReclaimProofRequest.fromJsonString(reclaimConfigJson);
+      const url = await rpr.getRequestUrl();
+      setQr(url);
+      setMsg("Scan the QR with the Reclaim app to prove your X account.");
+      await rpr.startSession({
+        onSuccess: async (proofs) => {
+          setQr(null);
+          setMsg("Proof received — verifying…");
+          const proof = Array.isArray(proofs) ? proofs[0] : proofs;
+          const vRes = await fetch("/api/attest/twitter/verify", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ proof, providerVersion, state }),
+          });
+          if (!vRes.ok) {
+            setMsg(`Verification failed: ${(await vRes.json()).error}`);
+            return;
+          }
+          const v = await vRes.json();
+          setVoucher({ signature: v.signature, deadline: v.deadline, payout: v.payout });
+          setMsg("Verified. Click Claim to receive your fees.");
+        },
+        onError: (e: unknown) => setMsg(`Reclaim error: ${String(e)}`),
+      });
+    } catch (e) {
+      setMsg(e instanceof Error ? e.message : String(e));
+    }
+  }
+
+  if (!s) return <main className="mx-auto max-w-2xl px-6 py-16 text-neutral-400">Loading vault…</main>;
+
+  const isBound = s.bound !== ZERO;
+  const label = s.identityType === 0 ? "wallet" : s.identityType === 1 ? `github:${s.identityValue}` : `x:${s.identityValue}`;
+
+  return (
+    <main className="mx-auto w-full max-w-2xl px-6 py-16">
+      <Link href="/" className="text-sm text-neutral-500 hover:text-neutral-300">
+        ← all vaults
+      </Link>
+      <h1 className="mt-4 text-2xl font-bold">Claim — {label}</h1>
+      <p className="mt-2 text-sm text-neutral-400">{s.description}</p>
+
+      <div className="mt-6 rounded-lg border border-neutral-800 p-5">
+        <div className="text-3xl font-semibold">{formatEther(s.pending)} ETH</div>
+        <div className="mt-1 text-sm text-neutral-500">
+          pending · {formatEther(s.totalPaid)} ETH paid out{isBound ? ` · bound to ${s.bound}` : ""}
+        </div>
+
+        <div className="mt-5 flex flex-col gap-3">
+          {!isConnected ? (
+            <button
+              onClick={() => connect({ connector: injected() })}
+              className="rounded-md bg-white px-4 py-2 font-medium text-black"
+            >
+              Connect wallet
+            </button>
+          ) : (
+            <>
+              {/* Ya probada la identidad: cualquiera puede empujar los fees a la wallet bound */}
+              {isBound && (
+                <button
+                  onClick={() => sendTx("sweep")}
+                  disabled={isPending || s.pending === 0n}
+                  className="rounded-md bg-emerald-500 px-4 py-2 font-medium text-black disabled:opacity-40"
+                >
+                  Sweep to {s.bound.slice(0, 6)}…{s.bound.slice(-4)}
+                </button>
+              )}
+
+              {/* Social: hay voucher listo -> Claim; si no, verificar */}
+              {!isBound && s.identityType !== 0 && voucher && (
+                <button
+                  onClick={() => sendTx("claimAndBind", [voucher.payout, BigInt(voucher.deadline), voucher.signature])}
+                  disabled={isPending}
+                  className="rounded-md bg-emerald-500 px-4 py-2 font-medium text-black disabled:opacity-40"
+                >
+                  Claim to {voucher.payout.slice(0, 6)}…{voucher.payout.slice(-4)}
+                </button>
+              )}
+              {!isBound && s.identityType === 1 && !voucher && (
+                <button onClick={verifyGithub} className="rounded-md bg-white px-4 py-2 font-medium text-black">
+                  Verify with GitHub
+                </button>
+              )}
+              {!isBound && s.identityType === 2 && !voucher && (
+                <button onClick={verifyTwitter} className="rounded-md bg-white px-4 py-2 font-medium text-black">
+                  Verify with X (Reclaim)
+                </button>
+              )}
+              {!isBound && s.identityType === 0 && (
+                <p className="text-sm text-neutral-500">
+                  This is a wallet vault — its fees can only ever go to {s.bound}. Use Sweep above once it has a balance.
+                </p>
+              )}
+            </>
+          )}
+
+          {qr && (
+            <div className="mt-2 w-fit rounded-md bg-white p-4">
+              <QRCode value={qr} size={180} />
+            </div>
+          )}
+        </div>
+      </div>
+
+      {msg && <p className="mt-4 text-sm text-neutral-300">{msg}</p>}
+      {txHash && (
+        <a
+          href={`https://robinhoodchain.blockscout.com/tx/${txHash}`}
+          target="_blank"
+          rel="noreferrer"
+          className="mt-2 block text-sm text-emerald-400 underline"
+        >
+          view transaction
+        </a>
+      )}
+    </main>
+  );
+}
