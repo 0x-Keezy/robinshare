@@ -43,6 +43,17 @@ El fork test lanza un token real vía el `VaultPortal` de Robinhood Chain y corr
 - **Params válidos del launch (verificados):** `dexThresh = FOUR_FIFTHS (1)`, `migratorType = V2_MIGRATOR (1)`, `dexId = DEX0 (0)`, `lpFeeProfile = LP_FEE_PROFILE_STANDARD (0)`, `tokenVersion = TOKEN_TAXED_V3 (6)`, `quoteToken = address(0)` (ETH nativo), `value = quoteAmt` (dev-buy). Receta piloto: `buyTaxRate/sellTaxRate = 300` (3%), `mktBps = 10000` (100% al escrow), `antiFarmerDuration = 3 days`, `taxDuration = 3153600000` (~100 años).
 - **Enums:** `DexThreshType` vive en `IPortalCommonTypes`; el resto (`MigratorType`, `DEXId`, `V3LPFeeProfile`, `TokenVersion`) en `IPortalTypes`.
 
+## Ruta Twitter/X — XGeneralVerifier oficial de Flap (2026-07-11)
+
+Tras el pitch, el equipo de Flap (GT) nos dio su infra oficial de verificación de X y pidió NO delegar la verificación a un attester externo que pueda drenar el vault (valida nuestro propio review). Integrado:
+
+- **`claimByProof(XGeneralProof, sig)`** en el escrow para identidad **twitter**: chequea (1) el substring == `expectedTweet(msg.sender)` (ata la prueba a esa wallet + este vault), (2) `proof.xHandle == identityValue` (el tweet es del handle FONDEADO — check que el reference impl de Flap NO trae y es imprescindible para fund-a-persona), (3) `IXGeneralVerifier.verify()` (firma del oráculo de Flap), (4) replay por `tweetId` estrictamente creciente (Snowflake). Libera a `msg.sender`.
+- `expectedHandle` / `expectedTweet` para que el dApp arme el tweet exacto (patrón del Gift Vault de Flap: address del claimer + address del vault como tag único; hex lowercase).
+- **`claimAndBind` ahora es GITHUB-only**; twitter usa `claimByProof`; wallet usa `sweep`.
+- El `XGeneralVerifier` es **chain-based** (`SocialFeeEscrowFactory._getXVerifier()`): **BSC mainnet `0xcA8DBE6CAC4BFDc41226b0BaF2359fd99989b3E4`** (verificado: tiene code, `oracleKey()=0xDE3C6ceF1e75e8A7EA6eEd7bf65EE627214F0d87`); **Robinhood 4663: PENDIENTE del deploy de Flap** (hasta entonces devuelve 0 y `claimByProof` revierte; los vaults twitter se pueden crear igual).
+- Tests: matriz completa de `claimByProof` con un mock del verifier (happy, wrong handle, wrong substring, bad sig, replay, wrong type, no verifier). Interfaz confirmada contra el contrato real en BNB.
+- ⚠️ Reemplaza a Reclaim en la ruta X. El **flujo web de twitter** (leer `expectedTweet` → usuario tuitea → `POST` al oráculo de Flap `x-verifier.taxvault.info/prove` → `claimByProof`) es un **follow-up** (la ruta web actual con Reclaim quedó obsoleta para twitter).
+
 ## Seguridad — review adversarial (2026-07-10)
 
 Review multi-lente (4 auditores independientes + síntesis). **Veredicto: robo por tercero IMPOSIBLE** — unánime en los 4 lentes (egress, firma/replay, normalización, receive/reentrancia). El ETH solo sale hacia la wallet que probó la identidad, o al creator vía `recoverUnclaimed` (solo si nunca hubo bind + venció el plazo). Dos hallazgos, ambos resueltos:

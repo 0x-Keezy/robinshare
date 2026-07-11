@@ -57,8 +57,9 @@ contract SocialFeeEscrowFactory is VaultFactoryBaseV2 {
 
         bytes32 identityHash;
         string memory normalized = "";
-        // Attester canonico de la factory para tipos sociales; 0x0 para wallet (no se usa).
-        address vaultAttester = t == 0 ? address(0) : attester;
+        // github → attester canónico de la factory; twitter → XGeneralVerifier oficial de Flap; wallet → ninguno.
+        address vaultAttester = t == 1 ? attester : address(0);
+        address vaultXVerifier = t == 2 ? _getXVerifier() : address(0);
         if (t == 0) {
             require(bytes(rawValue).length == 0, unicode"value must be empty for wallet / wallet 类型不需要句柄");
             require(identityWallet != address(0), unicode"wallet required / 需要钱包地址");
@@ -69,7 +70,9 @@ contract SocialFeeEscrowFactory is VaultFactoryBaseV2 {
         }
 
         vault = address(
-            new SocialFeeEscrow(taxToken, creator, t, normalized, identityWallet, vaultAttester, recoveryAfter)
+            new SocialFeeEscrow(
+                taxToken, creator, t, normalized, identityWallet, vaultAttester, vaultXVerifier, recoveryAfter
+            )
         );
         _vaultsByIdentity[identityHash].push(vault);
         allVaults.push(vault);
@@ -101,6 +104,19 @@ contract SocialFeeEscrowFactory is VaultFactoryBaseV2 {
 
     function isQuoteTokenSupported(address quoteToken) external pure returns (bool) {
         return quoteToken == address(0);
+    }
+
+    /// @notice El XGeneralVerifier oficial de Flap para esta chain (ruta twitter).
+    /// @dev BSC mainnet confirmado por Flap. Robinhood (4663): PENDIENTE de su deploy — hasta
+    ///      entonces devuelve 0 y claimByProof revierte (los vaults twitter se pueden crear igual).
+    function _getXVerifier() internal view returns (address) {
+        if (block.chainid == 56) return 0xcA8DBE6CAC4BFDc41226b0BaF2359fd99989b3E4; // BSC mainnet
+        return address(0); // Robinhood 4663 y otras: setear cuando Flap lo despliegue
+    }
+
+    /// @notice Expuesto para el dApp / verificación: el verifier que usarán los vaults twitter.
+    function xVerifier() external view returns (address) {
+        return _getXVerifier();
     }
 
     function _parseType(string memory s) internal pure returns (uint8) {

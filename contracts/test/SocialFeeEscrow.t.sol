@@ -4,6 +4,7 @@ pragma solidity ^0.8.26;
 import {Test} from "forge-std/Test.sol";
 import {SocialFeeEscrow} from "../src/SocialFeeEscrow.sol";
 import {VaultUISchema} from "../src/flap/IVaultSchemasV1.sol";
+import {IXGeneralVerifier} from "../src/flap/IXGeneralVerifier.sol";
 
 /// Helper que fuerza el stipend de 2300 gas (semántica de transfer())
 contract StipendSender {
@@ -24,7 +25,7 @@ contract SocialFeeEscrowTest is Test {
     }
 
     function _newGithub(uint64 recoveryAfter) internal returns (SocialFeeEscrow) {
-        return new SocialFeeEscrow(taxToken, creator, 1, "torvalds", address(0), attester, recoveryAfter);
+        return new SocialFeeEscrow(taxToken, creator, 1, "torvalds", address(0), attester, address(0), recoveryAfter);
     }
 
     function _sign(SocialFeeEscrow e, address payout, uint256 deadline) internal view returns (bytes memory) {
@@ -49,24 +50,24 @@ contract SocialFeeEscrowTest is Test {
 
     function test_constructor_wallet_bindsImmediately() public {
         address person = address(0xBEEF);
-        SocialFeeEscrow e = new SocialFeeEscrow(taxToken, creator, 0, "", person, address(0), 0);
+        SocialFeeEscrow e = new SocialFeeEscrow(taxToken, creator, 0, "", person, address(0), address(0), 0);
         assertEq(e.boundWallet(), person);
         assertEq(e.identityType(), 0);
     }
 
     function test_constructor_wallet_zeroWallet_reverts() public {
         vm.expectRevert();
-        new SocialFeeEscrow(taxToken, creator, 0, "", address(0), address(0), 0);
+        new SocialFeeEscrow(taxToken, creator, 0, "", address(0), address(0), address(0), 0);
     }
 
     function test_constructor_social_zeroAttester_reverts() public {
         vm.expectRevert();
-        new SocialFeeEscrow(taxToken, creator, 1, "torvalds", address(0), address(0), 0);
+        new SocialFeeEscrow(taxToken, creator, 1, "torvalds", address(0), address(0), address(0), 0);
     }
 
     function test_constructor_badType_reverts() public {
         vm.expectRevert();
-        new SocialFeeEscrow(taxToken, creator, 3, "x", address(0), attester, 0);
+        new SocialFeeEscrow(taxToken, creator, 3, "x", address(0), attester, address(0), 0);
     }
 
     /// INVARIANTE DURA: receive() nunca revierte, ni con stipend 2300.
@@ -178,8 +179,8 @@ contract SocialFeeEscrowTest is Test {
     }
 
     function test_claim_onWalletType_reverts() public {
-        SocialFeeEscrow e = new SocialFeeEscrow(taxToken, creator, 0, "", makeAddr("w"), address(0), 0);
-        vm.expectRevert(bytes(unicode"wallet identity: use sweep / 钱包身份请用 sweep"));
+        SocialFeeEscrow e = new SocialFeeEscrow(taxToken, creator, 0, "", makeAddr("w"), address(0), address(0), 0);
+        vm.expectRevert(bytes(unicode"github identity only / 仅限 github 身份"));
         e.claimAndBind(makeAddr("p"), block.timestamp + 1, hex"00");
     }
 
@@ -200,7 +201,7 @@ contract SocialFeeEscrowTest is Test {
 
     function test_sweep_walletType_pagaDirecto() public {
         address person = makeAddr("person");
-        SocialFeeEscrow e = new SocialFeeEscrow(taxToken, creator, 0, "", person, address(0), 0);
+        SocialFeeEscrow e = new SocialFeeEscrow(taxToken, creator, 0, "", person, address(0), address(0), 0);
         (bool ok,) = address(e).call{value: 1.5 ether}("");
         assertTrue(ok);
         vm.prank(makeAddr("cualquiera")); // permissionless
@@ -217,7 +218,7 @@ contract SocialFeeEscrowTest is Test {
 
     function test_sweep_sinBalance_reverts() public {
         address person = makeAddr("person");
-        SocialFeeEscrow e = new SocialFeeEscrow(taxToken, creator, 0, "", person, address(0), 0);
+        SocialFeeEscrow e = new SocialFeeEscrow(taxToken, creator, 0, "", person, address(0), address(0), 0);
         vm.expectRevert(bytes(unicode"nothing to sweep / 无可领取余额"));
         e.sweep();
     }
@@ -309,6 +310,129 @@ contract SocialFeeEscrowTest is Test {
             if (m) return true;
         }
         return false;
+    }
+
+    // ───────────────────────── Ruta TWITTER: claimByProof (XGeneralVerifier de Flap) ─────────────────────────
+
+    function _newTwitter(address verifier) internal returns (SocialFeeEscrow) {
+        return new SocialFeeEscrow(taxToken, creator, 2, "0xkeezy", address(0), address(0), verifier, 0);
+    }
+
+    function _xproof(SocialFeeEscrow e, address payout, string memory handle, uint128 tweetId)
+        internal
+        view
+        returns (IXGeneralVerifier.XGeneralProof memory)
+    {
+        return IXGeneralVerifier.XGeneralProof({
+            tweetId: tweetId,
+            xHandle: handle,
+            xId: 1,
+            substring: e.expectedTweet(payout)
+        });
+    }
+
+    // NOTA: siempre construir la prueba (_xproof llama e.expectedTweet, una call externa) ANTES
+    // de vm.prank/vm.expectRevert, o el cheat se aplica a expectedTweet y no a claimByProof.
+
+    function test_claimByProof_happyPath() public {
+        MockXVerifier v = new MockXVerifier();
+        SocialFeeEscrow e = _newTwitter(address(v));
+        (bool ok,) = address(e).call{value: 2 ether}("");
+        assertTrue(ok);
+        address payout = makeAddr("keezy-wallet");
+        IXGeneralVerifier.XGeneralProof memory p = _xproof(e, payout, "0xkeezy", 100);
+
+        vm.prank(payout);
+        e.claimByProof(p, hex"aa");
+
+        assertEq(e.boundWallet(), payout);
+        assertEq(payout.balance, 2 ether);
+        assertEq(e.pendingAmount(), 0);
+        assertEq(e.lastTweetId(payout), 100);
+    }
+
+    function test_claimByProof_wrongHandle_reverts() public {
+        MockXVerifier v = new MockXVerifier();
+        SocialFeeEscrow e = _newTwitter(address(v));
+        address payout = makeAddr("p");
+        IXGeneralVerifier.XGeneralProof memory p = _xproof(e, payout, "impostor", 100);
+        vm.prank(payout);
+        vm.expectRevert(bytes(unicode"wrong x handle / X 账号不符"));
+        e.claimByProof(p, hex"aa");
+    }
+
+    function test_claimByProof_wrongSubstring_reverts() public {
+        MockXVerifier v = new MockXVerifier();
+        SocialFeeEscrow e = _newTwitter(address(v));
+        address payout = makeAddr("p");
+        // substring armado para OTRA address -> no matchea expectedTweet(msg.sender)
+        IXGeneralVerifier.XGeneralProof memory p = _xproof(e, makeAddr("otro"), "0xkeezy", 100);
+        vm.prank(payout);
+        vm.expectRevert(bytes(unicode"substring mismatch / substring 不匹配"));
+        e.claimByProof(p, hex"aa");
+    }
+
+    function test_claimByProof_badSignature_reverts() public {
+        MockXVerifier v = new MockXVerifier();
+        v.setResult(false); // el oráculo rechaza
+        SocialFeeEscrow e = _newTwitter(address(v));
+        address payout = makeAddr("p");
+        IXGeneralVerifier.XGeneralProof memory p = _xproof(e, payout, "0xkeezy", 100);
+        vm.prank(payout);
+        vm.expectRevert(bytes(unicode"invalid proof / 证明无效"));
+        e.claimByProof(p, hex"aa");
+    }
+
+    function test_claimByProof_replay_reverts() public {
+        MockXVerifier v = new MockXVerifier();
+        SocialFeeEscrow e = _newTwitter(address(v));
+        address payout = makeAddr("p");
+        IXGeneralVerifier.XGeneralProof memory p = _xproof(e, payout, "0xkeezy", 100);
+        vm.prank(payout);
+        e.claimByProof(p, hex"aa");
+        // mismo (o menor) tweetId -> outdated
+        vm.prank(payout);
+        vm.expectRevert(bytes(unicode"outdated proof / 证明已过期"));
+        e.claimByProof(p, hex"aa");
+    }
+
+    function test_claimByProof_onGithubType_reverts() public {
+        SocialFeeEscrow e = _newGithub(0); // github
+        address payout = makeAddr("p");
+        IXGeneralVerifier.XGeneralProof memory p = _xproof(e, payout, "torvalds", 100);
+        vm.prank(payout);
+        vm.expectRevert(bytes(unicode"twitter identity only / 仅限 twitter 身份"));
+        e.claimByProof(p, hex"aa");
+    }
+
+    function test_claimByProof_noVerifierOnChain_reverts() public {
+        SocialFeeEscrow e = _newTwitter(address(0)); // xVerifier 0 = Flap aun no lo desplego aca
+        address payout = makeAddr("p");
+        IXGeneralVerifier.XGeneralProof memory p = _xproof(e, payout, "0xkeezy", 100);
+        vm.prank(payout);
+        vm.expectRevert(bytes(unicode"x verifier not on this chain yet / 本链暂无 X 验证器"));
+        e.claimByProof(p, hex"aa");
+    }
+
+    function test_expectedHandle_devuelveElFondeado() public {
+        SocialFeeEscrow e = _newTwitter(makeAddr("v"));
+        assertEq(e.expectedHandle(makeAddr("anyone")), "0xkeezy");
+    }
+}
+
+contract MockXVerifier is IXGeneralVerifier {
+    bool public result = true;
+
+    function setResult(bool r) external {
+        result = r;
+    }
+
+    function verify(IXGeneralVerifier.XGeneralProof calldata, bytes calldata) external view returns (bool) {
+        return result;
+    }
+
+    function oracleKey() external pure returns (address) {
+        return address(0);
     }
 }
 
