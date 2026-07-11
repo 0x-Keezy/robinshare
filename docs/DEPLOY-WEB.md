@@ -13,10 +13,9 @@ Con esto, la gente crea tokens en `/create` y reclama en `/claim/<escrow>` **sin
 2. **Authorization callback URL**: `https://<tu-dominio>/api/attest/github/callback` (podés poner primero el de Vercel, luego el dominio propio).
 3. Guardá **Client ID** y generá un **Client Secret**.
 
-## Reclaim App (para X, ~10 min)
+## Twitter/X — sin setup
 
-1. dev.reclaimprotocol.org → creá una app → **APP_ID** + **APP_SECRET**.
-2. Agregá el provider **"Twitter/X username"** (o el de X que exponga tu identidad) → copiá su **PROVIDER_ID**.
+La ruta de X usa el **oráculo público de Flap** (`XGeneralVerifier` + `x-verifier.taxvault.info`). **No hace falta crear ninguna app ni env.** El usuario tuitea un texto exacto, el oráculo lo verifica y firma, y el vault valida on-chain. Solo funciona en chains donde Flap ya desplegó el verifier (BNB sí; Robinhood pendiente de su deploy).
 
 ## Deploy a Vercel
 
@@ -31,7 +30,7 @@ npx vercel --prod     # deploy de produccion
 
 ### Env vars en Vercel (Project → Settings → Environment Variables)
 
-Copiá de `web/.env.example`. **Secretos** (Production, NO exponer): `ATTESTER_PK`, `ATTESTER_STATE_SECRET`, `GITHUB_CLIENT_SECRET`, `RECLAIM_APP_SECRET`. **Públicas**: `NEXT_PUBLIC_FACTORY_ADDRESS`, `NEXT_PUBLIC_RPC_URL`. Y: `GITHUB_CLIENT_ID`, `RECLAIM_APP_ID`, `RECLAIM_PROVIDER_ID_TWITTER`, `APP_BASE_URL=https://<tu-dominio>`.
+Copiá de `web/.env.example`. **Secretos** (Production, NO exponer): `ATTESTER_PK` (solo para la ruta github), `ATTESTER_STATE_SECRET`, `GITHUB_CLIENT_SECRET`. **Públicas**: `NEXT_PUBLIC_FACTORY_ADDRESS`, `NEXT_PUBLIC_RPC_URL`. Y: `GITHUB_CLIENT_ID`, `APP_BASE_URL=https://<tu-dominio>`. (Twitter no requiere env.)
 
 `ATTESTER_STATE_SECRET`: generá uno con `openssl rand -hex 32`.
 
@@ -40,7 +39,7 @@ Copiá de `web/.env.example`. **Secretos** (Production, NO exponer): `ATTESTER_P
 ```bash
 curl https://<tu-dominio>/api/health
 ```
-Debe devolver `{"ok": true, ...}` con **`attesterMatches: true`**. Si da `false`, el `ATTESTER_PK` no corresponde al attester de la factory → arreglá la key (o redesplegá factory). Chequeá también que `env.githubOAuth` y `env.reclaim` sean `true`.
+Debe devolver `{"ok": true, ...}` con **`attesterMatches: true`**. Si da `false`, el `ATTESTER_PK` no corresponde al attester de la factory → arreglá la key (o redesplegá factory). Chequeá también que `env.githubOAuth` sea `true` (twitter no necesita env).
 
 Después: `https://<tu-dominio>/create` (lanzá un token de prueba a tu github) → `https://<tu-dominio>/claim/<escrow>` → **Verify with GitHub** → claim sin firmar a mano.
 

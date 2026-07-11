@@ -34,6 +34,33 @@ export const escrowAbi = [
     outputs: [],
   },
   { type: "function", name: "sweep", stateMutability: "nonpayable", inputs: [], outputs: [] },
+  { type: "function", name: "xVerifier", stateMutability: "view", inputs: [], outputs: [{ type: "address" }] },
+  {
+    type: "function",
+    name: "expectedTweet",
+    stateMutability: "view",
+    inputs: [{ name: "beneficiary", type: "address" }],
+    outputs: [{ type: "string" }],
+  },
+  {
+    type: "function",
+    name: "claimByProof",
+    stateMutability: "nonpayable",
+    inputs: [
+      {
+        name: "proof",
+        type: "tuple",
+        components: [
+          { name: "tweetId", type: "uint128" },
+          { name: "xHandle", type: "string" },
+          { name: "xId", type: "uint128" },
+          { name: "substring", type: "string" },
+        ],
+      },
+      { name: "signature", type: "bytes" },
+    ],
+    outputs: [],
+  },
 ] as const;
 
 export const factoryAbi = [

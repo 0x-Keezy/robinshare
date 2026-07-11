@@ -8,7 +8,7 @@ El escrow on-chain es agnóstico a la identidad: solo verifica UNA firma. El att
 
 - **wallet**: sin attester, la wallet ya está bindeada al crear el token → `sweep()`.
 - **github**: OAuth (`/api/attest/github/start` → GitHub → `/callback`) confirma que el login == la identidad del vault → firma voucher.
-- **twitter/X**: prueba zkTLS de Reclaim (`/api/attest/twitter/init` + `/verify`) confirma el username → firma voucher.
+- **twitter/X**: oráculo oficial de Flap `XGeneralVerifier` — el usuario tuitea el texto de `expectedTweet`, `/api/x-prove` pide la prueba firmada al oráculo de Flap, y el vault la valida on-chain con `claimByProof`. Sin env, sin Reclaim.
 
 Regla dura: el attester **lee `identityType`/`identityValue`/`bindDigest` del vault on-chain**, nunca confía en datos del cliente.
 
@@ -36,4 +36,4 @@ npm run build
 
 - `ATTESTER_PK` es una **wallet dedicada NUEVA, sin fondos**, que solo firma vouchers. Su address se pasa al desplegar la **factory** como attester canónico (los escrows no lo dejan elegir al creator — ver review en `contracts/README.md`).
 - Riesgo aceptado v1: si la key del attester se compromete, un atacante puede re-bindear los vaults de esa factory. Mitigación: key en env de Vercel (no reusar), montos de piloto. v2: threshold/multi-attester o verifier de Reclaim on-chain.
-- `scripts/attest-manual.mjs`: escape hatch si GitHub/Reclaim se caen (verificación humana fuera de banda, misma key). Documentado como centralizado.
+- `scripts/attest-manual.mjs`: escape hatch de la ruta github si el OAuth se cae (verificación humana fuera de banda, misma key). Documentado como centralizado.

@@ -28,15 +28,8 @@ vi.mock("@/lib/chain", () => ({
 vi.mock("@/lib/attester", () => ({
   signBindVoucher: vi.fn(async () => ({ signature: "0xVOUCHER", deadline: "9999999999" })),
 }));
-const mockVerifyProof = vi.fn();
-vi.mock("@reclaimprotocol/js-sdk", () => ({
-  ReclaimProofRequest: {},
-  verifyProof: (...a: unknown[]) => mockVerifyProof(...a),
-}));
-
 const { encodeState } = await import("@/lib/state");
 const ghCallback = (await import("@/app/api/attest/github/callback/route")).GET;
-const twVerify = (await import("@/app/api/attest/twitter/verify/route")).POST;
 
 beforeEach(() => {
   mockType = 1;
@@ -73,41 +66,5 @@ describe("github callback", () => {
   it("state invalido -> 400", async () => {
     const res = await ghCallback(new NextRequest(`https://fledge.test/cb?code=abc&state=garbage`));
     expect(res.status).toBe(400);
-  });
-});
-
-describe("twitter verify", () => {
-  const post = (body: unknown) =>
-    new NextRequest("https://fledge.test/api/attest/twitter/verify", {
-      method: "POST",
-      body: JSON.stringify(body),
-    });
-
-  it("proof valido + username matchea -> 200 con voucher", async () => {
-    mockType = 2;
-    mockValue = "0xkeezy";
-    mockVerifyProof.mockResolvedValue({ isVerified: true, data: [{ extractedParameters: { username: "0xKeezy" } }] });
-    const st = encodeState({ vault: VAULT as `0x${string}`, payout: PAYOUT as `0x${string}` });
-    const res = await twVerify(post({ proof: { x: 1 }, providerVersion: { providerId: "p" }, state: st }));
-    expect(res.status).toBe(200);
-    const j = await res.json();
-    expect(j.signature).toBe("0xVOUCHER");
-  });
-
-  it("proof invalido -> 403", async () => {
-    mockType = 2;
-    mockVerifyProof.mockResolvedValue({ isVerified: false, error: "bad" });
-    const st = encodeState({ vault: VAULT as `0x${string}`, payout: PAYOUT as `0x${string}` });
-    const res = await twVerify(post({ proof: { x: 1 }, state: st }));
-    expect(res.status).toBe(403);
-  });
-
-  it("username ajeno -> 403", async () => {
-    mockType = 2;
-    mockValue = "0xkeezy";
-    mockVerifyProof.mockResolvedValue({ isVerified: true, data: [{ extractedParameters: { username: "impostor" } }] });
-    const st = encodeState({ vault: VAULT as `0x${string}`, payout: PAYOUT as `0x${string}` });
-    const res = await twVerify(post({ proof: { x: 1 }, state: st }));
-    expect(res.status).toBe(403);
   });
 });

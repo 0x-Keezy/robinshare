@@ -52,7 +52,7 @@ export async function GET() {
 
   checks.env = {
     githubOAuth: !!process.env.GITHUB_CLIENT_ID && !!process.env.GITHUB_CLIENT_SECRET,
-    reclaim: !!process.env.RECLAIM_APP_ID && !!process.env.RECLAIM_APP_SECRET && !!process.env.RECLAIM_PROVIDER_ID_TWITTER,
+    // Twitter usa el oráculo PÚBLICO de Flap (XGeneralVerifier) → no requiere env.
     stateSecret: !!process.env.ATTESTER_STATE_SECRET,
     appBaseUrl: process.env.APP_BASE_URL ?? "MISSING",
   };

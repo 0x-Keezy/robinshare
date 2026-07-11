@@ -2,7 +2,6 @@
 
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
-import QRCode from "react-qr-code";
 import { formatEther, type Address, type Hex } from "viem";
 import { useAccount, useConnect, useWriteContract } from "wagmi";
 import { injected } from "wagmi/connectors";
@@ -29,7 +28,8 @@ export function ClaimClient({ vault }: { vault: Address }) {
 
   const [s, setS] = useState<State | null>(null);
   const [voucher, setVoucher] = useState<Voucher | null>(null);
-  const [qr, setQr] = useState<string | null>(null);
+  const [tweetText, setTweetText] = useState<string | null>(null); // ruta X: el texto exacto a tuitear
+  const [tweetUrl, setTweetUrl] = useState("");
   const [msg, setMsg] = useState<string | null>(null);
   const [txHash, setTxHash] = useState<Hex | null>(null);
 
@@ -52,9 +52,26 @@ export function ClaimClient({ vault }: { vault: Address }) {
     });
   }, [vault]);
 
+  // Ruta X (XGeneralVerifier de Flap): lee el texto exacto a tuitear para la wallet conectada.
+  const loadTweetText = useCallback(async () => {
+    if (!address) return;
+    const t = await publicClient.readContract({
+      address: vault,
+      abi: escrowAbi,
+      functionName: "expectedTweet",
+      args: [address],
+    });
+    setTweetText(t as string);
+  }, [address, vault]);
+
   useEffect(() => {
     refresh().catch((e) => setMsg(String(e)));
   }, [refresh]);
+
+  // ruta X: al conectar en un vault twitter, cargar el texto exacto a tuitear
+  useEffect(() => {
+    if (s?.identityType === 2 && isConnected) loadTweetText().catch(() => {});
+  }, [s?.identityType, isConnected, loadTweetText]);
 
   // voucher de retorno del OAuth de GitHub (viene en el fragment #)
   useEffect(() => {
@@ -69,7 +86,7 @@ export function ClaimClient({ vault }: { vault: Address }) {
     }
   }, []);
 
-  async function sendTx(fn: "sweep" | "claimAndBind", args: readonly unknown[] = []) {
+  async function sendTx(fn: "sweep" | "claimAndBind" | "claimByProof", args: readonly unknown[] = []) {
     setMsg(null);
     try {
       const hash = await writeContractAsync({ address: vault, abi: escrowAbi, functionName: fn, args } as never);
@@ -89,41 +106,27 @@ export function ClaimClient({ vault }: { vault: Address }) {
     window.location.href = `/api/attest/github/start?vault=${vault}&payout=${address}`;
   }
 
-  async function verifyTwitter() {
-    if (!address) return;
-    setMsg("Starting Reclaim…");
+  async function proveAndClaimTwitter() {
+    if (!address || !tweetText || !tweetUrl) return;
+    setMsg("Asking Flap's oracle to verify your tweet…");
     try {
-      const initRes = await fetch("/api/attest/twitter/init", {
+      const res = await fetch("/api/x-prove", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ vault, payout: address }),
+        body: JSON.stringify({ tweetUrl, substring: tweetText }),
       });
-      const { reclaimConfigJson, providerVersion, state } = await initRes.json();
-      const { ReclaimProofRequest } = await import("@reclaimprotocol/js-sdk");
-      const rpr = await ReclaimProofRequest.fromJsonString(reclaimConfigJson);
-      const url = await rpr.getRequestUrl();
-      setQr(url);
-      setMsg("Scan the QR with the Reclaim app to prove your X account.");
-      await rpr.startSession({
-        onSuccess: async (proofs) => {
-          setQr(null);
-          setMsg("Proof received — verifying…");
-          const proof = Array.isArray(proofs) ? proofs[0] : proofs;
-          const vRes = await fetch("/api/attest/twitter/verify", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ proof, providerVersion, state }),
-          });
-          if (!vRes.ok) {
-            setMsg(`Verification failed: ${(await vRes.json()).error}`);
-            return;
-          }
-          const v = await vRes.json();
-          setVoucher({ signature: v.signature, deadline: v.deadline, payout: v.payout });
-          setMsg("Verified. Click Claim to receive your fees.");
-        },
-        onError: (e: unknown) => setMsg(`Reclaim error: ${String(e)}`),
-      });
+      const p = await res.json();
+      if (!res.ok || !p.signature) {
+        setMsg(`Verification failed: ${p.error ?? "oracle rejected the tweet"}`);
+        return;
+      }
+      const proof = {
+        tweetId: BigInt(p.tweet_id),
+        xHandle: p.x_handle as string,
+        xId: BigInt(p.x_id),
+        substring: p.substring as string,
+      };
+      await sendTx("claimByProof", [proof, p.signature]);
     } catch (e) {
       setMsg(e instanceof Error ? e.message : String(e));
     }
@@ -184,10 +187,47 @@ export function ClaimClient({ vault }: { vault: Address }) {
                   Verify with GitHub
                 </button>
               )}
-              {!isBound && s.identityType === 2 && !voucher && (
-                <button onClick={verifyTwitter} className="rounded-md bg-white px-4 py-2 font-medium text-black">
-                  Verify with X (Reclaim)
-                </button>
+              {!isBound && s.identityType === 2 && (
+                <div className="flex flex-col gap-2">
+                  <p className="text-sm text-neutral-400">
+                    Post this exact text on X from{" "}
+                    <span className="text-neutral-200">@{s.identityValue}</span>, then paste the tweet link. Flap&apos;s
+                    oracle verifies it and the fees are released to your connected wallet.
+                  </p>
+                  <div className="rounded-md border border-neutral-800 bg-neutral-950 p-3 font-mono text-xs text-neutral-300 break-all">
+                    {tweetText ?? "loading tweet text…"}
+                  </div>
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => tweetText && navigator.clipboard.writeText(tweetText)}
+                      disabled={!tweetText}
+                      className="rounded-md border border-neutral-700 px-3 py-2 text-sm text-neutral-200 disabled:opacity-40"
+                    >
+                      Copy
+                    </button>
+                    <a
+                      href={`https://x.com/intent/tweet?text=${encodeURIComponent(tweetText ?? "")}`}
+                      target="_blank"
+                      rel="noreferrer"
+                      className={`rounded-md border border-neutral-700 px-3 py-2 text-sm text-neutral-200 ${tweetText ? "" : "pointer-events-none opacity-40"}`}
+                    >
+                      Open X
+                    </a>
+                  </div>
+                  <input
+                    value={tweetUrl}
+                    onChange={(e) => setTweetUrl(e.target.value)}
+                    placeholder="paste the tweet link (x.com/…/status/…)"
+                    className="rounded-md border border-neutral-700 bg-neutral-900 px-3 py-2 text-sm"
+                  />
+                  <button
+                    onClick={proveAndClaimTwitter}
+                    disabled={isPending || !tweetText || !tweetUrl}
+                    className="rounded-md bg-emerald-500 px-4 py-2 font-medium text-black disabled:opacity-40"
+                  >
+                    Verify tweet & claim
+                  </button>
+                </div>
               )}
               {!isBound && s.identityType === 0 && (
                 <p className="text-sm text-neutral-500">
@@ -195,12 +235,6 @@ export function ClaimClient({ vault }: { vault: Address }) {
                 </p>
               )}
             </>
-          )}
-
-          {qr && (
-            <div className="mt-2 w-fit rounded-md bg-white p-4">
-              <QRCode value={qr} size={180} />
-            </div>
           )}
         </div>
       </div>
