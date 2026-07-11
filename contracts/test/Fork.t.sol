@@ -7,6 +7,7 @@ import {SocialFeeEscrow} from "../src/SocialFeeEscrow.sol";
 import {IVaultPortal, IVaultPortalTypes} from "../src/flap/IVaultPortal.sol";
 import {IPortalTypes, IPortalCommonTypes} from "../src/flap/IPortal.sol";
 import {RobinhoodAddresses} from "../src/flap/RobinhoodAddresses.sol";
+import {VaultUISchema} from "../src/flap/IVaultSchemasV1.sol";
 
 /// Corre SOLO con: forge test --match-contract ForkTest --fork-url robinhood -vvv
 ///
@@ -118,18 +119,36 @@ contract ForkTest is Test {
         SocialFeeEscrow escrow = SocialFeeEscrow(payable(vaults[0]));
         assertEq(escrow.taxToken(), token, "el taxToken predicho debe coincidir con el token real");
 
-        // simular dispatch del TaxProcessor: ETH nativo directo al escrow
+        // description() y vaultUISchema() (categorias de la guia de integration test de Flap)
+        string memory descBefore = escrow.description();
+        assertGt(bytes(descBefore).length, 0, "description no vacia");
+        VaultUISchema memory schema = escrow.vaultUISchema();
+        assertEq(schema.vaultType, "SocialFeeEscrow");
+        assertEq(schema.methods.length, 4, "4 metodos en el schema");
+
+        // receive() bajo 1M de gas (Rule 005), en el estado real de RH
         vm.deal(address(this), 1 ether);
+        uint256 gasBefore = gasleft();
         (bool ok,) = address(escrow).call{value: 0.3 ether}("");
+        uint256 gasUsed = gasBefore - gasleft();
         assertTrue(ok);
+        assertLe(gasUsed, 1_000_000, "receive() supera 1M de gas");
         assertEq(escrow.pendingAmount(), 0.3 ether);
 
-        // claim completo en fork
+        // claim github (voucher del attester) — libera al payout
         address payout = makeAddr("keezy-payout");
         uint256 deadline = block.timestamp + 15 minutes;
         (uint8 v, bytes32 r, bytes32 s) = vm.sign(ATTESTER_PK, escrow.bindDigest(payout, deadline));
         escrow.claimAndBind(payout, deadline, abi.encodePacked(r, s, v));
         assertEq(payout.balance, 0.3 ether);
-        console2.log("E2E fork OK: launch -> tax -> claim");
+        assertEq(escrow.boundWallet(), payout);
+        assertTrue(keccak256(bytes(escrow.description())) != keccak256(bytes(descBefore)), "description cambia con el estado");
+
+        // fees nuevos post-bind se cobran con sweep (permissionless)
+        (bool ok2,) = address(escrow).call{value: 0.1 ether}("");
+        assertTrue(ok2);
+        escrow.sweep();
+        assertEq(payout.balance, 0.4 ether);
+        console2.log("E2E fork OK: launch -> tax -> claim(github) -> sweep, + receive<1M + schema/description");
     }
 }

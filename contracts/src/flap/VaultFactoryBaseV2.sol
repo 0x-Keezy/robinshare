@@ -376,6 +376,9 @@ abstract contract VaultFactoryBaseV2 is IVaultFactory, IVaultFactoryValidationV2
         } else if (chainId == 97) {
             // BNB Testnet VaultPortal address
             return 0x027e3704fC5C16522e9393d04C60A3ac5c0d775f;
+        } else if (chainId == 4663) {
+            // Robinhood Chain VaultPortal (flap-sh/FlapVaultExample commit 3b7689d8)
+            return 0xe9F7AB7DE8FB8756acbB6a1cd13316a43308197B;
         }
         revert UnsupportedChain(chainId);
     }

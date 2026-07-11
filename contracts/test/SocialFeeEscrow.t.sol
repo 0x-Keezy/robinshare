@@ -92,6 +92,17 @@ contract SocialFeeEscrowTest is Test {
         assertTrue(ok);
     }
 
+    /// @dev Rule 005 de Flap: receive() debe quedar bajo 1M de gas (guia de integration test).
+    function testReceiveGasUnder1M() public {
+        SocialFeeEscrow e = _newGithub(0);
+        vm.deal(address(this), 1 ether);
+        uint256 gasBefore = gasleft();
+        (bool ok,) = address(e).call{value: 1 ether}("");
+        uint256 gasUsed = gasBefore - gasleft();
+        assertTrue(ok);
+        assertLe(gasUsed, 1_000_000, "receive() exceeds 1M gas limit");
+    }
+
     // ───────────────────────── Task 3: bindDigest + claimAndBind ─────────────────────────
 
     function test_claimAndBind_paysAndBinds() public {

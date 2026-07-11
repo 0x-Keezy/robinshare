@@ -13,7 +13,8 @@ library RobinhoodAddresses {
     address internal constant AAPL = 0xaF3D76f1834A1d425780943C99Ea8A608f8a93f9;
     address internal constant FEED_AAPL_USD = 0x6B22A786bAa607d76728168703a39Ea9C99f2cD0;
     address internal constant FEED_ETH_USD = 0x78F3556b67E17Df817D51Ef5a990cDaF09E8d3A9;
-    /// @dev PLACEHOLDER — resolve with the Flap team BEFORE any real deploy.
-    ///      0xdEaD deliberately fails the deploy-script gate.
-    address internal constant GUARDIAN = 0x000000000000000000000000000000000000dEaD;
+    /// @dev Guardian OFICIAL de Robinhood Chain, del commit 3b7689d8 de flap-sh/FlapVaultExample
+    ///      ("add support for Robinhood Chain"). Resuelve el placeholder histórico.
+    ///      FLEDGE no tiene funciones privilegiadas, así que no lo usa; queda por referencia/correctitud.
+    address internal constant GUARDIAN = 0x0000b48720d3B4ED6BC5031768B07F2b59270000;
 }

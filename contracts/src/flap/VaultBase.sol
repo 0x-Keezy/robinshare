@@ -74,6 +74,9 @@ abstract contract VaultBase {
         } else if (chainId == 97) {
             // BNB Testnet Portal
             return 0x5bEacaF7ABCbB3aB280e80D007FD31fcE26510e9;
+        } else if (chainId == 4663) {
+            // Robinhood Chain Portal (flap-sh/FlapVaultExample commit 3b7689d8)
+            return 0x26605f322f7fF986f381bB9A6e3f5DAb0bEaEb09;
         }
         revert UnsupportedChain(chainId);
     }

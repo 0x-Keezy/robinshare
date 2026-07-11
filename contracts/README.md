@@ -61,6 +61,15 @@ Review multi-lente (4 auditores independientes + síntesis). **Veredicto: robo p
 - **[important] Attester elegible por el creator → RESUELTO.** En el diseño original el creator pasaba el `attester` en `vaultData`, así que un creator malicioso podía nombrar su propia key, auto-firmarse un voucher y bindear su wallet — rugueando los fees mientras el token decía "para @torvalds". No era robo por tercero (el destino era el propio creator), pero rompía la garantía marketeada. **Fix:** el `attester` ahora es **canónico de la factory** (arg del constructor `SocialFeeEscrowFactory(vaultPortal, attester)`), se inyecta en TODO escrow social, y el creator **no puede elegirlo**. `vaultData` bajó de 5 a 4 campos (sin attester). Quien quiera otro oráculo despliega su propia factory.
 - **[minor] TYPE_WALLET con boundWallet que revierte en receive → fondos trabados (documentado).** Si el creator fija como `identityWallet` un contrato que revierte al recibir ETH, `sweep()` revierte para siempre y `recoverUnclaimed` no aplica (ya hay bind). Es **stuck, no robo** (invariante #1 intacta), y auto-infligido (el creator eligió esa wallet). NO se agrega un check `code.length==0` porque rechazaría multisigs/Safe legítimas. Para tipos sociales no aplica: se re-bindea a otra wallet con un voucher fresco.
 
+## Badge verificado de Flap — estado (2026-07-11)
+
+GT indicó el path: Flap revisa el código + nosotros agregamos integration tests para RH; la info está en `flap-sh/FlapVaultExample` (spec-checker oficial + rule 006 + integration-test-guide).
+
+- **Guardian REAL de Robinhood desbloqueado:** del commit `3b7689d8` de FlapVaultExample → `0x0000b48720d3B4ED6BC5031768B07F2b59270000` (resuelve el placeholder `0xdEaD` histórico). Agregadas las ramas 4663 a `_getPortal`/`_getVaultPortal`/`_getGuardian` de los base contracts. FLEDGE no tiene funciones privilegiadas → las reglas de Guardian (006/009) se satisfacen por vacuidad.
+- **Cobertura rule 006 (integration tests):** ya cubierta — writes happy+revert (claimAndBind/sweep/recoverUnclaimed/claimByProof), views (pendingAmount/boundWallet), `description()` cambia con el estado, `vaultUISchema()` (count + isWriteMethod), `vaultDataSchema()` de la factory, `newVault()` portal-only + revert desde no-portal, y `testReceiveGasUnder1M` (Rule 005). Total **52 tests**.
+- **Integration test para RH:** `Fork.t.sol` lanza un token real vía el VaultPortal de RH y corre launch → tax → claim(github) → sweep + receive<1M + schema/description contra el estado real de la chain.
+- Pendiente para el badge oficial: correr el spec-checker de FlapVaultExample como gate final + pasarle a Flap el standard-json-input + addresses cuando deployemos.
+
 ## Deploy
 
 ```bash
