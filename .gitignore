@@ -11,3 +11,5 @@ node_modules/
 contracts/node_modules/
 contracts/package.json
 contracts/package-lock.json
+
+web/scripts/_shot.mjs
