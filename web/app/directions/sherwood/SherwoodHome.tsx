@@ -7,6 +7,7 @@ import { Instrument_Serif, Instrument_Sans, IBM_Plex_Mono } from "next/font/goog
 import { Reveal } from "@/components/Reveal";
 import { useVaultLookup } from "@/lib/useVaultLookup";
 import { useScrollSync } from "@/lib/scrollProgress";
+import { useHideNav } from "@/lib/useHideNav";
 
 const SherwoodScene = dynamic(() => import("./SherwoodScene"), { ssr: false });
 
@@ -136,6 +137,7 @@ function Preloader({ onReveal, onDone, reduce }: { onReveal: () => void; onDone:
 
 export function SherwoodHome() {
   useScrollSync();
+  const navHidden = useHideNav();
   const reduce = useReducedMotion();
   const { type, setType, value, setValue, rows, error, loading, lookup } = useVaultLookup();
   const [revealed, setRevealed] = useState(false);
@@ -157,8 +159,11 @@ export function SherwoodHome() {
 
       {/* nav — scrim superior para que el contenido que pasa por debajo no choque */}
       <nav
-        className="fixed inset-x-0 top-0 z-20"
-        style={{ background: "linear-gradient(to bottom, rgba(2,6,4,0.88) 20%, transparent)" }}
+        className="fixed inset-x-0 top-0 z-20 transition-transform duration-300"
+        style={{
+          background: "linear-gradient(to bottom, rgba(2,6,4,0.96) 0%, rgba(2,6,4,0.75) 55%, transparent)",
+          transform: navHidden ? "translateY(-100%)" : "none",
+        }}
       >
         <div className="mx-auto flex max-w-6xl items-center justify-between px-6 py-5">
           <div className={`flex items-center gap-2 ${inCls(500)}`}>
@@ -191,7 +196,7 @@ export function SherwoodHome() {
               aria-hidden
               className="pointer-events-none absolute left-0 top-0 h-[110vh] w-full"
               style={{
-                background: "radial-gradient(90% 62% at 34% 46%, rgba(3,8,5,0.62), transparent 72%)",
+                background: "radial-gradient(92% 64% at 34% 46%, rgba(3,8,5,0.72), transparent 74%)",
               }}
             />
             <div className="relative max-w-3xl">
@@ -254,7 +259,7 @@ export function SherwoodHome() {
               aria-hidden
               className="pointer-events-none absolute inset-x-0 top-0 h-full"
               style={{
-                background: "radial-gradient(80% 55% at 50% 42%, rgba(3,8,5,0.68), transparent 78%)",
+                background: "radial-gradient(88% 60% at 50% 42%, rgba(3,8,5,0.82), transparent 84%)",
               }}
             />
             <div className="relative">
@@ -319,7 +324,7 @@ export function SherwoodHome() {
               <div
                 aria-hidden
                 className="pointer-events-none absolute -inset-x-16 -inset-y-20"
-                style={{ background: "radial-gradient(80% 70% at 40% 50%, rgba(3,8,5,0.62), transparent 75%)" }}
+                style={{ background: "radial-gradient(84% 74% at 40% 50%, rgba(3,8,5,0.74), transparent 78%)" }}
               />
               <div className="relative">
                 <Reveal>

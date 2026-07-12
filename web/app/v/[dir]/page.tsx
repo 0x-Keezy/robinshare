@@ -3,11 +3,13 @@ import { SkyHome } from "../../directions/sky/SkyHome";
 import { NestHome } from "../../directions/nest/NestHome";
 import { AvionHome } from "../../directions/avion/AvionHome";
 import { SherwoodHome } from "../../directions/sherwood/SherwoodHome";
+import { LegendHome } from "../../directions/legend/LegendHome";
 
-// Preview de TODAS las direcciones en un solo dev server: /v/sherwood, /v/sky, /v/nest…
+// Preview de TODAS las direcciones en un solo dev server: /v/sherwood, /v/legend, /v/sky…
 // (prod sigue eligiendo por NEXT_PUBLIC_DIRECTION en app/page.tsx)
 const DIRS: Record<string, React.ComponentType> = {
   sherwood: SherwoodHome,
+  legend: LegendHome,
   sky: SkyHome,
   nest: NestHome,
   avion: AvionHome,

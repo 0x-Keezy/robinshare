@@ -81,24 +81,43 @@ function useColumnAlpha() {
 function Trunks() {
   const trunks = useMemo(() => {
     const rand = mulberry32(20260712);
-    const out: { pos: [number, number, number]; r: number; tilt: number }[] = [];
-    for (let i = 0; i < 130; i++) {
+    const out: { pos: [number, number, number]; r: number; h: number; tilt: number; yaw: number }[] = [];
+    for (let i = 0; i < 190; i++) {
       const side = i % 2 === 0 ? -1 : 1;
       // pasillo central despejado (|x| >= 2.7) para el viaje de cámara
-      const x = side * (2.7 + rand() * 14);
-      const z = 16 - rand() * 54; // 16 .. -38
-      const r = 0.75 + rand() * 1.9;
-      out.push({ pos: [x, 12.5, z], r, tilt: (rand() - 0.5) * 0.06 });
+      const x = side * (2.7 + rand() * 15);
+      const z = 16 - rand() * 56; // 16 .. -40
+      const r = 0.65 + rand() * 2.1;
+      out.push({
+        pos: [x, 12.5, z],
+        r,
+        h: 0.85 + rand() * 0.35, // alturas irregulares (el dosel se pierde en la niebla)
+        tilt: (rand() - 0.5) * 0.09,
+        yaw: rand() * Math.PI * 2, // rotación por instancia: las facetas del 7-gon varían
+      });
     }
+    // repoussoir: troncos de PRIMER PLANO a la izquierda — el hemisferio del texto
+    // deja de ser void y gana profundidad (silhouettes oscuras, no compiten con el copy)
+    out.push(
+      { pos: [-6.5, 12.5, 15], r: 3.2, h: 1.1, tilt: 0.03, yaw: 1.2 },
+      { pos: [-9.8, 12.5, 11], r: 2.6, h: 1.05, tilt: -0.04, yaw: 2.8 },
+      { pos: [-13.5, 12.5, 13.5], r: 3.6, h: 1.15, tilt: 0.02, yaw: 4.4 },
+    );
     return out;
   }, []);
 
   return (
-    <Instances limit={140} frustumCulled={false}>
-      <cylinderGeometry args={[0.13, 0.21, 26, 7]} />
+    <Instances limit={200} frustumCulled={false}>
+      {/* taper marcado (base ancha → copa fina): silueta de tronco, no slab */}
+      <cylinderGeometry args={[0.08, 0.27, 26, 7]} />
       <meshStandardMaterial color="#1a2c20" roughness={0.88} metalness={0.05} />
       {trunks.map((t, i) => (
-        <Instance key={i} position={t.pos} scale={[t.r, 1, t.r]} rotation={[t.tilt, 0, t.tilt * 0.7]} />
+        <Instance
+          key={i}
+          position={t.pos}
+          scale={[t.r, t.h, t.r]}
+          rotation={[t.tilt, t.yaw, t.tilt * 0.7]}
+        />
       ))}
     </Instances>
   );
@@ -114,8 +133,9 @@ function Gate() {
           NO puede tragarse el destino — es el hook de perspectiva a un punto) */}
       <mesh position={[0, 9.5, 0]}>
         <planeGeometry args={[1.0, 21]} />
+        {/* core tintado (no blanco puro): lo más brillante sigue siendo VERDE */}
         <meshBasicMaterial
-          color={new THREE.Color(0.35, 5.6, 1.3)}
+          color={new THREE.Color(0.22, 4.4, 0.95)}
           alphaMap={alpha}
           transparent
           toneMapped={false}
@@ -256,7 +276,9 @@ function GoldSparks({ reduce }: { reduce: boolean }) {
   useFrame((_, delta) => {
     if (!ref.current) return;
     const p = Scroll.progress;
-    const intensity = clamp01((p - 0.1) / 0.35);
+    // el oro CRECE hacia el claim (payoff dorado del ledger, no verde parejo)
+    const late = clamp01((p - 0.55) / 0.2);
+    const intensity = Math.min(1, clamp01((p - 0.1) / 0.35) * 0.7 + late * 0.55);
     const a = ref.current.geometry.attributes.position.array as Float32Array;
     if (!reduce) {
       const drive = 0.25 + intensity * 1.6;
@@ -300,37 +322,58 @@ function Arrow({ reduce }: { reduce: boolean }) {
   const flight = useRef<THREE.Group>(null);
   const rest = useRef<THREE.Group>(null);
   const ring = useRef<THREE.Mesh>(null);
+  // el hover del hero ES el primer punto de la curva: la flecha que ves apuntando
+  // en el claro es la misma que después vuela (continuidad narrativa)
+  const HOVER = useMemo(() => new THREE.Vector3(4.8, 3.6, 9), []);
   const curve = useMemo(
     () =>
       new THREE.CatmullRomCurve3([
-        new THREE.Vector3(-11, 6.2, 8),
-        new THREE.Vector3(-5, 4.6, -6),
-        new THREE.Vector3(1.4, 3.6, -19),
+        HOVER.clone(),
+        new THREE.Vector3(1.4, 5.0, -3),
+        new THREE.Vector3(-2.6, 4.4, -17),
         new THREE.Vector3(0, 3.1, GATE_Z + 1.1),
       ]),
-    [],
+    [HOVER],
   );
   const tmp = useMemo(() => new THREE.Vector3(), []);
 
-  useFrame(() => {
+  useFrame(({ clock }) => {
     const p = Scroll.progress;
     const t = reduce ? 1 : clamp01((p - ARROW_START) / (ARROW_END - ARROW_START));
     const ip = clamp01((p - ARROW_END) / (IMPACT_END - ARROW_END));
+    const time = clock.elapsedTime;
 
     if (flight.current) {
-      const flying = t > 0.001 && t < 0.999 && !reduce;
+      const flying = t < 0.999 && !reduce;
       flight.current.visible = flying;
       if (flying) {
-        const e = easeInOut(t);
-        const pos = curve.getPointAt(e * 0.999);
-        flight.current.position.copy(pos);
-        const tan = curve.getTangentAt(Math.min(0.999, e));
-        flight.current.lookAt(tmp.copy(pos).add(tan));
+        if (t <= 0.001) {
+          // NOCKED: flota en el claro esperando el scroll. La mira se exagera en
+          // diagonal (cheat cinematográfico) para que la silueta se LEA de perfil,
+          // no de cola (una flecha vista desde atrás es un punto).
+          flight.current.position.set(
+            HOVER.x,
+            HOVER.y + Math.sin(time * 0.9) * 0.12,
+            HOVER.z,
+          );
+          flight.current.lookAt(-16, 6.5, -14);
+        } else {
+          const e = easeInOut(t);
+          const pos = curve.getPointAt(e * 0.999);
+          flight.current.position.copy(pos);
+          const tan = curve.getTangentAt(Math.min(0.999, e));
+          flight.current.lookAt(tmp.copy(pos).add(tan));
+        }
       }
     }
     if (rest.current) {
-      // clavada en la gate tras el impacto (o siempre, en reduced-motion)
-      rest.current.visible = reduce || t >= 0.999;
+      // clavada en la gate tras el impacto, vibrando (seno amortiguado por ip)
+      const stuck = reduce || t >= 0.999;
+      rest.current.visible = stuck;
+      if (stuck && !reduce) {
+        const decay = Math.max(0, 1 - ip * 1.4);
+        rest.current.rotation.z = Math.sin(time * 14) * 0.05 * decay;
+      }
     }
     if (ring.current) {
       const active = ip > 0 && ip < 1 && !reduce;
@@ -343,42 +386,46 @@ function Arrow({ reduce }: { reduce: boolean }) {
     }
   });
 
+  // flecha GRANDE (licencia cinematográfica: a escala del bosque, no de utilería)
   const arrowBody = (
     <>
-      {/* astil apuntando a +Z */}
+      {/* astil apuntando a +Z — con leve emisión propia (madera oscura sobre fondo
+          oscuro desaparece; la flecha debe leerse como OBJETO) */}
       <mesh rotation={[Math.PI / 2, 0, 0]}>
-        <cylinderGeometry args={[0.022, 0.022, 1.5, 6]} />
-        <meshStandardMaterial color="#3a2f1c" roughness={0.7} />
+        <cylinderGeometry args={[0.05, 0.05, 4.6, 7]} />
+        <meshStandardMaterial color="#8a7040" roughness={0.55} emissive="#3d3016" emissiveIntensity={0.8} />
       </mesh>
-      {/* punta dorada HDR */}
-      <mesh position={[0, 0, 0.85]} rotation={[Math.PI / 2, 0, 0]}>
-        <coneGeometry args={[0.06, 0.24, 8]} />
-        <meshBasicMaterial color={new THREE.Color(3.2, 1.9, 0.5)} toneMapped={false} />
+      {/* punta de ORO HDR — el nombre que carga */}
+      <mesh position={[0, 0, 2.6]} rotation={[Math.PI / 2, 0, 0]}>
+        <coneGeometry args={[0.16, 0.7, 8]} />
+        <meshBasicMaterial color={new THREE.Color(3.4, 2.0, 0.5)} toneMapped={false} fog={false} />
       </mesh>
       {/* plumas verdes (la pluma de Robinhood) */}
       {[0, 2.1, 4.2].map((r) => (
-        <mesh key={r} position={[0, 0, -0.62]} rotation={[0, 0, r]}>
-          <planeGeometry args={[0.02, 0.3]} />
+        <mesh key={r} position={[0, 0, -1.9]} rotation={[0, 0, r]}>
+          <planeGeometry args={[0.09, 1.0]} />
           <meshBasicMaterial
-            color={new THREE.Color(0.1, 1.8, 0.45)}
+            color={new THREE.Color(0.12, 2.2, 0.55)}
             toneMapped={false}
             side={THREE.DoubleSide}
             transparent
-            opacity={0.9}
+            opacity={1}
+            fog={false}
           />
         </mesh>
       ))}
-      {/* estela: cono estirado additive hacia atrás */}
-      <mesh position={[0, 0, -2.2]} rotation={[-Math.PI / 2, 0, 0]}>
-        <coneGeometry args={[0.05, 3.4, 6, 1, true]} />
+      {/* estela: cono estirado additive hacia atrás (legible incluso en un still) */}
+      <mesh position={[0, 0, -6.2]} rotation={[-Math.PI / 2, 0, 0]}>
+        <coneGeometry args={[0.14, 9, 7, 1, true]} />
         <meshBasicMaterial
-          color={new THREE.Color(0.1, 2.2, 0.55)}
+          color={new THREE.Color(0.1, 2.4, 0.6)}
           transparent
-          opacity={0.35}
+          opacity={0.4}
           toneMapped={false}
           depthWrite={false}
           blending={THREE.AdditiveBlending}
           side={THREE.DoubleSide}
+          fog={false}
         />
       </mesh>
     </>
@@ -389,33 +436,40 @@ function Arrow({ reduce }: { reduce: boolean }) {
       <group ref={flight} visible={false}>
         {arrowBody}
       </group>
-      <group ref={rest} position={[0, 3.1, GATE_Z + 1.35]} rotation={[0.06, Math.PI, 0]} visible={false}>
-        {/* clavada: media flecha sobresaliendo de la luz */}
-        <mesh rotation={[Math.PI / 2, 0, 0]} position={[0, 0, 0.4]}>
-          <cylinderGeometry args={[0.022, 0.022, 0.8, 6]} />
-          <meshStandardMaterial color="#3a2f1c" roughness={0.7} />
+      {/* clavada a ~30°: penetra la luz, la cola sobresale hacia el claro */}
+      <group ref={rest} position={[0.15, 3.2, GATE_Z + 2.6]} rotation={[-0.42, Math.PI * 0.94, 0]} visible={false}>
+        <mesh rotation={[Math.PI / 2, 0, 0]} position={[0, 0, 1.1]}>
+          <cylinderGeometry args={[0.05, 0.05, 3.2, 7]} />
+          <meshStandardMaterial color="#4a3b22" roughness={0.65} />
+        </mesh>
+        <mesh position={[0, 0, 2.75]} rotation={[Math.PI / 2, 0, 0]}>
+          <coneGeometry args={[0.15, 0.5, 8]} />
+          <meshBasicMaterial color={new THREE.Color(3.4, 2.0, 0.5)} toneMapped={false} fog={false} />
         </mesh>
         {[0, 2.1, 4.2].map((r) => (
-          <mesh key={r} position={[0, 0, 0.78]} rotation={[0, 0, r]}>
-            <planeGeometry args={[0.022, 0.32]} />
+          <mesh key={r} position={[0, 0, -0.35]} rotation={[0, 0, r]}>
+            <planeGeometry args={[0.06, 0.8]} />
             <meshBasicMaterial
               color={new THREE.Color(0.1, 1.8, 0.45)}
               toneMapped={false}
               side={THREE.DoubleSide}
               transparent
               opacity={0.9}
+              fog={false}
             />
           </mesh>
         ))}
       </group>
+      {/* anillo de impacto en ORO (el payoff es oro, no verde — rompe la monotonía) */}
       <mesh ref={ring} rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.03, GATE_Z + 1.5]} visible={false}>
         <ringGeometry args={[0.95, 1, 64]} />
         <meshBasicMaterial
-          color={new THREE.Color(0.15, 3, 0.7)}
+          color={new THREE.Color(3.2, 1.9, 0.5)}
           transparent
           toneMapped={false}
           depthWrite={false}
           side={THREE.DoubleSide}
+          fog={false}
         />
       </mesh>
     </>
@@ -474,7 +528,9 @@ export default function SherwoodScene({ reduce }: { reduce: boolean }) {
         style={{ width: "100%", height: "100%" }}
       >
         <color attach="background" args={[BASE_BG]} />
-        <fog attach="fog" args={[BASE_BG, 9, 55]} />
+        {/* fogExp2 tintada verde-bosque: los troncos SE DESVANECEN en la noche
+            (convierte "cajas en negro" en "bosque que recede") */}
+        <fogExp2 attach="fog" args={["#04120a", 0.038]} />
         {/* luz de luna fría, tenue — el hemisférico garantiza legibilidad */}
         <hemisphereLight args={["#1c2f24", "#060a07", 0.9]} />
         <directionalLight position={[-6, 18, 6]} color="#3a5c53" intensity={0.75} />

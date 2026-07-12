@@ -5,7 +5,7 @@ set -euo pipefail
 cd "$(dirname "$0")/../web"
 
 FACTORY="${NEXT_PUBLIC_FACTORY_ADDRESS:-0x0000000000000000000000000000000000000000}"
-DIRS=(sky nest avion)
+DIRS=(sherwood legend sky nest avion)
 
 for d in "${DIRS[@]}"; do
   echo "▶ deploying fledge-$d ..."
