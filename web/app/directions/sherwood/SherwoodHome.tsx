@@ -332,7 +332,7 @@ export function SherwoodHome() {
               </div>
             </div>
             <div
-              className={`pointer-events-none absolute bottom-8 left-1/2 flex -translate-x-1/2 flex-col items-center gap-3 ${inCls(700)}`}
+              className={`pointer-events-none absolute bottom-8 left-1/2 hidden [@media(min-height:760px)]:flex -translate-x-1/2 flex-col items-center gap-3 ${inCls(700)}`}
               style={{ fontFamily: "var(--f-mono)", color: "rgba(242,239,230,0.45)" }}
             >
               <span className="text-[10px] uppercase tracking-[0.3em]">Scroll — loose the arrow</span>
@@ -509,6 +509,7 @@ export function SherwoodHome() {
                       Identity
                     </span>
                     <select
+                    suppressHydrationWarning
                       value={type}
                       onChange={(e) => setType(e.target.value as typeof type)}
                       className="border-0 border-b bg-transparent py-2 pr-6 focus:outline-none"
@@ -524,6 +525,7 @@ export function SherwoodHome() {
                       Name on the vault
                     </span>
                     <input
+                    suppressHydrationWarning
                       value={value}
                       onChange={(e) => setValue(e.target.value)}
                       onKeyDown={(e) => e.key === "Enter" && lookup()}

@@ -211,7 +211,7 @@ export function LegendHome() {
               </div>
             </div>
             <div
-              className="pointer-events-none absolute bottom-4 right-6 flex flex-col items-center gap-2"
+              className="pointer-events-none absolute bottom-4 right-6 hidden [@media(min-height:760px)]:flex flex-col items-center gap-2"
               style={{ fontFamily: "var(--f-mono)", color: "rgba(244,246,245,0.4)" }}
             >
               <span className="text-[10px] uppercase tracking-[0.3em]">Scroll</span>
@@ -399,6 +399,7 @@ export function LegendHome() {
 
                 <div className="mt-8 flex flex-col gap-3 sm:flex-row">
                   <select
+                    suppressHydrationWarning
                     value={type}
                     onChange={(e) => setType(e.target.value as typeof type)}
                     className="rounded-lg border bg-transparent px-4 py-3"
@@ -409,6 +410,7 @@ export function LegendHome() {
                     <option style={{ color: "#000" }} value="wallet">Wallet</option>
                   </select>
                   <input
+                    suppressHydrationWarning
                     value={value}
                     onChange={(e) => setValue(e.target.value)}
                     onKeyDown={(e) => e.key === "Enter" && lookup()}
