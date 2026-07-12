@@ -1,8 +1,7 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import dynamic from "next/dynamic";
 import { Archivo_Black, Archivo, IBM_Plex_Mono } from "next/font/google";
 import { Reveal } from "@/components/Reveal";
 import { LiveVaultFeed } from "@/components/LiveVaultFeed";
@@ -10,10 +9,8 @@ import { Marquee } from "@/components/Marquee";
 import { Stat } from "@/components/Stat";
 import { Magnetic } from "@/components/Magnetic";
 import { useVaultLookup } from "@/lib/useVaultLookup";
-import { useScrollSync } from "@/lib/scrollProgress";
+import { Scroll, useScrollSync } from "@/lib/scrollProgress";
 import { useHideNav } from "@/lib/useHideNav";
-
-const LegendScene = dynamic(() => import("./LegendScene"), { ssr: false });
 
 const display = Archivo_Black({ weight: "400", subsets: ["latin"], variable: "--f-display" });
 const body = Archivo({ subsets: ["latin"], variable: "--f-body" });
@@ -59,13 +56,80 @@ export function LegendHome() {
   const navHidden = useHideNav();
   const reduce = useReducedMotion();
   const { type, setType, value, setValue, rows, error, loading, lookup } = useVaultLookup();
+  const feather = useRef<HTMLDivElement>(null);
+  const glow = useRef<HTMLDivElement>(null);
+
+  // LA PLUMA (foto sobre negro, mix-blend screen): flota en el hero y CAE con el
+  // scroll — rotando suave — hasta posarse hacia el cierre. Un solo rAF scrubbed.
+  useEffect(() => {
+    let raf = 0;
+    let cur = 0;
+    const mouse = { x: 0, y: 0 };
+    const onMove = (e: MouseEvent) => {
+      mouse.x = (e.clientX / window.innerWidth - 0.5) * 2;
+      mouse.y = (e.clientY / window.innerHeight - 0.5) * 2;
+    };
+    window.addEventListener("mousemove", onMove, { passive: true });
+    const tick = () => {
+      raf = requestAnimationFrame(tick);
+      const target = reduce ? 0.06 : Scroll.progress;
+      cur += (target - cur) * 0.08;
+      const p = cur;
+      const t = performance.now() / 1000;
+      if (feather.current) {
+        const sway = reduce ? 0 : Math.sin(t * 0.5) * 2.2;
+        const bob = reduce ? 0 : Math.sin(t * 0.8) * 10;
+        const fall = p * 62; // vh que cae a lo largo de la página
+        const rot = -8 + Math.sin(p * Math.PI * 2.2) * 14 + sway;
+        feather.current.style.transform =
+          `translate3d(calc(${mouse.x * 14}px + ${p * -6}vw), calc(${bob + mouse.y * 8}px + ${fall}vh), 0) rotate(${rot}deg)`;
+      }
+      if (glow.current) {
+        glow.current.style.opacity = String(0.5 + Math.sin(t * 1.1) * 0.12);
+      }
+    };
+    raf = requestAnimationFrame(tick);
+    return () => {
+      cancelAnimationFrame(raf);
+      window.removeEventListener("mousemove", onMove);
+    };
+  }, [reduce]);
 
   return (
     <main
       className={`${display.variable} ${body.variable} ${mono.variable} relative`}
       style={{ background: BG, color: WHITE, fontFamily: "var(--f-body)" }}
     >
-      <LegendScene reduce={reduce} />
+      {/* ============ EL SET: negro puro + la pluma de luz ============ */}
+      <div aria-hidden className="fixed inset-0 z-0 overflow-hidden">
+        {/* resplandor que respira detrás de la pluma */}
+        <div
+          ref={glow}
+          className="absolute right-[2%] top-[6%] h-[70vh] w-[46vw]"
+          style={{ background: "radial-gradient(50% 45% at 55% 40%, rgba(0,200,5,0.13), transparent 70%)", filter: "blur(10px)" }}
+        />
+        <div ref={feather} className="absolute right-[4%] top-[-4%] w-[min(38vw,520px)] will-change-transform">
+          {/* máscara radial: el borde de la foto se funde — solo queda la pluma de luz */}
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src="/legend/feather.jpg"
+            alt=""
+            className="block w-full"
+            style={{
+              mixBlendMode: "screen",
+              filter: "brightness(1.02) contrast(1.1)",
+              maskImage: "radial-gradient(58% 58% at 50% 50%, black 52%, transparent 76%)",
+              WebkitMaskImage: "radial-gradient(58% 58% at 50% 50%, black 52%, transparent 76%)",
+            }}
+            draggable={false}
+          />
+        </div>
+        {/* viñeta fintech */}
+        <div
+          className="pointer-events-none absolute inset-0"
+          style={{ background: "radial-gradient(120% 90% at 50% 40%, transparent 58%, rgba(0,0,0,0.5))" }}
+        />
+      </div>
 
       {/* nav */}
       <nav

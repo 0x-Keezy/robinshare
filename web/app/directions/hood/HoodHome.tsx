@@ -51,6 +51,7 @@ const ease = (t: number) => t * t * (3 - 2 * t);
    (patrón del módulo compartido — cero re-renders de React). */
 function useCinema(reduce: boolean) {
   const bg = useRef<HTMLDivElement>(null);
+  const bg2 = useRef<HTMLDivElement>(null);
   const dark = useRef<HTMLDivElement>(null);
   const archer = useRef<HTMLDivElement>(null);
   const streak = useRef<HTMLDivElement>(null);
@@ -83,9 +84,17 @@ function useCinema(reduce: boolean) {
         bg.current.style.transform =
           `translate3d(${mx * -10}px, ${my * -6 + p * -40}px, 0) scale(${s})`;
       }
+      // CORTE 2: el claro del cofre entra en fundido para el ledger (two-shot film)
+      if (bg2.current) {
+        const x = ease(clamp01((p - 0.5) / 0.14));
+        bg2.current.style.opacity = String(x);
+        const s2 = 1.14 + ease(clamp01((p - 0.5) / 0.5)) * 0.22;
+        bg2.current.style.transform = `translate3d(${mx * -8}px, ${my * -5 + (p - 0.5) * -22}px, 0) scale(${s2})`;
+      }
       // la noche se cierra alrededor del texto a medida que entrás
       if (dark.current) {
-        dark.current.style.opacity = String(0.18 + ease(clamp01((p - 0.1) / 0.5)) * 0.5);
+        const lift = ease(clamp01((p - 0.5) / 0.14)) * 0.22; // el cofre respira más claro
+        dark.current.style.opacity = String(Math.max(0.12, 0.18 + ease(clamp01((p - 0.1) / 0.5)) * 0.5 - lift));
       }
       // el arquero: para (0→6%), dispara (6→16%) y sale del cuadro (16→30%)
       if (archer.current) {
@@ -124,7 +133,7 @@ function useCinema(reduce: boolean) {
     };
   }, [reduce]);
 
-  return { bg, dark, archer, streak, fogA, fogB, barT, barB };
+  return { bg, bg2, dark, archer, streak, fogA, fogB, barT, barB };
 }
 
 /* Title card de apertura: FLEDGE presenta… (gate honesto: fuentes + plate decodificado) */
@@ -174,7 +183,7 @@ export function HoodHome() {
   const reduce = useReducedMotion();
   const [titleGone, setTitleGone] = useState(false);
   const { type, setType, value, setValue, rows, error, loading, lookup } = useVaultLookup();
-  const { bg, dark, archer, streak, fogA, fogB, barT, barB } = useCinema(reduce);
+  const { bg, bg2, dark, archer, streak, fogA, fogB, barT, barB } = useCinema(reduce);
 
   return (
     <main
@@ -195,6 +204,17 @@ export function HoodHome() {
             backgroundSize: "cover",
             backgroundPosition: "50% 42%", // origen del dolly = el beam
             transformOrigin: "50% 42%",
+          }}
+        />
+        {/* CORTE 2: el claro del cofre (funde en el ledger) */}
+        <div
+          ref={bg2}
+          className="absolute inset-0 opacity-0 will-change-transform"
+          style={{
+            backgroundImage: "url(/hood/chest.jpg)",
+            backgroundSize: "cover",
+            backgroundPosition: "50% 55%",
+            transformOrigin: "50% 55%",
           }}
         />
         {/* niebla multiplano — profundidad real dentro del dolly */}
