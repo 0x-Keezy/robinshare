@@ -5,7 +5,7 @@ Set-Location "$PSScriptRoot\..\web"
 
 $factory = if ($env:NEXT_PUBLIC_FACTORY_ADDRESS) { $env:NEXT_PUBLIC_FACTORY_ADDRESS } else { "0x0000000000000000000000000000000000000000" }
 
-foreach ($d in @("sherwood", "legend", "sky", "nest", "avion")) {
+foreach ($d in @("sherwood", "legend", "hood", "sky", "nest", "avion")) {
   Write-Host "Deploying fledge-$d ..."
   npx vercel link --yes --project "fledge-$d" | Out-Null
   npx vercel deploy --prod --yes --build-env "NEXT_PUBLIC_DIRECTION=$d" --build-env "NEXT_PUBLIC_FACTORY_ADDRESS=$factory"
