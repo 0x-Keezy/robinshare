@@ -5,6 +5,10 @@ import Link from "next/link";
 import dynamic from "next/dynamic";
 import { Archivo_Black, Archivo, IBM_Plex_Mono } from "next/font/google";
 import { Reveal } from "@/components/Reveal";
+import { LiveVaultFeed } from "@/components/LiveVaultFeed";
+import { Marquee } from "@/components/Marquee";
+import { Stat } from "@/components/Stat";
+import { Magnetic } from "@/components/Magnetic";
 import { useVaultLookup } from "@/lib/useVaultLookup";
 import { useScrollSync } from "@/lib/scrollProgress";
 import { useHideNav } from "@/lib/useHideNav";
@@ -105,7 +109,7 @@ export function LegendHome() {
                 style={{ fontFamily: "var(--f-display)", lineHeight: 0.98 }}
                 className="mt-6 text-[clamp(2.6rem,6.6vw,5.6rem)] uppercase tracking-tight"
               >
-                Route the fees
+                <span style={{ WebkitTextStroke: `2px ${WHITE}`, color: "transparent" }}>Route the fees</span>
                 <br />
                 <span style={{ color: GREEN }}>to the builder.</span>
               </h1>
@@ -114,13 +118,15 @@ export function LegendHome() {
                 their GitHub, X, or wallet — claimable by them alone.
               </p>
               <div className="mt-9 flex flex-wrap items-center gap-4">
-                <Link
-                  href="/create"
-                  className="rounded-full px-6 py-3 text-base font-bold"
-                  style={{ background: GREEN, color: "#03140a" }}
-                >
-                  Launch a coin
-                </Link>
+                <Magnetic>
+                  <Link
+                    href="/create"
+                    className="inline-block rounded-full px-6 py-3 text-base font-bold"
+                    style={{ background: GREEN, color: "#03140a" }}
+                  >
+                    Launch a coin
+                  </Link>
+                </Magnetic>
                 <a
                   href="#ledger"
                   className="text-base font-medium underline decoration-1 underline-offset-4"
@@ -149,6 +155,24 @@ export function LegendHome() {
             </div>
           </div>
         </section>
+
+        {/* la cinta — teletipo bursátil */}
+        <div
+          className="relative border-y py-3"
+          style={{ borderColor: HAIR, background: "rgba(0,200,5,0.05)" }}
+        >
+          <Marquee duration={26}>
+            <span
+              style={{ fontFamily: "var(--f-mono)", letterSpacing: "0.14em", color: "rgba(244,246,245,0.6)" }}
+              className="text-xs uppercase"
+            >
+              Fledge on Robinhood Chain <span style={{ color: GREEN }}>▲</span> every trade pays the
+              builder <span style={{ color: GREEN }}>▲</span> escrow sworn to one name{" "}
+              <span style={{ color: GREEN }}>▲</span> claim = proof of identity{" "}
+              <span style={{ color: GREEN }}>▲</span>&nbsp;
+            </span>
+          </Marquee>
+        </div>
 
         {/* mecanismo */}
         <section className="relative min-h-[120vh]">
@@ -191,6 +215,59 @@ export function LegendHome() {
                   </Reveal>
                 ))}
               </div>
+
+              {/* hechos, en cifra gorda */}
+              <div className="mt-16 grid grid-cols-2 gap-x-8 gap-y-12 sm:grid-cols-4">
+                <Stat value={100} suffix="ms" label="Block time" accent={WHITE} dim="rgba(244,246,245,0.45)" />
+                <Stat value={0} label="Admin keys" accent={GREEN} dim="rgba(244,246,245,0.45)" />
+                <Stat value={3} label="Proof paths" accent={WHITE} dim="rgba(244,246,245,0.45)" />
+                <Stat value={51} label="Tests green" accent={GREEN} dim="rgba(244,246,245,0.45)" />
+              </div>
+            </div>
+          </div>
+        </section>
+
+        {/* LA CINTA EN VIVO — terminal */}
+        <section className="relative">
+          <div className="mx-auto max-w-4xl px-6 py-20">
+            <div
+              aria-hidden
+              className="pointer-events-none absolute inset-0"
+              style={{ background: "radial-gradient(75% 65% at 50% 50%, rgba(4,7,10,0.75), transparent 84%)" }}
+            />
+            <div className="relative">
+              <Reveal>
+                <div style={{ fontFamily: "var(--f-mono)", letterSpacing: "0.26em", color: "rgba(244,246,245,0.45)" }} className="text-xs uppercase">
+                  The tape
+                </div>
+                <h2 style={{ fontFamily: "var(--f-display)", lineHeight: 1 }} className="mt-4 text-[clamp(1.9rem,4.4vw,3.2rem)] uppercase">
+                  Fees streaming, <span style={{ color: GREEN }}>block by block.</span>
+                </h2>
+              </Reveal>
+              <Reveal delay={120}>
+                <div className="mt-8 overflow-hidden rounded-xl border" style={{ borderColor: HAIR, background: "rgba(2,5,8,0.9)" }}>
+                  <div
+                    className="flex items-center gap-2 border-b px-4 py-2.5"
+                    style={{ borderColor: HAIR }}
+                  >
+                    <span className="h-2.5 w-2.5 rounded-full" style={{ background: "rgba(244,246,245,0.25)" }} />
+                    <span className="h-2.5 w-2.5 rounded-full" style={{ background: "rgba(244,246,245,0.25)" }} />
+                    <span className="h-2.5 w-2.5 rounded-full" style={{ background: GREEN }} />
+                    <span className="ml-2 text-[11px]" style={{ fontFamily: "var(--f-mono)", color: "rgba(244,246,245,0.5)" }}>
+                      fledge://tape — live preview
+                    </span>
+                  </div>
+                  <div className="px-5 py-2">
+                    <LiveVaultFeed
+                      accent={GREEN}
+                      gold="#9ff0b5"
+                      dim="rgba(244,246,245,0.5)"
+                      hair="rgba(244,246,245,0.07)"
+                      verb="fill"
+                    />
+                  </div>
+                </div>
+              </Reveal>
             </div>
           </div>
         </section>
@@ -359,19 +436,43 @@ export function LegendHome() {
               </Link>
             </Reveal>
           </div>
-          <footer className="relative mx-auto max-w-6xl px-6 pb-12 pt-8">
-            <div aria-hidden className="mb-6 h-px" style={{ background: hairline(0.16) }} />
+          <footer className="relative mx-auto max-w-6xl overflow-hidden px-6 pb-10 pt-16">
             <div
-              className="flex flex-col gap-3 text-xs sm:flex-row sm:items-center sm:justify-between"
-              style={{ color: "rgba(244,246,245,0.42)", fontFamily: "var(--f-mono)" }}
+              aria-hidden
+              className="pointer-events-none absolute -bottom-14 right-0 select-none leading-none"
+              style={{
+                fontFamily: "var(--f-display)",
+                fontSize: "clamp(6rem, 18vw, 15rem)",
+                color: "rgba(244,246,245,0.03)",
+                letterSpacing: "-0.02em",
+              }}
             >
-              <span className="flex items-center gap-2 uppercase tracking-[0.26em]">
-                <Feather size={14} color="rgba(244,246,245,0.5)" /> Fledge
-              </span>
-              <p className="max-w-xl leading-relaxed">
-                Permissionless and non-custodial. Funds release only to the wallet that proves the
-                recipient identity. Not affiliated with Robinhood or Flap.
-              </p>
+              FLEDGE
+            </div>
+            <div className="relative">
+              <div aria-hidden className="mb-10 h-px" style={{ background: hairline(0.16) }} />
+              <div className="grid gap-10 pb-6 sm:grid-cols-3">
+                <div>
+                  <span className="flex items-center gap-2 text-xs uppercase tracking-[0.26em]" style={{ fontFamily: "var(--f-mono)" }}>
+                    <Feather size={14} color="rgba(244,246,245,0.5)" /> Fledge
+                  </span>
+                  <p className="mt-3 max-w-xs text-sm leading-relaxed" style={{ color: "rgba(244,246,245,0.55)" }}>
+                    Social fee escrow on Robinhood Chain. A coin&apos;s trading fees, routed to one name.
+                  </p>
+                </div>
+                <div className="flex flex-col gap-2 text-sm" style={{ color: "rgba(244,246,245,0.65)" }}>
+                  <Link href="/create" className="underline decoration-1 underline-offset-4 hover:opacity-80">
+                    Launch a coin →
+                  </Link>
+                  <a href="#ledger" className="underline decoration-1 underline-offset-4 hover:opacity-80">
+                    Check a balance →
+                  </a>
+                </div>
+                <p className="text-xs leading-relaxed" style={{ fontFamily: "var(--f-mono)", color: "rgba(244,246,245,0.4)" }}>
+                  Permissionless and non-custodial. Funds release only to the wallet that proves the
+                  recipient identity. Not affiliated with Robinhood or Flap.
+                </p>
+              </div>
             </div>
           </footer>
         </section>

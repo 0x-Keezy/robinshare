@@ -4,6 +4,8 @@ import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { Cinzel, Instrument_Sans, IBM_Plex_Mono } from "next/font/google";
 import { Reveal } from "@/components/Reveal";
+import { Marquee } from "@/components/Marquee";
+import { Magnetic } from "@/components/Magnetic";
 import { useVaultLookup } from "@/lib/useVaultLookup";
 import { Scroll, useScrollSync } from "@/lib/scrollProgress";
 import { useHideNav } from "@/lib/useHideNav";
@@ -52,6 +54,10 @@ function useCinema(reduce: boolean) {
   const dark = useRef<HTMLDivElement>(null);
   const archer = useRef<HTMLDivElement>(null);
   const streak = useRef<HTMLDivElement>(null);
+  const fogA = useRef<HTMLDivElement>(null);
+  const fogB = useRef<HTMLDivElement>(null);
+  const barT = useRef<HTMLDivElement>(null);
+  const barB = useRef<HTMLDivElement>(null);
   const mouse = useRef({ x: 0, y: 0 });
 
   useEffect(() => {
@@ -99,6 +105,17 @@ function useCinema(reduce: boolean) {
         streak.current.style.transform =
           `translate3d(${-36 + ease(t) * 36}vw, ${9 - ease(t) * 17}vh, 0) rotate(-7deg)`;
       }
+      // niebla multiplano: dos capas a distinta velocidad = profundidad real del dolly
+      if (fogA.current) {
+        fogA.current.style.transform = `translate3d(${mx * -18}px, ${p * 14}vh, 0)`;
+      }
+      if (fogB.current) {
+        fogB.current.style.transform = `translate3d(${mx * -30}px, ${p * -22}vh, 0) scale(${1 + p * 0.2})`;
+      }
+      // letterbox: la película abre — las barras se retraen al entrar al bosque
+      const lb = (1 - clamp01(p / 0.16)) * 5.5;
+      if (barT.current) barT.current.style.height = `${lb}vh`;
+      if (barB.current) barB.current.style.height = `${lb}vh`;
     };
     raf = requestAnimationFrame(tick);
     return () => {
@@ -107,21 +124,67 @@ function useCinema(reduce: boolean) {
     };
   }, [reduce]);
 
-  return { bg, dark, archer, streak };
+  return { bg, dark, archer, streak, fogA, fogB, barT, barB };
+}
+
+/* Title card de apertura: FLEDGE presenta… (gate honesto: fuentes + plate decodificado) */
+function TitleCard({ onDone }: { onDone: () => void }) {
+  const [leaving, setLeaving] = useState(false);
+  useEffect(() => {
+    let disposed = false;
+    const img = new Image();
+    img.src = "/hood/forest.jpg";
+    const decode = img.decode ? img.decode().catch(() => {}) : Promise.resolve();
+    const floor = new Promise((r) => setTimeout(r, 1200));
+    Promise.all([document.fonts.ready, decode, floor]).then(() => {
+      if (disposed) return;
+      setLeaving(true);
+      setTimeout(() => !disposed && onDone(), 750);
+    });
+    return () => {
+      disposed = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+  return (
+    <div
+      className="fixed inset-0 z-[100] flex flex-col items-center justify-center transition-opacity duration-700"
+      style={{ background: "#000", opacity: leaving ? 0 : 1 }}
+    >
+      <div
+        style={{ fontFamily: "var(--f-mono)", letterSpacing: "0.34em", color: "rgba(239,238,230,0.5)" }}
+        className="text-[11px] uppercase"
+      >
+        Robinhood Chain presents
+      </div>
+      <div
+        style={{ fontFamily: "var(--f-display)", fontWeight: 700, letterSpacing: "0.18em", color: CREAM }}
+        className="mt-4 text-5xl uppercase sm:text-6xl"
+      >
+        Fledge
+      </div>
+      <div aria-hidden className="mt-6 h-px w-24" style={{ background: "rgba(217,164,65,0.6)" }} />
+    </div>
+  );
 }
 
 export function HoodHome() {
   useScrollSync();
   const navHidden = useHideNav();
   const reduce = useReducedMotion();
+  const [titleGone, setTitleGone] = useState(false);
   const { type, setType, value, setValue, rows, error, loading, lookup } = useVaultLookup();
-  const { bg, dark, archer, streak } = useCinema(reduce);
+  const { bg, dark, archer, streak, fogA, fogB, barT, barB } = useCinema(reduce);
 
   return (
     <main
       className={`${cinzel.variable} ${sans.variable} ${mono.variable} relative`}
       style={{ background: INK, color: CREAM, fontFamily: "var(--f-body)" }}
     >
+      {!titleGone && <TitleCard onDone={() => setTitleGone(true)} />}
+      {/* letterbox — la película abre con el scroll */}
+      <div ref={barT} aria-hidden className="fixed inset-x-0 top-0 z-[30] bg-black" style={{ height: "5.5vh" }} />
+      <div ref={barB} aria-hidden className="fixed inset-x-0 bottom-0 z-[30] bg-black" style={{ height: "5.5vh" }} />
       {/* ============ EL SET: foto fija que la "cámara" recorre ============ */}
       <div aria-hidden className="fixed inset-0 z-0 overflow-hidden">
         <div
@@ -132,6 +195,23 @@ export function HoodHome() {
             backgroundSize: "cover",
             backgroundPosition: "50% 42%", // origen del dolly = el beam
             transformOrigin: "50% 42%",
+          }}
+        />
+        {/* niebla multiplano — profundidad real dentro del dolly */}
+        <div
+          ref={fogA}
+          className="absolute inset-x-[-10%] top-[30%] h-[55%] will-change-transform"
+          style={{
+            background: "radial-gradient(60% 55% at 50% 55%, rgba(120,220,160,0.10), transparent 70%)",
+            filter: "blur(6px)",
+          }}
+        />
+        <div
+          ref={fogB}
+          className="absolute inset-x-[-14%] top-[48%] h-[60%] will-change-transform"
+          style={{
+            background: "radial-gradient(55% 50% at 50% 50%, rgba(200,240,215,0.07), transparent 72%)",
+            filter: "blur(10px)",
           }}
         />
         {/* la noche que se cierra (contraste para el texto profundo) */}
@@ -167,7 +247,7 @@ export function HoodHome() {
 
       {/* nav */}
       <nav
-        className="fixed inset-x-0 top-0 z-20 transition-transform duration-300"
+        className="fixed inset-x-0 top-0 z-40 transition-transform duration-300"
         style={{
           background: "linear-gradient(to bottom, rgba(3,7,10,0.95) 0%, rgba(3,7,10,0.7) 55%, transparent)",
           transform: navHidden ? "translateY(-100%)" : "none",
@@ -229,7 +309,7 @@ export function HoodHome() {
             </div>
 
             <div
-              className="pointer-events-none absolute bottom-6 left-1/2 flex -translate-x-1/2 flex-col items-center gap-2"
+              className="pointer-events-none absolute bottom-[7.5vh] left-1/2 flex -translate-x-1/2 flex-col items-center gap-2"
               style={{ fontFamily: "var(--f-mono)", color: "rgba(239,238,230,0.45)" }}
             >
               <span className="text-[10px] uppercase tracking-[0.3em]">Scroll to loose the arrow</span>
@@ -242,33 +322,60 @@ export function HoodHome() {
         <section className="relative min-h-[150vh]">
           <div className="mx-auto max-w-4xl px-6 py-24">
             {[
-              { act: "Act I", t: "Mark", d: "Name the builder — by their GitHub, their X, or a wallet. Their coin goes live on Flap in seconds. They don't even need to know yet." },
-              { act: "Act II", t: "Tribute", d: "Every buy and sell pays tribute: a slice of the trading tax rides into an on-chain vault sworn to that name. Automatic. Non-custodial. No hands touch it." },
-              { act: "Act III", t: "Claim", d: "The builder proves the name is theirs — a signature, a login, the X oracle — and sweeps the gold to any wallet. No one else. Not us. Not the launcher." },
+              { act: "Act I", num: "I", t: "Mark", d: "Name the builder — by their GitHub, their X, or a wallet. Their coin goes live on Flap in seconds. They don't even need to know yet." },
+              { act: "Act II", num: "II", t: "Tribute", d: "Every buy and sell pays tribute: a slice of the trading tax rides into an on-chain vault sworn to that name. Automatic. Non-custodial. No hands touch it." },
+              { act: "Act III", num: "III", t: "Claim", d: "The builder proves the name is theirs — a signature, a login, the X oracle — and sweeps the gold to any wallet. No one else. Not us. Not the launcher." },
             ].map((s, i) => (
               <Reveal key={s.act} delay={i * 90}>
-                <div className="py-14 text-center">
+                <div className="relative py-16 text-center">
+                  {/* numeral romano fantasma detrás del acto */}
                   <div
-                    style={{ fontFamily: "var(--f-mono)", letterSpacing: "0.3em", color: GOLD }}
-                    className="text-xs uppercase"
+                    aria-hidden
+                    className="pointer-events-none absolute inset-0 flex select-none items-center justify-center leading-none"
+                    style={{
+                      fontFamily: "var(--f-display)",
+                      fontWeight: 700,
+                      fontSize: "clamp(11rem, 30vw, 22rem)",
+                      color: "rgba(239,238,230,0.045)",
+                    }}
                   >
-                    {s.act}
+                    {s.num}
                   </div>
-                  <h2
-                    style={{ fontFamily: "var(--f-display)", fontWeight: 700 }}
-                    className="mt-3 text-[clamp(2.2rem,5.4vw,3.8rem)] uppercase tracking-wide"
-                  >
-                    {s.t}
-                  </h2>
-                  <p className="mx-auto mt-4 max-w-lg text-[17px] leading-relaxed" style={{ color: "rgba(239,238,230,0.75)" }}>
-                    {s.d}
-                  </p>
+                  <div className="relative">
+                    <div
+                      style={{ fontFamily: "var(--f-mono)", letterSpacing: "0.3em", color: GOLD }}
+                      className="text-xs uppercase"
+                    >
+                      {s.act}
+                    </div>
+                    <h2
+                      style={{ fontFamily: "var(--f-display)", fontWeight: 700 }}
+                      className="mt-3 text-[clamp(2.2rem,5.4vw,3.8rem)] uppercase tracking-wide"
+                    >
+                      {s.t}
+                    </h2>
+                    <p className="mx-auto mt-4 max-w-lg text-[17px] leading-relaxed" style={{ color: "rgba(239,238,230,0.75)" }}>
+                      {s.d}
+                    </p>
+                  </div>
                   {i < 2 && <div aria-hidden className="mx-auto mt-14 h-px w-2/3" style={{ background: hairline(0.2) }} />}
                 </div>
               </Reveal>
             ))}
           </div>
         </section>
+
+        {/* los créditos — starring the builders */}
+        <div className="relative select-none border-y py-5" style={{ borderColor: HAIR }}>
+          <Marquee duration={30}>
+            <span
+              style={{ fontFamily: "var(--f-display)", letterSpacing: "0.22em", color: "rgba(217,164,65,0.55)" }}
+              className="text-sm uppercase"
+            >
+              Starring the builders&nbsp;—&nbsp;@torvalds&nbsp;·&nbsp;@gakonst&nbsp;·&nbsp;@shadcn&nbsp;·&nbsp;@dabit3&nbsp;·&nbsp;@rauchg&nbsp;·&nbsp;@the-maintainer&nbsp;·&nbsp;@your-favorite-dev&nbsp;·&nbsp;
+            </span>
+          </Marquee>
+        </div>
 
         {/* EL LEDGER — ya estás dentro de la luz */}
         <section id="ledger" className="relative min-h-[120vh]">
@@ -383,13 +490,15 @@ export function HoodHome() {
               </h2>
             </Reveal>
             <Reveal delay={140}>
-              <Link
-                href="/create"
-                className="mt-10 inline-block rounded-full px-8 py-4 text-lg font-semibold"
-                style={{ background: GREEN, color: "#03140a" }}
-              >
-                Launch a coin for someone
-              </Link>
+              <Magnetic strength={10}>
+                <Link
+                  href="/create"
+                  className="mt-10 inline-block rounded-full px-8 py-4 text-lg font-semibold"
+                  style={{ background: GREEN, color: "#03140a" }}
+                >
+                  Launch a coin for someone
+                </Link>
+              </Magnetic>
             </Reveal>
           </div>
           <footer className="relative mx-auto max-w-6xl px-6 pb-12 pt-8">

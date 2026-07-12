@@ -5,6 +5,10 @@ import Link from "next/link";
 import dynamic from "next/dynamic";
 import { Instrument_Serif, Instrument_Sans, IBM_Plex_Mono } from "next/font/google";
 import { Reveal } from "@/components/Reveal";
+import { LiveVaultFeed } from "@/components/LiveVaultFeed";
+import { Marquee } from "@/components/Marquee";
+import { Stat } from "@/components/Stat";
+import { Magnetic } from "@/components/Magnetic";
 import { useVaultLookup } from "@/lib/useVaultLookup";
 import { useScrollSync } from "@/lib/scrollProgress";
 import { useHideNav } from "@/lib/useHideNav";
@@ -225,13 +229,15 @@ export function SherwoodHome() {
                 X, or wallet — and only they can ever claim it.
               </p>
               <div className={`mt-9 flex flex-wrap items-center gap-4 ${inCls(560)}`}>
-                <Link
-                  href="/create"
-                  className="rounded-full px-6 py-3 text-base font-semibold"
-                  style={{ background: SIGNAL, color: "#04120a" }}
-                >
-                  Launch a coin
-                </Link>
+                <Magnetic>
+                  <Link
+                    href="/create"
+                    className="inline-block rounded-full px-6 py-3 text-base font-semibold"
+                    style={{ background: SIGNAL, color: "#04120a" }}
+                  >
+                    Launch a coin
+                  </Link>
+                </Magnetic>
                 <a
                   href="#ledger"
                   className="text-base font-medium underline decoration-1 underline-offset-4"
@@ -239,6 +245,15 @@ export function SherwoodHome() {
                 >
                   I was funded →
                 </a>
+              </div>
+              <div
+                className={`mt-12 flex flex-wrap gap-x-8 gap-y-2 text-[11px] uppercase tracking-[0.2em] ${inCls(660)}`}
+                style={{ fontFamily: "var(--f-mono)", color: "rgba(242,239,230,0.45)" }}
+              >
+                <span>Immutable</span>
+                <span>0 admin keys</span>
+                <span>51 tests green</span>
+                <span>Robinhood Chain · 4663</span>
               </div>
             </div>
             {/* hint DENTRO del primer viewport */}
@@ -251,6 +266,21 @@ export function SherwoodHome() {
             </div>
           </div>
         </section>
+
+        {/* el juramento — banda marquee en serif */}
+        <div className="relative select-none py-8">
+          <Marquee duration={36}>
+            <span
+              style={{ fontFamily: "var(--f-display)", fontStyle: "italic" }}
+              className="text-[clamp(1.8rem,3.6vw,2.9rem)]"
+            >
+              <span style={{ color: "rgba(242,239,230,0.16)" }}>Take from the fees&nbsp;·&nbsp;</span>
+              <span style={{ color: "rgba(0,200,5,0.4)" }}>give to the builder&nbsp;·&nbsp;</span>
+              <span style={{ color: "rgba(242,239,230,0.16)" }}>only they can claim it&nbsp;·&nbsp;</span>
+              <span style={{ color: "rgba(217,164,65,0.35)" }}>sworn on-chain&nbsp;·&nbsp;</span>
+            </span>
+          </Marquee>
+        </div>
 
         {/* ACTO 2 — el mecanismo (ledger editorial, no cards) */}
         <section className="relative min-h-[120vh]">
@@ -313,6 +343,65 @@ export function SherwoodHome() {
                   </Reveal>
                 ))}
               </div>
+
+              {/* los hechos, en serif gigante (count-up al entrar) */}
+              <div
+                className="mt-20 grid grid-cols-2 gap-x-8 gap-y-12 border-t pt-14 sm:grid-cols-4"
+                style={{ borderImage: `${hairline()} 1` }}
+              >
+                <Stat value={100} suffix="ms" label="Block time · 4663" accent={CREAM} dim="rgba(242,239,230,0.45)" />
+                <Stat value={0} label="Admin keys · immutable" accent={SIGNAL} dim="rgba(242,239,230,0.45)" />
+                <Stat value={3} label="Ways to prove a name" accent={CREAM} dim="rgba(242,239,230,0.45)" />
+                <Stat value={51} label="Tests green · fork E2E" accent={GOLD} dim="rgba(242,239,230,0.45)" />
+              </div>
+            </div>
+          </div>
+        </section>
+
+        {/* EL BOTÍN — el producto visto pasar */}
+        <section className="relative">
+          <div className="mx-auto max-w-4xl px-6 py-24">
+            <div
+              aria-hidden
+              className="pointer-events-none absolute inset-0"
+              style={{ background: "radial-gradient(75% 65% at 50% 50%, rgba(3,8,5,0.72), transparent 82%)" }}
+            />
+            <div className="relative">
+              <Reveal>
+                <div className="flex items-baseline justify-between gap-4">
+                  <div>
+                    <div style={{ fontFamily: "var(--f-mono)", letterSpacing: "0.26em", color: SIGNAL }} className="text-xs uppercase">
+                      The take
+                    </div>
+                    <h2 style={{ fontFamily: "var(--f-display)", lineHeight: 1 }} className="mt-3 text-[clamp(2rem,4.6vw,3.4rem)]">
+                      Watch the fees <span style={{ color: GOLD, fontStyle: "italic" }}>ride</span>.
+                    </h2>
+                  </div>
+                  <span
+                    className="rounded-full border px-3 py-1 text-[10px] uppercase tracking-[0.2em]"
+                    style={{ borderColor: HAIR, color: "rgba(242,239,230,0.5)", fontFamily: "var(--f-mono)" }}
+                  >
+                    preview
+                  </span>
+                </div>
+              </Reveal>
+              <Reveal delay={120}>
+                <div
+                  className="mt-8 rounded-2xl border px-6 py-4"
+                  style={{ borderColor: HAIR, background: "rgba(2,6,4,0.74)" }}
+                >
+                  <LiveVaultFeed
+                    accent={SIGNAL}
+                    gold={GOLD}
+                    dim="rgba(242,239,230,0.55)"
+                    hair="rgba(242,239,230,0.08)"
+                    verb="swap"
+                  />
+                </div>
+                <p className="mt-3 text-xs" style={{ fontFamily: "var(--f-mono)", color: "rgba(242,239,230,0.4)" }}>
+                  Illustrative — the real feed goes live with the first launch.
+                </p>
+              </Reveal>
             </div>
           </div>
         </section>
@@ -386,33 +475,46 @@ export function SherwoodHome() {
                   Check the vaults sworn to your GitHub, X, or wallet — and claim what is yours.
                 </p>
 
-                <div className="mt-8 flex flex-col gap-3 sm:flex-row">
-                  <select
-                    value={type}
-                    onChange={(e) => setType(e.target.value as typeof type)}
-                    className="rounded-lg border bg-transparent px-4 py-3"
-                    style={{ borderColor: HAIR, color: CREAM, fontFamily: "var(--f-mono)" }}
-                  >
-                    <option style={{ color: "#000" }} value="github">GitHub</option>
-                    <option style={{ color: "#000" }} value="twitter">X (Twitter)</option>
-                    <option style={{ color: "#000" }} value="wallet">Wallet</option>
-                  </select>
-                  <input
-                    value={value}
-                    onChange={(e) => setValue(e.target.value)}
-                    onKeyDown={(e) => e.key === "Enter" && lookup()}
-                    placeholder={type === "wallet" ? "0x wallet address" : "handle"}
-                    className="flex-1 rounded-lg border bg-transparent px-5 py-3 placeholder:opacity-40"
-                    style={{ borderColor: HAIR, color: CREAM, fontFamily: "var(--f-mono)" }}
-                  />
-                  <button
-                    onClick={lookup}
-                    disabled={loading || !value}
-                    className="rounded-lg px-6 py-3 font-semibold disabled:opacity-40"
-                    style={{ background: SIGNAL, color: "#04120a" }}
-                  >
-                    {loading ? "Checking…" : "Check the ledger"}
-                  </button>
+                {/* inputs editoriales: subrayado de acta, no cajas de sistema */}
+                <div className="mt-10 flex flex-col gap-6 sm:flex-row sm:items-end">
+                  <label className="flex flex-col gap-2">
+                    <span style={{ fontFamily: "var(--f-mono)", color: "rgba(242,239,230,0.45)", letterSpacing: "0.18em" }} className="text-[10px] uppercase">
+                      Identity
+                    </span>
+                    <select
+                      value={type}
+                      onChange={(e) => setType(e.target.value as typeof type)}
+                      className="border-0 border-b bg-transparent py-2 pr-6 focus:outline-none"
+                      style={{ borderColor: "rgba(242,239,230,0.3)", color: CREAM, fontFamily: "var(--f-mono)" }}
+                    >
+                      <option style={{ color: "#000" }} value="github">GitHub</option>
+                      <option style={{ color: "#000" }} value="twitter">X (Twitter)</option>
+                      <option style={{ color: "#000" }} value="wallet">Wallet</option>
+                    </select>
+                  </label>
+                  <label className="flex flex-1 flex-col gap-2">
+                    <span style={{ fontFamily: "var(--f-mono)", color: "rgba(242,239,230,0.45)", letterSpacing: "0.18em" }} className="text-[10px] uppercase">
+                      Name on the vault
+                    </span>
+                    <input
+                      value={value}
+                      onChange={(e) => setValue(e.target.value)}
+                      onKeyDown={(e) => e.key === "Enter" && lookup()}
+                      placeholder={type === "wallet" ? "0x…" : "handle"}
+                      className="border-0 border-b bg-transparent py-2 text-lg placeholder:opacity-35 focus:outline-none"
+                      style={{ borderColor: "rgba(242,239,230,0.3)", color: CREAM, fontFamily: "var(--f-mono)" }}
+                    />
+                  </label>
+                  <Magnetic>
+                    <button
+                      onClick={lookup}
+                      disabled={loading || !value}
+                      className="rounded-full px-7 py-3 font-semibold disabled:opacity-40"
+                      style={{ background: SIGNAL, color: "#04120a" }}
+                    >
+                      {loading ? "Checking…" : "Check the ledger"}
+                    </button>
+                  </Magnetic>
                 </div>
 
                 {error && (
@@ -494,17 +596,44 @@ export function SherwoodHome() {
               </Link>
             </Reveal>
           </div>
-          <footer className="mx-auto max-w-6xl px-6 pb-12 pt-8">
-            <div aria-hidden className="mb-6 h-px" style={{ background: hairline(0.18) }} />
+          <footer className="relative mx-auto max-w-6xl overflow-hidden px-6 pb-10 pt-16">
+            {/* palabra fantasma */}
             <div
-              className="flex flex-col gap-3 text-xs sm:flex-row sm:items-center sm:justify-between"
-              style={{ color: "rgba(242,239,230,0.42)", fontFamily: "var(--f-mono)" }}
+              aria-hidden
+              className="pointer-events-none absolute -bottom-10 left-0 select-none leading-none"
+              style={{
+                fontFamily: "var(--f-display)",
+                fontStyle: "italic",
+                fontSize: "clamp(7rem, 20vw, 17rem)",
+                color: "rgba(242,239,230,0.035)",
+              }}
             >
-              <span className="uppercase tracking-[0.26em]">Fledge</span>
-              <p className="max-w-xl leading-relaxed">
-                Permissionless and non-custodial. Funds release only to the wallet that proves the
-                recipient identity. Not affiliated with Robinhood or Flap.
-              </p>
+              Fledge
+            </div>
+            <div className="relative">
+              <div aria-hidden className="mb-10 h-px" style={{ background: hairline(0.18) }} />
+              <div className="grid gap-10 pb-6 sm:grid-cols-3">
+                <div>
+                  <div style={{ fontFamily: "var(--f-mono)", letterSpacing: "0.26em" }} className="text-xs uppercase">
+                    Fledge
+                  </div>
+                  <p className="mt-3 max-w-xs text-sm leading-relaxed" style={{ color: "rgba(242,239,230,0.55)" }}>
+                    Social fee escrow on Robinhood Chain. A coin's trading fees, sworn to one name.
+                  </p>
+                </div>
+                <div className="flex flex-col gap-2 text-sm" style={{ color: "rgba(242,239,230,0.65)" }}>
+                  <Link href="/create" className="underline decoration-1 underline-offset-4 hover:opacity-80">
+                    Launch a coin →
+                  </Link>
+                  <a href="#ledger" className="underline decoration-1 underline-offset-4 hover:opacity-80">
+                    Check the ledger →
+                  </a>
+                </div>
+                <p className="text-xs leading-relaxed" style={{ fontFamily: "var(--f-mono)", color: "rgba(242,239,230,0.4)" }}>
+                  Permissionless and non-custodial. Funds release only to the wallet that proves the
+                  recipient identity. Not affiliated with Robinhood or Flap.
+                </p>
+              </div>
             </div>
           </footer>
         </section>
