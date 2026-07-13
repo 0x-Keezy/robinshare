@@ -33,6 +33,10 @@ export default function CreatePage() {
   const [wallet, setWallet] = useState("");
   const [recoveryDays, setRecoveryDays] = useState("0");
   const [devBuy, setDevBuy] = useState("0.01");
+  // % del trade que va al vault. Límites sondeados contra el portal REAL en
+  // Robinhood Chain (eth_call, scripts/_taxprobe.mjs): mínimo 0.01%, máximo
+  // 10.00% — fuera de eso el portal revierte con el custom error 0xcfdd26ea.
+  const [taxPct, setTaxPct] = useState(3);
   const [imageFile, setImageFile] = useState<File | null>(null);
 
   const [busy, setBusy] = useState<string | null>(null);
@@ -94,7 +98,7 @@ export default function CreatePage() {
         salt,
         factory,
         vaultData,
-        taxBps: 300,
+        taxBps: Math.round(taxPct * 100),
         devBuyWei,
       });
 
@@ -131,8 +135,8 @@ export default function CreatePage() {
           Launch a coin for a builder.
         </h1>
         <p className="mt-3 max-w-md" style={{ color: RS.DIM }}>
-          Name a builder. Their coin goes live on Flap, and 3% of every trade lands in a vault
-          only they can claim.
+          Name a builder. Their coin goes live on Flap, and a cut of every trade — you pick 1 to
+          10% — lands in a vault only they can claim.
         </p>
 
         {result ? (
@@ -268,6 +272,31 @@ export default function CreatePage() {
                   ? "Fees are bound to this wallet from launch. It just sweeps them."
                   : "They claim by proving the handle is theirs. You can't redirect it — neither can we."}
               </p>
+
+              <div className="mt-6 border-t pt-5" style={{ borderColor: RS.HAIR }}>
+                <div className="text-[10px] uppercase" style={labelStyle}>
+                  Trade fee → vault
+                </div>
+                <div className="mt-4 flex flex-wrap gap-2.5" style={{ fontFamily: "var(--f-mono)" }}>
+                  {[1, 2, 3, 5, 10].map((pct) => (
+                    <button
+                      key={pct}
+                      onClick={() => setTaxPct(pct)}
+                      className="rounded-full border px-4 py-1.5 text-xs tracking-[0.12em] transition-colors"
+                      style={
+                        taxPct === pct
+                          ? { background: RS.GREEN_CTA, borderColor: RS.GREEN_CTA, color: RS.GREEN_CTA_TEXT }
+                          : { background: "transparent", borderColor: RS.HAIR, color: RS.DIM }
+                      }
+                    >
+                      {pct}%
+                    </button>
+                  ))}
+                </div>
+                <p className="mt-3 text-xs leading-relaxed" style={{ color: RS.FAINT }}>
+                  Set at launch, between 1 and 10%. All of it goes to the builder&apos;s vault.
+                </p>
+              </div>
             </div>
 
             <div className="flex gap-6">
@@ -310,8 +339,8 @@ export default function CreatePage() {
               </p>
             )}
             <p className="text-xs leading-relaxed" style={{ fontFamily: "var(--f-mono)", color: RS.FAINT }}>
-              Tax is 3% per side and all of it goes to the vault. Token addresses are mined
-              locally to end in 7777.
+              The fee applies per side (buy and sell) and all of it goes to the vault. Token
+              addresses are mined locally to end in 7777.
             </p>
           </div>
         )}

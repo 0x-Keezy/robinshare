@@ -185,8 +185,8 @@ export function LegendHome() {
               <span style={{ color: GREEN_TEXT }}>Automatically.</span>
             </h1>
             <p className="mt-6 max-w-md text-lg" style={{ color: DIM }}>
-              Launch a coin for any builder. Every trade sets 3% aside for their GitHub, X, or
-              wallet. Only they can claim it.
+              Launch a coin for any builder. Every trade sets a cut aside for their GitHub, X,
+              or wallet. Only they can claim it.
             </p>
             <div className="mt-8 flex flex-wrap items-center gap-4">
               <Magnetic>
@@ -205,7 +205,7 @@ export function LegendHome() {
               <span>Chain 4663</span>
               <span>Blocks 100ms</span>
               <span>Custody none</span>
-              <span>Fee 3% → vault</span>
+              <span>Fee 1–10% → vault</span>
             </div>
           </div>
 
@@ -261,7 +261,7 @@ export function LegendHome() {
           <div className="mt-12 grid gap-px overflow-hidden rounded-2xl border sm:grid-cols-3" style={{ borderColor: HAIR, background: HAIR }}>
             {[
               { n: "01", t: "Name them", d: "Pick a builder by GitHub, X, or wallet. Their coin lists on Flap in seconds." },
-              { n: "02", t: "Fees accrue", d: "3% of every trade lands in an on-chain vault under their name." },
+              { n: "02", t: "Fees accrue", d: "A launch-set cut of every trade (1–10%) lands in an on-chain vault under their name." },
               { n: "03", t: "They claim", d: "They prove it's them (GitHub login, a tweet, or a signature) and sweep the ETH." },
             ].map((s, i) => (
               <Reveal key={s.n} delay={i * 90}>
