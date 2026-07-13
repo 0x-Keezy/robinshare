@@ -10,9 +10,12 @@ import { useEffect, useRef, useState } from "react";
 
 type Row = { id: number; t: string; amt: string; handle: string; drip: string };
 
+// Ficticios a propósito — nombres reales con montos ETH inventados rozaba
+// la suplantación (hallazgo del audit ciego). Mismo registro "builder que
+// shippea", cero identidades reales.
 const HANDLES = [
-  "@torvalds", "@gakonst", "@shadcn", "@dabit3", "@rauchg",
-  "@antfu7", "@evanw", "@t3dotgg", "@transmissions11",
+  "@shipsdaily", "@night-builder", "@0xmerge", "@the-committer",
+  "@indiehacker", "@basecamp-dev", "@anon-shipper", "@core-dev", "@the-forker",
 ];
 
 function mulberry32(seed: number) {
@@ -85,12 +88,15 @@ export function LiveVaultFeed({
               textShadow: "0 0 5px rgba(3,6,4,0.85), 0 1px 3px rgba(3,6,4,0.9)",
             }}
           >
-            <span style={{ color: dim }}>{r.t}</span>
-            <span className="flex-1" style={{ color: dim }}>
-              {verb} <span style={{ color: "inherit" }}>{r.amt} ETH</span>
+            <span className="whitespace-nowrap" style={{ color: dim }}>{r.t}</span>
+            <span className="flex-1 whitespace-nowrap" style={{ color: dim }}>
+              {verb} <span style={{ color: "inherit" }}>{r.amt}</span>
             </span>
-            <span style={{ color: accent }}>{r.handle}</span>
-            <span style={{ color: gold, fontVariantNumeric: "tabular-nums" }}>+{r.drip}Ξ</span>
+            <span className="whitespace-nowrap" style={{ color: accent }}>{r.handle}</span>
+            {/* "ETH" explícito, no el glifo Ξ — a 13px monoespaciado se confundía con ≡ */}
+            <span className="whitespace-nowrap" style={{ color: gold, fontVariantNumeric: "tabular-nums" }}>
+              +{r.drip} ETH
+            </span>
           </li>
         ))}
       </ul>

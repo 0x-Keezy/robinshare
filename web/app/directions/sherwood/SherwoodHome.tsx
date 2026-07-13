@@ -249,6 +249,9 @@ export function SherwoodHome() {
             alt=""
             className="block w-full"
             style={{
+              // el asset trae la punta a la IZQUIERDA — se espeja para que apunte
+              // hacia donde vuela (derecha, hacia el vitral); mask/blend son simétricos
+              transform: "scaleX(-1)",
               filter: "brightness(1.02) contrast(1.08)",
               maskImage: "radial-gradient(62% 60% at 50% 50%, black 55%, transparent 80%)",
               WebkitMaskImage: "radial-gradient(62% 60% at 50% 50%, black 55%, transparent 80%)",
@@ -290,7 +293,7 @@ export function SherwoodHome() {
 
       <div className="relative z-10">
         {/* ACTO 1 — la nave de la catedral (texto en el espacio negativo izquierdo) */}
-        <section className="relative min-h-[170vh]">
+        <section className="relative min-h-[140vh]">
           <div className="relative mx-auto flex min-h-screen w-full max-w-6xl flex-col justify-center px-6 pt-20">
             <div
               aria-hidden
@@ -443,8 +446,12 @@ export function SherwoodHome() {
                 </div>
               </Reveal>
               <Reveal delay={120}>
-                <div className="mt-8 rounded-2xl border px-6 py-4" style={{ borderColor: HAIR, background: "rgba(2,6,4,0.78)" }}>
-                  <LiveVaultFeed accent={SIGNAL} gold={GOLD} dim="rgba(242,239,230,0.55)" hair="rgba(242,239,230,0.08)" verb="swap" />
+                <div
+                  className="relative mt-8 overflow-hidden rounded-2xl border px-6 py-4"
+                  style={{ borderColor: "rgba(242,239,230,0.2)", background: "rgba(2,6,4,0.78)" }}
+                >
+                  <div aria-hidden className="absolute inset-x-0 top-0 h-px" style={{ background: hairline(0.4) }} />
+                  <LiveVaultFeed accent={SIGNAL} gold={GOLD} dim="rgba(242,239,230,0.55)" hair="rgba(242,239,230,0.1)" verb="swap" />
                 </div>
                 <p className="mt-3 text-xs" style={{ fontFamily: "var(--f-mono)", color: "rgba(242,239,230,0.42)" }}>
                   Illustrative — the real feed goes live with the first launch.
@@ -518,17 +525,30 @@ export function SherwoodHome() {
                     <span style={{ fontFamily: "var(--f-mono)", color: "rgba(242,239,230,0.5)", letterSpacing: "0.18em" }} className="text-[10px] uppercase">
                       Identity
                     </span>
-                    <select
-                    suppressHydrationWarning
-                      value={type}
-                      onChange={(e) => setType(e.target.value as typeof type)}
-                      className="border-0 border-b bg-transparent py-2 pr-6 focus:outline-none"
-                      style={{ borderColor: "rgba(242,239,230,0.3)", color: CREAM, fontFamily: "var(--f-mono)" }}
-                    >
-                      <option style={{ color: "#000" }} value="github">GitHub</option>
-                      <option style={{ color: "#000" }} value="twitter">X (Twitter)</option>
-                      <option style={{ color: "#000" }} value="wallet">Wallet</option>
-                    </select>
+                    <div className="relative">
+                      <select
+                        suppressHydrationWarning
+                        value={type}
+                        onChange={(e) => setType(e.target.value as typeof type)}
+                        className="w-full appearance-none border-0 border-b bg-transparent py-2 pr-6 uppercase tracking-[0.08em] focus:outline-none"
+                        style={{ borderColor: "rgba(242,239,230,0.3)", color: CREAM, fontFamily: "var(--f-mono)" }}
+                      >
+                        <option style={{ color: "#000" }} value="github">GitHub</option>
+                        <option style={{ color: "#000" }} value="twitter">X (Twitter)</option>
+                        <option style={{ color: "#000" }} value="wallet">Wallet</option>
+                      </select>
+                      {/* caret propio: el nativo del OS desentonaba con el sistema mono/hairline */}
+                      <svg
+                        aria-hidden
+                        width="10"
+                        height="6"
+                        viewBox="0 0 10 6"
+                        fill="none"
+                        className="pointer-events-none absolute right-0 top-1/2 -translate-y-1/2"
+                      >
+                        <path d="M1 1L5 5L9 1" stroke="rgba(242,239,230,0.5)" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" />
+                      </svg>
+                    </div>
                   </label>
                   <label className="flex flex-1 flex-col gap-2">
                     <span style={{ fontFamily: "var(--f-mono)", color: "rgba(242,239,230,0.5)", letterSpacing: "0.18em" }} className="text-[10px] uppercase">
