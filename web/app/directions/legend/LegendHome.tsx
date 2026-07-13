@@ -71,11 +71,11 @@ export function LegendHome() {
   const navHidden = useHideNav();
   const reduce = useReducedMotion();
   const { type, setType, value, setValue, rows, error, loading, lookup } = useVaultLookup();
-  const feather = useRef<HTMLDivElement>(null);
   const inkFeather = useRef<HTMLDivElement>(null);
 
-  // Dos plumas, un motivo: la de LUZ flota dentro del terminal (time-based) y su
-  // gemela de TINTA cae por el papel con el scroll — rotando, como pluma de verdad.
+  // La pluma de TINTA cae por el papel con el scroll, rotando, como pluma de
+  // verdad. (Su gemela de luz vivía dentro del terminal — Jose la sacó del
+  // todo por pedirlo incómoda; el motivo de marca queda solo en esta.)
   useEffect(() => {
     if (reduce) return;
     let raf = 0;
@@ -90,10 +90,6 @@ export function LegendHome() {
       const t = performance.now() / 1000;
       cur += (Scroll.progress - cur) * 0.08;
       const p = cur;
-      if (feather.current) {
-        feather.current.style.transform =
-          `translate3d(0, ${Math.sin(t * 0.7) * 9}px, 0) rotate(${Math.sin(t * 0.4) * 3.5}deg)`;
-      }
       if (inkFeather.current) {
         // sway oscila (no acumula) — el drift direccional (p*-7vw) SÍ acumulaba y
         // terminaba metiendo la pluma en la columna de contenido (tapaba el stat
@@ -216,38 +212,18 @@ export function LegendHome() {
                   fledge://tape — live preview
                 </span>
               </div>
-              <div className="relative">
-                {/* la pluma de luz, flotando en su terrario — la punta vive en la zona
-                    vacía del header (sin texto que la tape). Segunda pasada tras el
-                    audit ciego #2: el vientre todavía cruzaba la columna de montos ETH
-                    (filas 1-3) — achicada otra vez (9rem->7.5rem) + subida (-top-10) +
-                    brillo bajado, para que el vientre quede al filo del header. */}
-                <div ref={feather} className="pointer-events-none absolute right-1 -top-10 w-[7.5rem] opacity-90 sm:w-32">
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img
-                    src="/legend/feather.jpg"
-                    alt=""
-                    className="block w-full"
-                    style={{
-                      mixBlendMode: "screen",
-                      filter: "brightness(0.95) contrast(1.18) saturate(1.0)",
-                      maskImage: "radial-gradient(64% 70% at 54% 48%, black 68%, transparent 100%)",
-                      WebkitMaskImage: "radial-gradient(64% 70% at 54% 48%, black 68%, transparent 100%)",
-                    }}
-                    draggable={false}
-                  />
-                </div>
-                {/* relative+z-10: sin esto, el feed (sin position) pinta DEBAJO del
-                    absolute de la pluma pese a ir después en el DOM — tapaba los handles/montos */}
-                <div className="relative z-10 px-5 py-3">
-                  <LiveVaultFeed
-                    accent={GREEN}
-                    gold="#9ff0b5"
-                    dim="rgba(247,248,244,0.55)"
-                    hair="rgba(247,248,244,0.08)"
-                    verb="fill"
-                  />
-                </div>
+              {/* Jose: la pluma de luz sobre el tape quedaba incómoda pese a los
+                  ajustes (mascara/tamaño/brillo) — la sacamos del todo, el terrario
+                  queda solo para el feed. La pluma de tinta del hero es la que se
+                  queda como motivo de marca. */}
+              <div className="px-5 py-3">
+                <LiveVaultFeed
+                  accent={GREEN}
+                  gold="#9ff0b5"
+                  dim="rgba(247,248,244,0.55)"
+                  hair="rgba(247,248,244,0.08)"
+                  verb="fill"
+                />
               </div>
             </div>
             <p className="mt-2 text-right text-[11px]" style={{ fontFamily: "var(--f-mono)", color: FAINT }}>
