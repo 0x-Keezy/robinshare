@@ -13,3 +13,7 @@ contracts/package.json
 contracts/package-lock.json
 
 web/scripts/_shot.mjs
+
+# promo: binarios de video/imagen no van al repo publico
+promo/teaser-pinned/assets/
+promo/teaser-pinned/renders/
