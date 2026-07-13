@@ -231,15 +231,6 @@ export function LegendHome() {
                 I was funded →
               </a>
             </div>
-            <div
-              className="mt-10 flex flex-wrap gap-x-8 gap-y-2 text-[11px] uppercase tracking-[0.18em]"
-              style={{ fontFamily: "var(--f-mono)", color: FAINT }}
-            >
-              <span>Chain 4663</span>
-              <span>Blocks 100ms</span>
-              <span>Custody none</span>
-              <span>Fee 1–10% → vault</span>
-            </div>
           </div>
 
           {/* la única zona oscura: el terminal con la pluma + el feed */}
