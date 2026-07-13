@@ -27,6 +27,10 @@ const mono = IBM_Plex_Mono({ weight: ["400", "500"], subsets: ["latin"], variabl
 const PAPER = "#F7F8F4";
 const INK = "#0D120E";
 const GREEN = "#00C805";
+// #00C805 sobre papel ronda 2.1:1 de contraste — ilegible como texto (falla
+// incluso el 3:1 de WCAG para texto grande). Mismo hue, oscurecido a ~5:1
+// para titulares/labels; el verde puro queda para fills/dots donde no carga texto.
+const GREEN_TEXT = "#087C2E";
 const DIM = "rgba(13,18,14,0.6)";
 const FAINT = "rgba(13,18,14,0.42)";
 const HAIR = "rgba(13,18,14,0.14)";
@@ -83,10 +87,13 @@ export function LegendHome() {
           `translate3d(0, ${Math.sin(t * 0.7) * 9}px, 0) rotate(${Math.sin(t * 0.4) * 3.5}deg)`;
       }
       if (inkFeather.current) {
-        const sway = Math.sin(t * 0.5) * 2 + Math.sin(p * Math.PI * 2.4) * 12;
+        // sway oscila (no acumula) — el drift direccional (p*-7vw) SÍ acumulaba y
+        // terminaba metiendo la pluma en la columna de contenido (tapaba el stat
+        // "51 · TESTS GREEN"). Confinada al gutter derecho: solo cae y oscila.
+        const sway = Math.sin(t * 0.5) * 2 + Math.sin(p * Math.PI * 2.4) * 8;
         const fall = p * 78; // vh que cae a lo largo de la página
         inkFeather.current.style.transform =
-          `translate3d(calc(${mouse.x * 12}px + ${p * -7}vw), ${fall}vh, 0) rotate(${-10 + sway}deg)`;
+          `translate3d(${mouse.x * 12}px, ${fall}vh, 0) rotate(${-10 + sway}deg)`;
       }
     };
     raf = requestAnimationFrame(tick);
@@ -128,7 +135,7 @@ export function LegendHome() {
             <a href="#ledger" className="hidden text-sm font-medium underline-offset-4 hover:underline sm:block" style={{ color: DIM }}>
               Check a balance
             </a>
-            <Link href="/create" className="rounded-full px-4 py-1.5 text-sm font-bold text-white" style={{ background: GREEN }}>
+            <Link href="/create" className="rounded-full px-4 py-1.5 text-sm font-bold" style={{ background: GREEN, color: INK }}>
               Launch a coin
             </Link>
           </div>
@@ -150,7 +157,7 @@ export function LegendHome() {
               <br />
               to builders.
               <br />
-              <span style={{ color: GREEN }}>Automatically.</span>
+              <span style={{ color: GREEN_TEXT }}>Automatically.</span>
             </h1>
             <p className="mt-6 max-w-md text-lg" style={{ color: DIM }}>
               Launch a coin for someone who ships. A slice of every trade escrows on-chain to
@@ -158,7 +165,7 @@ export function LegendHome() {
             </p>
             <div className="mt-8 flex flex-wrap items-center gap-4">
               <Magnetic>
-                <Link href="/create" className="inline-block rounded-full px-6 py-3 text-base font-bold text-white" style={{ background: GREEN }}>
+                <Link href="/create" className="inline-block rounded-full px-6 py-3 text-base font-bold" style={{ background: GREEN, color: INK }}>
                   Launch a coin
                 </Link>
               </Magnetic>
@@ -190,9 +197,11 @@ export function LegendHome() {
               </div>
               <div className="relative">
                 {/* la pluma de luz, flotando en su terrario — la punta vive en la zona
-                    vacía del header (sin texto que la tape); la máscara ahora cubre TODO
-                    el núcleo brillante (punta arriba + cálamo abajo), no solo el vientre */}
-                <div ref={feather} className="pointer-events-none absolute right-1 -top-8 w-[12.5rem] opacity-95 sm:w-56">
+                    vacía del header (sin texto que la tape); la máscara cubre TODO el
+                    núcleo brillante (punta arriba + cálamo abajo). Achicada tras el
+                    audit ciego: a 12.5rem el vientre todavía lavaba los handles de las
+                    filas 2-3 del feed — a 9rem el área de fricción es mucho menor. */}
+                <div ref={feather} className="pointer-events-none absolute right-1 -top-8 w-[9rem] opacity-95 sm:w-40">
                   {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img
                     src="/legend/feather.jpg"
@@ -200,7 +209,7 @@ export function LegendHome() {
                     className="block w-full"
                     style={{
                       mixBlendMode: "screen",
-                      filter: "brightness(1.18) contrast(1.28) saturate(1.12)",
+                      filter: "brightness(1.1) contrast(1.24) saturate(1.08)",
                       maskImage: "radial-gradient(64% 70% at 54% 48%, black 68%, transparent 100%)",
                       WebkitMaskImage: "radial-gradient(64% 70% at 54% 48%, black 68%, transparent 100%)",
                     }}
@@ -230,10 +239,10 @@ export function LegendHome() {
         <div className="border-y py-2.5" style={{ borderColor: HAIR }}>
           <Marquee duration={26}>
             <span style={{ fontFamily: "var(--f-mono)", letterSpacing: "0.14em", color: DIM }} className="text-xs uppercase">
-              Fledge on Robinhood Chain <span style={{ color: GREEN }}>▲</span> every trade pays
-              the builder <span style={{ color: GREEN }}>▲</span> escrow sworn to one name{" "}
-              <span style={{ color: GREEN }}>▲</span> claim = proof of identity{" "}
-              <span style={{ color: GREEN }}>▲</span>&nbsp;
+              Fledge on Robinhood Chain <span style={{ color: GREEN_TEXT }}>▲</span> every trade pays
+              the builder <span style={{ color: GREEN_TEXT }}>▲</span> escrow sworn to one name{" "}
+              <span style={{ color: GREEN_TEXT }}>▲</span> claim = proof of identity{" "}
+              <span style={{ color: GREEN_TEXT }}>▲</span>&nbsp;
             </span>
           </Marquee>
         </div>
@@ -242,7 +251,7 @@ export function LegendHome() {
         <section className="mx-auto max-w-6xl px-6 py-20">
           <Reveal>
             <h2 style={{ fontFamily: "var(--f-display)", lineHeight: 1 }} className="max-w-3xl text-[clamp(1.8rem,4.2vw,3rem)] uppercase">
-              Every trade pays the <span style={{ color: GREEN }}>person</span> who earned it.
+              Every trade pays the <span style={{ color: GREEN_TEXT }}>person</span> who earned it.
             </h2>
           </Reveal>
           <div className="mt-12 grid gap-px overflow-hidden rounded-2xl border sm:grid-cols-3" style={{ borderColor: HAIR, background: HAIR }}>
@@ -253,7 +262,7 @@ export function LegendHome() {
             ].map((s, i) => (
               <Reveal key={s.n} delay={i * 90}>
                 <div className="h-full p-7" style={{ background: PAPER }}>
-                  <div style={{ fontFamily: "var(--f-mono)", color: GREEN }} className="text-sm font-medium">
+                  <div style={{ fontFamily: "var(--f-mono)", color: GREEN_TEXT }} className="text-sm font-medium">
                     {s.n}
                   </div>
                   <h3 style={{ fontFamily: "var(--f-display)" }} className="mt-3 text-xl uppercase">
@@ -272,18 +281,18 @@ export function LegendHome() {
             <Stat value={100} suffix="ms" label="Block time" accent={INK} dim={FAINT} />
             <Stat value={0} label="Admin keys" accent={INK} dim={FAINT} />
             <Stat value={3} label="Proof paths" accent={INK} dim={FAINT} />
-            <Stat value={51} label="Tests green" accent={GREEN} dim={FAINT} />
+            <Stat value={51} label="Tests green" accent={GREEN_TEXT} dim={FAINT} />
           </div>
         </section>
 
         {/* custodia */}
-        <section className="border-y" style={{ borderColor: HAIR, background: "#FFFFFF" }}>
+        <section className="border-y" style={{ borderColor: HAIR, background: PAPER }}>
           <div className="mx-auto grid max-w-6xl gap-10 px-6 py-20 lg:grid-cols-2 lg:items-center">
             <Reveal>
               <h2 style={{ fontFamily: "var(--f-display)", lineHeight: 1 }} className="text-[clamp(1.8rem,4.2vw,3rem)] uppercase">
                 One vault. One identity.
                 <br />
-                <span style={{ color: GREEN }}>Zero keys held.</span>
+                <span style={{ color: GREEN_TEXT }}>Zero keys held.</span>
               </h2>
             </Reveal>
             <Reveal delay={120}>
@@ -311,7 +320,7 @@ export function LegendHome() {
         {/* ledger — formulario de brokerage */}
         <section id="ledger" className="mx-auto max-w-3xl px-6 py-24">
           <Reveal>
-            <div style={{ fontFamily: "var(--f-mono)", letterSpacing: "0.24em", color: GREEN }} className="text-xs font-medium uppercase">
+            <div style={{ fontFamily: "var(--f-mono)", letterSpacing: "0.24em", color: GREEN_TEXT }} className="text-xs font-medium uppercase">
               Balance check
             </div>
             <h2 style={{ fontFamily: "var(--f-display)", lineHeight: 1 }} className="mt-3 text-[clamp(1.9rem,4.4vw,3rem)] uppercase">
@@ -356,8 +365,14 @@ export function LegendHome() {
                 <button
                   onClick={lookup}
                   disabled={loading || !value}
-                  className="rounded-full px-7 py-3 font-bold text-white disabled:opacity-40"
-                  style={{ background: GREEN }}
+                  className="rounded-full border-2 px-7 py-3 font-bold transition-colors disabled:cursor-not-allowed"
+                  // estado disabled ya NO es un opacity-40 del fill verde (leia a boton
+                  // roto) — es un outline explicito que comunica "todavia no accionable"
+                  style={
+                    loading || !value
+                      ? { background: "transparent", borderColor: HAIR, color: FAINT }
+                      : { background: GREEN, borderColor: GREEN, color: INK }
+                  }
                 >
                   {loading ? "Checking…" : "Check balance"}
                 </button>
@@ -387,7 +402,7 @@ export function LegendHome() {
                         </div>
                       )}
                     </div>
-                    <Link href={`/claim/${r.vault}`} className="rounded-full px-5 py-2 font-bold text-white" style={{ background: GREEN }}>
+                    <Link href={`/claim/${r.vault}`} className="rounded-full px-5 py-2 font-bold" style={{ background: GREEN, color: INK }}>
                       Claim
                     </Link>
                   </li>
@@ -398,11 +413,11 @@ export function LegendHome() {
         </section>
 
         {/* CTA final + footer claro */}
-        <section className="border-t" style={{ borderColor: HAIR, background: "#FFFFFF" }}>
+        <section className="border-t" style={{ borderColor: HAIR, background: PAPER }}>
           <div className="mx-auto flex max-w-6xl flex-col items-center px-6 py-24 text-center">
             <Reveal>
               <h2 style={{ fontFamily: "var(--f-display)", lineHeight: 0.98 }} className="text-[clamp(2.2rem,5.4vw,4.2rem)] uppercase">
-                Back the one <span style={{ color: GREEN }}>who ships.</span>
+                Back the one <span style={{ color: GREEN_TEXT }}>who ships.</span>
               </h2>
             </Reveal>
             <Reveal delay={120}>
@@ -412,7 +427,7 @@ export function LegendHome() {
             </Reveal>
             <Reveal delay={220}>
               <Magnetic strength={10}>
-                <Link href="/create" className="mt-8 inline-block rounded-full px-8 py-4 text-lg font-bold text-white" style={{ background: GREEN }}>
+                <Link href="/create" className="mt-8 inline-block rounded-full px-8 py-4 text-lg font-bold" style={{ background: GREEN, color: INK }}>
                   Launch a coin for someone
                 </Link>
               </Magnetic>

@@ -85,7 +85,7 @@ export function LiveVaultFeed({
               opacity: 1 - i * 0.13,
               // halo oscuro: el feed vive sobre fondos ocupados (plumas, humo, plates) —
               // sin esto el texto se lava contra cualquier cosa brillante detrás
-              textShadow: "0 0 5px rgba(3,6,4,0.85), 0 1px 3px rgba(3,6,4,0.9)",
+              textShadow: "0 0 6px rgba(3,6,4,0.92), 0 1px 4px rgba(3,6,4,0.95)",
             }}
           >
             <span className="whitespace-nowrap" style={{ color: dim }}>{r.t}</span>
