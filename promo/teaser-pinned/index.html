@@ -1,30 +1,280 @@
 <!doctype html>
-<html lang="en" data-resolution="landscape">
+<html
+  lang="en"
+  data-resolution="landscape"
+  data-composition-variables='[{"id":"bookends","type":"boolean","label":"Bookends (corte B: fotos 3D en beats 1 y 5)","default":true}]'
+>
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=1920, height=1080" />
+    <title>RobinShare — teaser pinned (5 beats)</title>
     <script src="https://cdn.jsdelivr.net/npm/gsap@3.14.2/dist/gsap.min.js"></script>
     <style>
+      /* ---------- fonts (local, deterministic — no CDN) ---------- */
+      @font-face {
+        font-family: "Archivo Black";
+        src: url("fonts/archivo-black-400-latin.woff2") format("woff2");
+        font-weight: 400;
+        font-style: normal;
+        font-display: block;
+      }
+      /* supplementary subset — only the → glyph (U+2192) rides on Archivo Black,
+         so the arrow in beat 4's third line ("...fee → builder.") renders in the
+         display face instead of falling back to a system font. */
+      @font-face {
+        font-family: "Archivo Black";
+        src: url("fonts/archivo-black-400-arrow.woff2") format("woff2");
+        font-weight: 400;
+        font-style: normal;
+        unicode-range: U+2192;
+        font-display: block;
+      }
+      @font-face {
+        font-family: "IBM Plex Mono";
+        src: url("fonts/ibm-plex-mono-400-latin.woff2") format("woff2");
+        font-weight: 400;
+        font-style: normal;
+        font-display: block;
+      }
+      @font-face {
+        font-family: "IBM Plex Mono";
+        src: url("fonts/ibm-plex-mono-500-latin.woff2") format("woff2");
+        font-weight: 500;
+        font-style: normal;
+        font-display: block;
+      }
+
+      /* ---------- reset + palette ---------- */
       * {
         margin: 0;
         padding: 0;
         box-sizing: border-box;
       }
+      :root {
+        --paper: #0d120e;
+        --ink: #f2f3ee;
+        --lime: #ccff00;
+        --signal: #00c805;
+        --dim: rgba(242, 243, 238, 0.62);
+      }
       html,
       body {
-        margin: 0;
+        width: 1920px;
+        height: 1080px;
+        background: var(--paper);
+        overflow: hidden;
+      }
+      body {
+        font-family: "IBM Plex Mono", monospace;
+        color: var(--ink);
+      }
+
+      #root {
+        position: relative;
         width: 1920px;
         height: 1080px;
         overflow: hidden;
-        background: #000;
+        background: var(--paper);
       }
-      body {
-        font-family: "Inter", sans-serif;
+
+      .clip {
+        position: absolute;
       }
-      code,
-      pre,
-      .monospace {
-        font-family: "JetBrains Mono", monospace;
+      .scene-fill {
+        inset: 0;
+        width: 1920px;
+        height: 1080px;
+        background: var(--paper);
+      }
+
+      /* bookend photo layer — shown by default (declared variable default is
+         true); JS removes `.is-bookends` from <html> when the variable resolves
+         false, which is the only thing that hides these. No JS run = still
+         correct, since the CSS default matches the variable default. */
+      html {
+        /* default-on: matches data-composition-variables default `true` */
+      }
+      .bookend-bg {
+        position: absolute;
+        inset: 0;
+        background-size: cover;
+        background-position: center;
+        transform-origin: 50% 50%;
+        will-change: transform;
+        display: block;
+      }
+      .bookend-scrim {
+        position: absolute;
+        inset: 0;
+        display: block;
+      }
+      html.no-bookends .bookend-bg,
+      html.no-bookends .bookend-scrim {
+        display: none;
+      }
+
+      /* ---------- typography ---------- */
+      .display {
+        font-family: "Archivo Black", sans-serif;
+        text-transform: uppercase;
+        letter-spacing: -0.02em;
+        color: var(--ink);
+      }
+      .mono {
+        font-family: "IBM Plex Mono", monospace;
+        color: var(--dim);
+      }
+      .mono-url {
+        text-transform: none;
+      }
+
+      /* ---------- beat 1 : hook ---------- */
+      #beat1 {
+        display: flex;
+        align-items: center;
+      }
+      .b1-scrim {
+        background: linear-gradient(
+          100deg,
+          rgba(13, 18, 14, 0.62) 0%,
+          rgba(13, 18, 14, 0.34) 55%,
+          rgba(13, 18, 14, 0.52) 100%
+        );
+      }
+      .b1-content {
+        position: relative;
+        z-index: 2;
+        padding: 0 150px;
+        width: 100%;
+      }
+      #beat1-text {
+        display: flex;
+        flex-wrap: wrap;
+        column-gap: 0.28em;
+        row-gap: 0.06em;
+        max-width: 1560px;
+        font-size: 118px;
+        line-height: 1.04;
+      }
+      .b1-word {
+        display: inline-block;
+        will-change: transform, opacity;
+      }
+
+      /* ---------- beat 2 : twist ---------- */
+      #beat2 {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
+      #beat2-text {
+        text-align: center;
+        max-width: 1680px;
+        font-size: 112px;
+        line-height: 1.06;
+        color: var(--lime);
+        will-change: transform;
+      }
+
+      /* ---------- beat 3 : product ---------- */
+      #beat3-video,
+      #beat3-sec01,
+      #beat3-sec02,
+      #beat3-sec03 {
+        inset: 0;
+        width: 1920px;
+        height: 1080px;
+        object-fit: cover;
+        will-change: transform;
+      }
+      #beat3-scrim {
+        inset: 0;
+        width: 1920px;
+        height: 1080px;
+        background: linear-gradient(180deg, transparent 62%, rgba(13, 18, 14, 0.86) 100%);
+      }
+      #beat3-label {
+        left: 96px;
+        bottom: 84px;
+        max-width: 1400px;
+        font-size: 26px;
+        letter-spacing: 0.14em;
+        line-height: 1.5;
+        will-change: transform, opacity;
+      }
+
+      /* ---------- beat 4 : promise ---------- */
+      #beat4 {
+        display: flex;
+        align-items: center;
+      }
+      .b4-stack {
+        padding: 0 130px;
+        display: flex;
+        flex-direction: column;
+        gap: 30px;
+      }
+      .b4-line {
+        font-size: 78px;
+        line-height: 1.08;
+        will-change: transform, opacity, filter;
+      }
+      .b4-line.lime {
+        color: var(--lime);
+      }
+
+      /* ---------- beat 5 : sting ---------- */
+      #beat5 {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
+      .b5-scrim {
+        background: rgba(13, 18, 14, 0.4);
+      }
+      #beat5-bg {
+        /* grade one step darker/cooler so the closing shot reads as the same
+           studio as beat 1's bookend-open (art-review requirement #1); a small
+           saturation/contrast bump keeps the lime fletching from going muddy
+           under the darken (art-review requirement #3, understated). */
+        filter: brightness(0.68) saturate(1.08) contrast(1.05);
+      }
+      #beat5-content {
+        position: relative;
+        z-index: 2;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 22px;
+        text-align: center;
+      }
+      #bowmark {
+        width: 104px;
+        height: 104px;
+        will-change: transform, opacity;
+      }
+      #beat5-word {
+        font-size: 78px;
+        line-height: 1;
+        will-change: transform, opacity;
+      }
+      #beat5-tag {
+        font-size: 30px;
+        font-weight: 500;
+        letter-spacing: 0.06em;
+        will-change: transform, opacity;
+      }
+      #beat5-url {
+        font-size: 22px;
+        letter-spacing: 0.02em;
+        will-change: opacity;
+      }
+      #beat5-veil {
+        position: absolute;
+        inset: 0;
+        z-index: 5;
+        background: var(--paper);
+        opacity: 0;
       }
     </style>
   </head>
@@ -33,26 +283,150 @@
       id="root"
       data-composition-id="main"
       data-start="0"
-      data-duration="10"
+      data-duration="28"
       data-width="1920"
       data-height="1080"
     >
-      
-      
-
-      <!--
-        Add your clips here. Example:
-        <div id="title" class="clip" data-start="0" data-duration="5" data-track-index="1"
-             style="font-size: 64px; color: #fff; padding: 40px">
-          Hello World
+      <!-- ============ BEAT 1 — HOOK (0-4s) ============ -->
+      <section id="beat1" class="clip scene-fill" data-start="0" data-duration="4" data-track-index="1">
+        <div class="bookend-bg" id="beat1-bg" style="background-image: url('assets/bookend-open.png')"></div>
+        <div class="bookend-scrim b1-scrim"></div>
+        <div class="b1-content">
+          <h1 id="beat1-text" class="display">
+            <span class="b1-word">Robin</span>
+            <span class="b1-word">Hood</span>
+            <span class="b1-word">is</span>
+            <span class="b1-word">about</span>
+            <span class="b1-word">sharing.</span>
+          </h1>
         </div>
-      -->
+      </section>
+
+      <!-- ============ BEAT 2 — TWIST (4-7s) ============ -->
+      <section id="beat2" class="clip scene-fill" data-start="4" data-duration="3" data-track-index="1">
+        <h1 id="beat2-text" class="display">We built that on-chain.</h1>
+      </section>
+
+      <!-- ============ BEAT 3 — PRODUCT (7-19s) ============ -->
+      <video
+        id="beat3-video"
+        class="clip"
+        src="assets/tape-hero.webm"
+        data-start="7"
+        data-duration="6"
+        data-media-start="2.5"
+        data-track-index="1"
+        muted
+        playsinline
+      ></video>
+      <img id="beat3-sec01" class="clip" src="assets/sec-01.png" data-start="13" data-duration="2" data-track-index="1" alt="" />
+      <img id="beat3-sec02" class="clip" src="assets/sec-02.png" data-start="15" data-duration="2" data-track-index="1" alt="" />
+      <img id="beat3-sec03" class="clip" src="assets/sec-03.png" data-start="17" data-duration="2" data-track-index="1" alt="" />
+      <div id="beat3-scrim" class="clip" data-start="7" data-duration="12" data-track-index="2"></div>
+      <div id="beat3-label" class="clip mono" data-start="7" data-duration="12" data-track-index="3">
+        the real product <span class="mono-url">—</span> live at
+        <span class="mono-url">robinshare.vercel.app</span>
+      </div>
+
+      <!-- ============ BEAT 4 — PROMISE (19-24s) ============ -->
+      <section id="beat4" class="clip scene-fill" data-start="19" data-duration="5" data-track-index="1" data-layout-allow-overflow="true">
+        <div class="b4-stack">
+          <div class="b4-line display" id="b4-l1">Every trade pays the builder.</div>
+          <div class="b4-line display" id="b4-l2">0 admin keys.</div>
+          <div class="b4-line display lime" id="b4-l3">100% of the fee → builder.</div>
+        </div>
+      </section>
+
+      <!-- ============ BEAT 5 — REMATE (24-28s) ============ -->
+      <section id="beat5" class="clip scene-fill" data-start="24" data-duration="4" data-track-index="1">
+        <div class="bookend-bg" id="beat5-bg" style="background-image: url('assets/bookend-close.png')"></div>
+        <div class="bookend-scrim b5-scrim"></div>
+        <div id="beat5-content">
+          <svg id="bowmark" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+            <path d="M7 3 A 13 13 0 0 1 7 21" stroke="var(--signal)" stroke-width="1.7" stroke-linecap="round" />
+            <path d="M7 3 L7 21" stroke="var(--signal)" stroke-width="0.8" opacity="0.65" />
+            <path d="M3 12 L21 12" stroke="var(--signal)" stroke-width="1.5" stroke-linecap="round" />
+            <path d="M21 12 L16.8 9.9 M21 12 L16.8 14.1" stroke="var(--signal)" stroke-width="1.5" stroke-linecap="round" />
+            <path d="M3 12 L5.4 9.9 M3 12 L5.4 14.1" stroke="var(--signal)" stroke-width="1" opacity="0.7" stroke-linecap="round" />
+          </svg>
+          <div id="beat5-word" class="display">ROBINSHARE</div>
+          <div id="beat5-tag" class="mono">Soon on Robinhood Chain.</div>
+          <div id="beat5-url" class="mono mono-url">robinshare.vercel.app</div>
+        </div>
+        <div id="beat5-veil"></div>
+      </section>
     </div>
 
     <script>
+      // Read the composition variable synchronously, before the timeline is
+      // built, and reflect it as a class on <html>. CSS defaults to the
+      // "bookends on" look (matching the declared variable default of
+      // `true`), so this only ever needs to REMOVE the bookend layers.
+      var __vars = (window.__hyperframes && window.__hyperframes.getVariables) ? window.__hyperframes.getVariables() : { bookends: true };
+      var bookends = __vars.bookends !== false;
+      document.documentElement.classList.toggle("no-bookends", !bookends);
+
       window.__timelines = window.__timelines || {};
-      const tl = gsap.timeline({ paused: true });
-      // Example: tl.from("#title", { opacity: 0, y: -50, duration: 1 }, 0);
+      var tl = gsap.timeline({ paused: true });
+
+      /* ---------- BEAT 1 : hook (0-4s) — word-by-word stagger ---------- */
+      if (bookends) {
+        tl.fromTo("#beat1-bg", { scale: 1.06 }, { scale: 1.0, duration: 4, ease: "sine.out" }, 0);
+      }
+      tl.fromTo(
+        "#beat1-text .b1-word",
+        { y: 30, opacity: 0 },
+        { y: 0, opacity: 1, duration: 0.45, ease: "power3.out", stagger: 0.07 },
+        0.1,
+      );
+
+      /* ---------- BEAT 2 : twist (4-7s) — hard cut + settle ---------- */
+      // The clip's own visibility toggle (class="clip") is the hard cut —
+      // no opacity fade here. Only a fast scale-settle rides on top.
+      tl.fromTo("#beat2-text", { scale: 1.05 }, { scale: 1.0, duration: 0.22, ease: "power2.out" }, 4);
+
+      /* ---------- BEAT 3 : product (7-19s) — media playback + soft Ken Burns ---------- */
+      tl.fromTo("#beat3-video", { scale: 1.0 }, { scale: 1.05, duration: 6, ease: "none" }, 7);
+
+      var slides = ["#beat3-sec01", "#beat3-sec02", "#beat3-sec03"];
+      var slideStarts = [13, 15, 17];
+      slides.forEach(function (sel, i) {
+        var t0 = slideStarts[i];
+        tl.fromTo(sel, { x: 40, opacity: 0 }, { x: 0, opacity: 1, duration: 0.35, ease: "power3.out" }, t0);
+        tl.fromTo(sel, { scale: 1.0 }, { scale: 1.035, duration: 2, ease: "sine.out" }, t0);
+      });
+
+      tl.fromTo("#beat3-label", { y: 14, opacity: 0 }, { y: 0, opacity: 1, duration: 0.4, ease: "power3.out" }, 7.15);
+
+      /* ---------- BEAT 4 : promise (19-24s) — kinetic stack, one line per beat ---------- */
+      // Distinct entrance per line (kinetic-beat-slam pattern): slam / side-snap / rise+rotate.
+      tl.fromTo(
+        "#b4-l1",
+        { scale: 1.4, filter: "blur(14px)", opacity: 0 },
+        { scale: 1, filter: "blur(0px)", opacity: 1, duration: 0.5, ease: "power4.out" },
+        19.0,
+      );
+      tl.fromTo("#b4-l2", { x: -260, opacity: 0 }, { x: 0, opacity: 1, duration: 0.45, ease: "expo.out" }, 20.7);
+      tl.fromTo(
+        "#b4-l3",
+        { y: 90, rotation: 5, opacity: 0 },
+        { y: 0, rotation: 0, opacity: 1, duration: 0.55, ease: "circ.out" },
+        22.3,
+      );
+
+      /* ---------- BEAT 5 : remate (24-28s) — logo sting, clean fade out ---------- */
+      if (bookends) {
+        tl.fromTo("#beat5-bg", { scale: 1.03 }, { scale: 1.0, duration: 4, ease: "sine.out" }, 24);
+      }
+      tl.fromTo("#bowmark", { scale: 0, opacity: 0 }, { scale: 1, opacity: 1, duration: 0.5, ease: "power3.out" }, 24.0);
+      tl.fromTo("#beat5-word", { y: 20, opacity: 0 }, { y: 0, opacity: 1, duration: 0.45, ease: "power3.out" }, 24.3);
+      tl.fromTo("#beat5-tag", { y: 14, opacity: 0 }, { y: 0, opacity: 1, duration: 0.4, ease: "power3.out" }, 24.6);
+      tl.fromTo("#beat5-url", { opacity: 0 }, { opacity: 1, duration: 0.4, ease: "power2.out" }, 24.85);
+      // Clean fade to paper-black over the last 0.6s — a dedicated veil (not just
+      // content opacity) so the ending reads as a true fade-out in both bookend
+      // variants, whether the backdrop is the close photo or flat paper.
+      tl.fromTo("#beat5-veil", { opacity: 0 }, { opacity: 1, duration: 0.6, ease: "power2.in" }, 27.4);
+
       window.__timelines["main"] = tl;
     </script>
   </body>
