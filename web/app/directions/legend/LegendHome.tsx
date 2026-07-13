@@ -9,7 +9,7 @@ import { Marquee } from "@/components/Marquee";
 import { Stat } from "@/components/Stat";
 import { Magnetic } from "@/components/Magnetic";
 import { useVaultLookup } from "@/lib/useVaultLookup";
-import { useScrollSync } from "@/lib/scrollProgress";
+import { Scroll, useScrollSync } from "@/lib/scrollProgress";
 import { useHideNav } from "@/lib/useHideNav";
 
 /*
@@ -60,21 +60,40 @@ export function LegendHome() {
   const reduce = useReducedMotion();
   const { type, setType, value, setValue, rows, error, loading, lookup } = useVaultLookup();
   const feather = useRef<HTMLDivElement>(null);
+  const inkFeather = useRef<HTMLDivElement>(null);
 
-  // la pluma flota SOLO dentro de su panel terminal (time-based, sin scroll)
+  // Dos plumas, un motivo: la de LUZ flota dentro del terminal (time-based) y su
+  // gemela de TINTA cae por el papel con el scroll — rotando, como pluma de verdad.
   useEffect(() => {
     if (reduce) return;
     let raf = 0;
+    let cur = 0;
+    const mouse = { x: 0 };
+    const onMove = (e: MouseEvent) => {
+      mouse.x = (e.clientX / window.innerWidth - 0.5) * 2;
+    };
+    window.addEventListener("mousemove", onMove, { passive: true });
     const tick = () => {
       raf = requestAnimationFrame(tick);
       const t = performance.now() / 1000;
+      cur += (Scroll.progress - cur) * 0.08;
+      const p = cur;
       if (feather.current) {
         feather.current.style.transform =
           `translate3d(0, ${Math.sin(t * 0.7) * 9}px, 0) rotate(${Math.sin(t * 0.4) * 3.5}deg)`;
       }
+      if (inkFeather.current) {
+        const sway = Math.sin(t * 0.5) * 2 + Math.sin(p * Math.PI * 2.4) * 12;
+        const fall = p * 78; // vh que cae a lo largo de la página
+        inkFeather.current.style.transform =
+          `translate3d(calc(${mouse.x * 12}px + ${p * -7}vw), ${fall}vh, 0) rotate(${-10 + sway}deg)`;
+      }
     };
     raf = requestAnimationFrame(tick);
-    return () => cancelAnimationFrame(raf);
+    return () => {
+      cancelAnimationFrame(raf);
+      window.removeEventListener("mousemove", onMove);
+    };
   }, [reduce]);
 
   return (
@@ -82,6 +101,14 @@ export function LegendHome() {
       className={`${display.variable} ${body.variable} ${mono.variable} relative`}
       style={{ background: PAPER, color: INK, fontFamily: "var(--f-body)" }}
     >
+      {/* la pluma de TINTA: cae por el papel con el scroll (detrás del contenido) */}
+      <div aria-hidden className="pointer-events-none fixed right-[5%] top-[-8%] z-0 w-[min(24vw,340px)]">
+        <div ref={inkFeather} className="will-change-transform">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src="/legend/feather-ink.png" alt="" className="w-full opacity-90" draggable={false} />
+        </div>
+      </div>
+
       {/* nav claro */}
       <nav
         className="fixed inset-x-0 top-0 z-40 transition-transform duration-300"
@@ -108,7 +135,7 @@ export function LegendHome() {
         </div>
       </nav>
 
-      <div className="relative">
+      <div className="relative z-10">
         {/* HERO — titular negro + panel terminal oscuro */}
         <section className="mx-auto grid max-w-6xl gap-10 px-6 pb-16 pt-28 lg:grid-cols-[1.15fr_1fr] lg:items-center lg:pt-32">
           <div>
