@@ -20,10 +20,17 @@ export function Reveal({
   useEffect(() => {
     const el = ref.current;
     if (!el) return;
+    // Gotcha (vault): en pestaña OCULTA Chrome congela las transiciones CSS a mitad
+    // de vuelo → la sección queda fantasma (opacity/blur intermedios). Si el tab está
+    // hidden, saltamos directo al estado final; y al volver a visible, cualquier
+    // reveal ya disparado se asienta al instante.
+    const settle = () => el.classList.add("no-anim");
     const io = new IntersectionObserver(
       (entries) => {
         for (const e of entries) {
           if (e.isIntersecting) {
+            if (document.hidden) settle();
+            else setTimeout(settle, 900); // pasada la ventana de transición, fijar
             e.target.classList.add("is-in");
             io.unobserve(e.target);
           }
@@ -32,7 +39,14 @@ export function Reveal({
       { threshold: 0.12, rootMargin: "0px 0px -8% 0px" },
     );
     io.observe(el);
-    return () => io.disconnect();
+    const onVis = () => {
+      if (!document.hidden && el.classList.contains("is-in")) settle();
+    };
+    document.addEventListener("visibilitychange", onVis);
+    return () => {
+      io.disconnect();
+      document.removeEventListener("visibilitychange", onVis);
+    };
   }, []);
 
   const Comp = Tag as "div";

@@ -58,6 +58,10 @@ body::after {
   transform: none;
   filter: none;
 }
+/* asentado: mata la transición para que un freeze de pestaña oculta no deje fantasmas */
+.reveal.no-anim {
+  transition: none !important;
+}
 
 @media (prefers-reduced-motion: reduce) {
   html {
