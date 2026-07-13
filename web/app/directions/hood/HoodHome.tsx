@@ -56,6 +56,7 @@ function useCinema(reduce: boolean) {
   const dark = useRef<HTMLDivElement>(null);
   const archer = useRef<HTMLDivElement>(null);
   const streak = useRef<HTMLDivElement>(null);
+  const arrowImg = useRef<HTMLDivElement>(null);
   const fogA = useRef<HTMLDivElement>(null);
   const fogB = useRef<HTMLDivElement>(null);
   const barT = useRef<HTMLDivElement>(null);
@@ -106,14 +107,25 @@ function useCinema(reduce: boolean) {
           `translate3d(calc(${mx * 14 + recoil}px - ${ease(exit) * 55}vw), ${my * 8}px, 0)`;
         archer.current.style.opacity = String(1 - ease(exit));
       }
-      // la flecha: una estela verde que cruza del arco al beam, scrubbed
-      if (streak.current) {
+      // la flecha REAL (foto macro, screen-blend) vuela del arco al beam; la estela
+      // verde es su trail. Una línea sola NO es una flecha (lección del juez).
+      {
         const t = clamp01((p - 0.07) / 0.09);
         const on = t > 0.001 && t < 0.999 && !reduce;
-        streak.current.style.opacity = on ? String(Math.sin(t * Math.PI)) : "0";
-        // vuela desde el arco y MUERE en el beam (centro del cuadro)
-        streak.current.style.transform =
-          `translate3d(${-36 + ease(t) * 36}vw, ${9 - ease(t) * 17}vh, 0) rotate(-7deg)`;
+        const x = -36 + ease(t) * 36; // vw — muere en el beam (centro)
+        const y = 9 - ease(t) * 17; // vh
+        if (arrowImg.current) {
+          arrowImg.current.style.opacity = on ? String(Math.min(1, Math.sin(t * Math.PI) * 1.6)) : "0";
+          const shrink = 1 - ease(t) * 0.45; // se hunde en la profundidad
+          arrowImg.current.style.transform =
+            `translate3d(${x}vw, ${y}vh, 0) rotate(-7deg) scaleX(-1) scale(${shrink})`;
+        }
+        if (streak.current) {
+          streak.current.style.opacity = on ? String(Math.sin(t * Math.PI) * 0.85) : "0";
+          // el trail corre DETRÁS de la punta (offset hacia atrás del vuelo)
+          streak.current.style.transform =
+            `translate3d(${x - 13}vw, ${y + 1.2}vh, 0) rotate(-7deg)`;
+        }
       }
       // niebla multiplano: dos capas a distinta velocidad = profundidad real del dolly
       if (fogA.current) {
@@ -134,7 +146,7 @@ function useCinema(reduce: boolean) {
     };
   }, [reduce]);
 
-  return { bg, bg2, dark, archer, streak, fogA, fogB, barT, barB };
+  return { bg, bg2, dark, archer, streak, arrowImg, fogA, fogB, barT, barB };
 }
 
 /* Title card de apertura: FLEDGE presenta… (gate honesto: fuentes + plate decodificado) */
@@ -184,7 +196,7 @@ export function HoodHome() {
   const reduce = useReducedMotion();
   const [titleGone, setTitleGone] = useState(false);
   const { type, setType, value, setValue, rows, error, loading, lookup } = useVaultLookup();
-  const { bg, bg2, dark, archer, streak, fogA, fogB, barT, barB } = useCinema(reduce);
+  const { bg, bg2, dark, archer, streak, arrowImg, fogA, fogB, barT, barB } = useCinema(reduce);
 
   return (
     <main
@@ -244,7 +256,7 @@ export function HoodHome() {
           className="pointer-events-none absolute inset-0"
           style={{ background: "radial-gradient(115% 85% at 50% 42%, transparent 52%, rgba(0,0,0,0.62))" }}
         />
-        {/* la flecha (estela) que cruza al disparar */}
+        {/* el trail verde de la flecha (la firma) */}
         <div
           ref={streak}
           className="absolute left-1/2 top-1/2 h-[2px] w-[26vw] opacity-0 will-change-transform"
@@ -253,6 +265,25 @@ export function HoodHome() {
             boxShadow: `0 0 18px 3px rgba(0,200,5,0.65)`,
           }}
         />
+        {/* LA FLECHA de verdad: foto macro sobre negro, screen-blend, punta adelante */}
+        <div
+          ref={arrowImg}
+          className="absolute left-1/2 top-1/2 w-[24vw] opacity-0 will-change-transform"
+          style={{ mixBlendMode: "screen", marginLeft: "-12vw", marginTop: "-6.75vw" }}
+        >
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src="/sherwood/arrow.jpg"
+            alt=""
+            className="block w-full"
+            style={{
+              filter: "brightness(1.05) contrast(1.1) sepia(0.15) hue-rotate(-10deg)",
+              maskImage: "radial-gradient(60% 58% at 50% 50%, black 52%, transparent 78%)",
+              WebkitMaskImage: "radial-gradient(60% 58% at 50% 50%, black 52%, transparent 78%)",
+            }}
+            draggable={false}
+          />
+        </div>
         {/* el arquero: capa 2.5D FIJA — la cámara pasa junto a él; dispara y sale */}
         <div
           ref={archer}
