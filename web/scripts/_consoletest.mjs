@@ -1,0 +1,10 @@
+import { chromium } from "playwright";
+const browser = await chromium.launch({ headless: false, channel: "chrome", args: ["--window-position=4000,1400", "--window-size=420,300"] });
+const page = await browser.newPage({ viewport: { width: 1440, height: 900 } });
+const errors = [];
+page.on("console", (m) => { if (m.type() === "error" || m.type() === "warning") errors.push(m.type() + ": " + m.text().slice(0, 300)); });
+await page.goto("http://localhost:3000/", { waitUntil: "networkidle" });
+await page.fill('input[placeholder="your-handle"]', "torvalds");
+await page.waitForTimeout(6000);
+console.log(errors.length ? errors.join("\n---\n") : "sin errores/warnings de consola");
+await browser.close();

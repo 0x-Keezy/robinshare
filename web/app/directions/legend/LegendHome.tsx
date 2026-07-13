@@ -13,6 +13,7 @@ import { Scroll, useScrollSync } from "@/lib/scrollProgress";
 import { useHideNav } from "@/lib/useHideNav";
 import { useTheme } from "@/lib/useTheme";
 import { BowMark } from "@/components/BowMark";
+import { publicClient } from "@/lib/chain";
 
 /*
  * ROBINSHARE (ex-Legend, ganadora del bake-off) — el BROKERAGE.
@@ -62,6 +63,35 @@ export function LegendHome() {
   const { theme, toggle: toggleTheme } = useTheme();
   const { type, setType, value, setValue, rows, error, loading, lookup } = useVaultLookup();
   const inkFeather = useRef<HTMLDivElement>(null);
+
+  // demo interactivo del tape (producto-como-héroe, lección Arcus): el visitante
+  // tipea un handle y ve SU vault llenarse — el feed enfoca ese nombre y el
+  // total acumula fill a fill. Ilustrativo, como todo el tape.
+  const [routeTo, setRouteTo] = useState("");
+  const [routed, setRouted] = useState(0);
+  const focusHandle = routeTo.trim() ? "@" + routeTo.trim().replace(/^@+/, "").toLowerCase() : undefined;
+
+  // block number REAL de Robinhood Chain en el header del tape — el único dato
+  // del panel que no es ilustrativo: se lee del RPC en vivo (~100ms/block, el
+  // salto entre polls se ve subir). Si el RPC no responde, no se muestra.
+  const [block, setBlock] = useState<bigint | null>(null);
+  useEffect(() => {
+    let alive = true;
+    const tick = () => {
+      publicClient
+        .getBlockNumber()
+        .then((b) => {
+          if (alive) setBlock(b);
+        })
+        .catch(() => {});
+    };
+    tick();
+    const iv = setInterval(tick, 2000);
+    return () => {
+      alive = false;
+      clearInterval(iv);
+    };
+  }, []);
 
   // La pluma de TINTA cae por el papel con el scroll, rotando, como pluma de
   // verdad. (Su gemela de luz vivía dentro del terminal — Jose la sacó del
@@ -217,8 +247,18 @@ export function LegendHome() {
                 <span className="h-2.5 w-2.5 rounded-full" style={{ background: "rgba(247,248,244,0.25)" }} />
                 <span className="h-2.5 w-2.5 rounded-full" style={{ background: GREEN }} />
                 <span className="ml-2 text-[11px]" style={{ fontFamily: "var(--f-mono)", color: "rgba(247,248,244,0.55)" }}>
-                  robinshare://tape — live preview
+                  robinshare://tape
                 </span>
+                {/* dato VIVO real (no ilustrativo): block number del RPC de Robinhood Chain */}
+                {block !== null && (
+                  <span
+                    className="ml-auto text-[11px] tabular-nums"
+                    style={{ fontFamily: "var(--f-mono)", color: "rgba(247,248,244,0.4)" }}
+                    title="Live block height — Robinhood Chain"
+                  >
+                    block <span style={{ color: GREEN }}>#{block.toLocaleString("en-US")}</span>
+                  </span>
+                )}
               </div>
               {/* Jose: la pluma de luz sobre el tape quedaba incómoda pese a los
                   ajustes (mascara/tamaño/brillo) — la sacamos del todo, el terrario
@@ -231,7 +271,43 @@ export function LegendHome() {
                   dim="rgba(247,248,244,0.55)"
                   hair="rgba(247,248,244,0.08)"
                   verb="fill"
+                  focusHandle={focusHandle}
+                  onFill={(d) => setRouted((r) => r + d)}
                 />
+              </div>
+              {/* demo interactivo: tipeá un handle y mirá SU vault llenarse */}
+              <div
+                className="flex flex-wrap items-baseline gap-x-3 gap-y-1 border-t px-5 py-3 text-[12px] sm:text-[13px]"
+                style={{ borderColor: "rgba(247,248,244,0.12)", fontFamily: "var(--f-mono)" }}
+              >
+                <label className="flex items-baseline gap-2" style={{ color: "rgba(247,248,244,0.55)" }}>
+                  <span aria-hidden style={{ color: GREEN }}>→</span>
+                  route fees to
+                  <span className="flex items-baseline" style={{ color: "#F2F3EE" }}>
+                    @
+                    <input
+                      value={routeTo}
+                      onChange={(e) => {
+                        setRouteTo(e.target.value);
+                        setRouted(0);
+                      }}
+                      placeholder="your-handle"
+                      spellCheck={false}
+                      suppressHydrationWarning
+                      className="w-32 border-0 border-b bg-transparent pb-0.5 placeholder:opacity-40 focus:outline-none"
+                      style={{ borderColor: "rgba(247,248,244,0.3)", color: "#F2F3EE", fontFamily: "var(--f-mono)" }}
+                    />
+                  </span>
+                </label>
+                {focusHandle && (
+                  <span className="ml-auto tabular-nums" style={{ color: "#9ff0b5" }}>
+                    {focusHandle}&apos;s vault&nbsp;
+                    <span className="font-medium" style={{ color: GREEN }}>
+                      +{routed.toFixed(4)} ETH
+                    </span>
+                    &nbsp;and counting
+                  </span>
+                )}
               </div>
             </div>
             <p className="mt-2 text-right text-[11px]" style={{ fontFamily: "var(--f-mono)", color: FAINT }}>
@@ -251,47 +327,68 @@ export function LegendHome() {
           </Marquee>
         </div>
 
-        {/* mecanismo — cards suizas */}
-        <section className="mx-auto max-w-6xl px-6 py-20">
+        {/* mecanismo — filas editoriales con numerales gigantes (aire tipo Arcus:
+            un concepto por pantalla, el blanco es el lujo) */}
+        <section className="mx-auto max-w-6xl px-6 py-28">
           <Reveal>
             <h2 style={{ fontFamily: "var(--f-display)", lineHeight: 1 }} className="max-w-3xl text-[clamp(1.8rem,4.2vw,3rem)] uppercase">
               Every trade pays the <span style={{ color: GREEN_TEXT }}>person</span> who earned it.
             </h2>
           </Reveal>
-          <div className="mt-12 grid gap-px overflow-hidden rounded-2xl border sm:grid-cols-3" style={{ borderColor: HAIR, background: HAIR }}>
+          <div className="mt-10 flex flex-col">
             {[
               { n: "01", t: "Name them", d: "Pick a builder by GitHub, X, or wallet. Their coin lists on Flap in seconds." },
               { n: "02", t: "Fees accrue", d: "A launch-set cut of every trade (1–10%) lands in an on-chain vault under their name." },
               { n: "03", t: "They claim", d: "They prove it's them (GitHub login, a tweet, or a signature) and sweep the ETH." },
-            ].map((s, i) => (
-              <Reveal key={s.n} delay={i * 90}>
-                <div className="h-full p-7" style={{ background: PAPER }}>
-                  <div style={{ fontFamily: "var(--f-mono)", color: GREEN_TEXT }} className="text-sm font-medium">
-                    {s.n}
+            ].map((s) => (
+              <Reveal key={s.n}>
+                <div
+                  className="grid items-center gap-6 border-t py-16 sm:grid-cols-[220px_1fr] sm:gap-12 sm:py-24"
+                  style={{ borderColor: HAIR }}
+                >
+                  <div
+                    aria-hidden
+                    style={{ fontFamily: "var(--f-display)", color: GREEN_TEXT, lineHeight: 0.9 }}
+                    className="text-[clamp(4rem,9vw,7.5rem)] tracking-tight"
+                  >
+                    /{s.n}
                   </div>
-                  <h3 style={{ fontFamily: "var(--f-display)" }} className="mt-3 text-xl uppercase">
-                    {s.t}
-                  </h3>
-                  <p className="mt-3 text-[15px] leading-relaxed" style={{ color: DIM }}>
-                    {s.d}
-                  </p>
+                  <div>
+                    <h3 style={{ fontFamily: "var(--f-display)" }} className="text-2xl uppercase sm:text-3xl">
+                      {s.t}
+                    </h3>
+                    <p className="mt-4 max-w-lg text-lg leading-relaxed" style={{ color: DIM }}>
+                      {s.d}
+                    </p>
+                  </div>
                 </div>
               </Reveal>
             ))}
           </div>
 
-          {/* hechos en negro gigante */}
-          <div className="mt-16 grid grid-cols-2 gap-x-8 gap-y-10 border-t pt-12 sm:grid-cols-4" style={{ borderColor: HAIR }}>
+          {/* hechos en negro gigante — user-meaningful, verificables */}
+          <div className="grid grid-cols-2 gap-x-8 gap-y-10 border-t pt-14 sm:grid-cols-4" style={{ borderColor: HAIR }}>
             <Stat value={100} suffix="ms" label="Block time" accent={INK} dim={FAINT} />
             <Stat value={0} label="Admin keys" accent={INK} dim={FAINT} />
-            <Stat value={3} label="Proof paths" accent={INK} dim={FAINT} />
-            <Stat value={51} label="Tests green" accent={GREEN_TEXT} dim={FAINT} />
+            <Stat value={3} label="Ways to claim" accent={INK} dim={FAINT} />
+            <Stat value={100} suffix="%" label="Of the fee → builder" accent={GREEN_TEXT} dim={FAINT} />
           </div>
+          <p className="mt-6 text-[11px]" style={{ fontFamily: "var(--f-mono)", color: FAINT }}>
+            Verifiable on-chain · Robinhood Chain (4663) ·{" "}
+            <a
+              href="https://github.com/0x-Keezy/robinshare"
+              target="_blank"
+              rel="noreferrer"
+              className="underline decoration-1 underline-offset-2 hover:opacity-70"
+            >
+              open source
+            </a>
+          </p>
         </section>
 
         {/* custodia */}
         <section className="border-y" style={{ borderColor: HAIR, background: PAPER }}>
-          <div className="mx-auto grid max-w-6xl gap-10 px-6 py-20 lg:grid-cols-2 lg:items-center">
+          <div className="mx-auto grid max-w-6xl gap-10 px-6 py-28 lg:grid-cols-2 lg:items-center">
             <Reveal>
               <h2 style={{ fontFamily: "var(--f-display)", lineHeight: 1 }} className="text-[clamp(1.8rem,4.2vw,3rem)] uppercase">
                 One vault. One identity.
@@ -322,7 +419,7 @@ export function LegendHome() {
         </section>
 
         {/* ledger — formulario de brokerage */}
-        <section id="ledger" className="mx-auto max-w-3xl px-6 py-24">
+        <section id="ledger" className="mx-auto max-w-3xl px-6 py-32">
           <Reveal>
             <div style={{ fontFamily: "var(--f-mono)", letterSpacing: "0.24em", color: GREEN_TEXT }} className="text-xs font-medium uppercase">
               Balance check
@@ -420,7 +517,7 @@ export function LegendHome() {
 
         {/* CTA final + footer claro */}
         <section className="border-t" style={{ borderColor: HAIR, background: PAPER }}>
-          <div className="mx-auto flex max-w-6xl flex-col items-center px-6 py-24 text-center">
+          <div className="mx-auto flex max-w-6xl flex-col items-center px-6 py-32 text-center">
             <Reveal>
               <h2 style={{ fontFamily: "var(--f-display)", lineHeight: 0.98 }} className="text-[clamp(2.2rem,5.4vw,4.2rem)] uppercase">
                 Back the one <span style={{ color: GREEN_TEXT }}>who ships.</span>

@@ -1,0 +1,11 @@
+import { chromium } from "playwright";
+const browser = await chromium.launch({ headless: false, channel: "chrome", args: ["--window-position=4000,1400", "--window-size=420,300"] });
+const page = await browser.newPage({ viewport: { width: 1440, height: 900 } });
+await page.addInitScript(() => localStorage.setItem("robinshare-theme", "light"));
+await page.goto("http://localhost:3000/", { waitUntil: "networkidle" });
+await page.waitForTimeout(2500);
+await page.evaluate(() => scrollTo(0, document.documentElement.scrollHeight * 0.3));
+await page.waitForTimeout(2000);
+await page.screenshot({ path: process.argv[2] });
+await browser.close();
+console.log("light shot ok");

@@ -36,6 +36,8 @@ export function LiveVaultFeed({
   verb = "swap",
   max = 6,
   className = "",
+  focusHandle,
+  onFill,
 }: {
   accent: string;
   gold: string;
@@ -44,31 +46,52 @@ export function LiveVaultFeed({
   verb?: string;
   max?: number;
   className?: string;
+  /// modo demo interactivo: todos los fills van a ESTE handle (producto-como-héroe)
+  focusHandle?: string;
+  /// notifica cada fill (en ETH) — el padre acumula el total del vault
+  onFill?: (drip: number) => void;
 }) {
   const [rows, setRows] = useState<Row[]>([]);
   const seq = useRef(0);
   const rand = useRef(mulberry32(4663));
   const lastHandle = useRef<string | null>(null);
+  // ref para que el interval siempre vea el focus vigente sin re-crearse
+  // (re-crear el interval en cada tecla reiniciaría el ritmo del feed)
+  const focusRef = useRef(focusHandle);
+  focusRef.current = focusHandle;
+  const onFillRef = useRef(onFill);
+  onFillRef.current = onFill;
 
   useEffect(() => {
-    const make = (): Row => {
+    const make = (notify: boolean): Row => {
       const r = rand.current;
       const amt = (0.05 + r() * 2.4).toFixed(2);
       const drip = ((parseFloat(amt) * (0.008 + r() * 0.004))).toFixed(4);
       const now = new Date();
       const t = `${String(now.getHours()).padStart(2, "0")}:${String(now.getMinutes()).padStart(2, "0")}:${String(now.getSeconds()).padStart(2, "0")}`;
-      // nunca repetir el handle anterior en la ventana visible — evita que el
-      // mismo nombre "domine" el feed y se sienta a fixture, no a producto real
-      let handle = HANDLES[Math.floor(r() * HANDLES.length)];
-      if (handle === lastHandle.current) {
-        handle = HANDLES[(HANDLES.indexOf(handle) + 1) % HANDLES.length];
+      const focus = focusRef.current;
+      let handle: string;
+      if (focus) {
+        handle = focus;
+        if (notify) onFillRef.current?.(parseFloat(drip));
+      } else {
+        // nunca repetir el handle anterior en la ventana visible — evita que el
+        // mismo nombre "domine" el feed y se sienta a fixture, no a producto real
+        handle = HANDLES[Math.floor(r() * HANDLES.length)];
+        if (handle === lastHandle.current) {
+          handle = HANDLES[(HANDLES.indexOf(handle) + 1) % HANDLES.length];
+        }
       }
       lastHandle.current = handle;
       return { id: seq.current++, t, amt, handle, drip };
     };
-    setRows(Array.from({ length: 3 }, make));
+    setRows(Array.from({ length: 3 }, () => make(false)));
     const iv = setInterval(() => {
-      setRows((prev) => [make(), ...prev].slice(0, max));
+      // make() FUERA del updater: el updater de setState debe ser puro (React
+      // puede ejecutarlo durante el render y hasta dos veces en StrictMode) y
+      // make(true) dispara onFill -> setState del padre.
+      const row = make(true);
+      setRows((prev) => [row, ...prev].slice(0, max));
     }, 2200);
     return () => clearInterval(iv);
   }, [max]);
