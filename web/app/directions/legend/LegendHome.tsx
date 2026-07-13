@@ -40,6 +40,38 @@ const FAINT = "var(--rs-faint)";
 const HAIR = "var(--rs-hair)";
 const ZERO = "0x0000000000000000000000000000000000000000";
 
+type Theme = "dark" | "light";
+
+// Lee el tema real recién en el efecto (igual que useReducedMotion) — el
+// valor inicial "dark" coincide con el default de primera visita, así que
+// no hay mismatch de hidratación. El script anti-flash de layout.tsx ya
+// pintó el color correcto por CSS antes de este punto; este hook solo
+// necesita saber el tema para dibujar el ícono correcto del toggle.
+function useTheme() {
+  const [theme, setTheme] = useState<Theme>("dark");
+
+  useEffect(() => {
+    const attr = document.documentElement.getAttribute("data-robinshare-theme");
+    if (attr === "light" || attr === "dark") setTheme(attr);
+  }, []);
+
+  const toggle = () => {
+    setTheme((prev) => {
+      const next: Theme = prev === "dark" ? "light" : "dark";
+      document.documentElement.setAttribute("data-robinshare-theme", next);
+      try {
+        localStorage.setItem("robinshare-theme", next);
+      } catch {
+        // localStorage puede fallar en modo privado — el toggle sigue
+        // funcionando para esta sesión, solo no persiste.
+      }
+      return next;
+    });
+  };
+
+  return { theme, toggle };
+}
+
 function useReducedMotion() {
   const [reduce, setReduce] = useState(false);
   useEffect(() => {
@@ -66,6 +98,7 @@ export function LegendHome() {
   useScrollSync();
   const navHidden = useHideNav();
   const reduce = useReducedMotion();
+  const { theme, toggle: toggleTheme } = useTheme();
   const { type, setType, value, setValue, rows, error, loading, lookup } = useVaultLookup();
   const inkFeather = useRef<HTMLDivElement>(null);
 
@@ -145,6 +178,24 @@ export function LegendHome() {
             </span>
           </div>
           <div className="flex items-center gap-5">
+            <button
+              type="button"
+              onClick={toggleTheme}
+              aria-label={theme === "dark" ? "Switch to light mode" : "Switch to dark mode"}
+              className="flex h-8 w-8 items-center justify-center rounded-full transition-colors"
+              style={{ color: INK }}
+            >
+              {theme === "dark" ? (
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden>
+                  <circle cx="12" cy="12" r="4.5" stroke="currentColor" strokeWidth="1.6" />
+                  <path d="M12 2v2.5M12 19.5V22M4.2 4.2l1.8 1.8M18 18l1.8 1.8M2 12h2.5M19.5 12H22M4.2 19.8L6 18M18 6l1.8-1.8" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
+                </svg>
+              ) : (
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden>
+                  <path d="M20 14.5A8 8 0 0 1 9.5 4a8 8 0 1 0 10.5 10.5Z" stroke="currentColor" strokeWidth="1.6" strokeLinejoin="round" />
+                </svg>
+              )}
+            </button>
             <a href="#ledger" className="hidden text-sm font-medium underline-offset-4 hover:underline sm:block" style={{ color: DIM }}>
               Check a balance
             </a>
