@@ -32,7 +32,9 @@ const GREEN = "#00C805";
 // para titulares/labels; el verde puro queda para fills/dots donde no carga texto.
 const GREEN_TEXT = "#087C2E";
 const DIM = "rgba(13,18,14,0.6)";
-const FAINT = "rgba(13,18,14,0.42)";
+// 0.42 rondaba ~2.7:1 sobre PAPER (fallaba AA hasta en texto grande) — los
+// eyebrows/labels de dato son parte del sistema editorial, no decoracion.
+const FAINT = "rgba(13,18,14,0.58)";
 const HAIR = "rgba(13,18,14,0.14)";
 const ZERO = "0x0000000000000000000000000000000000000000";
 
@@ -108,11 +110,24 @@ export function LegendHome() {
       className={`${display.variable} ${body.variable} ${mono.variable} relative`}
       style={{ background: PAPER, color: INK, fontFamily: "var(--f-body)" }}
     >
-      {/* la pluma de TINTA: cae por el papel con el scroll (detrás del contenido) */}
+      {/* la pluma de TINTA: cae por el papel con el scroll (detrás del contenido).
+          Sin máscara leía a render de IA (glow neón + specks de humo sin recortar
+          en el borde, "chevrons" sueltos) — misma máscara radial de la pluma de
+          luz + filtro que la hunde hacia tinta oscura en vez de fósforo brillante. */}
       <div aria-hidden className="pointer-events-none fixed right-[5%] top-[-8%] z-0 w-[min(24vw,340px)]">
         <div ref={inkFeather} className="will-change-transform">
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src="/legend/feather-ink.png" alt="" className="w-full opacity-90" draggable={false} />
+          <img
+            src="/legend/feather-ink.png"
+            alt=""
+            className="w-full opacity-80"
+            style={{
+              filter: "saturate(0.6) brightness(0.78) contrast(1.05)",
+              maskImage: "radial-gradient(64% 70% at 54% 48%, black 60%, transparent 92%)",
+              WebkitMaskImage: "radial-gradient(64% 70% at 54% 48%, black 60%, transparent 92%)",
+            }}
+            draggable={false}
+          />
         </div>
       </div>
 
@@ -197,11 +212,11 @@ export function LegendHome() {
               </div>
               <div className="relative">
                 {/* la pluma de luz, flotando en su terrario — la punta vive en la zona
-                    vacía del header (sin texto que la tape); la máscara cubre TODO el
-                    núcleo brillante (punta arriba + cálamo abajo). Achicada tras el
-                    audit ciego: a 12.5rem el vientre todavía lavaba los handles de las
-                    filas 2-3 del feed — a 9rem el área de fricción es mucho menor. */}
-                <div ref={feather} className="pointer-events-none absolute right-1 -top-8 w-[9rem] opacity-95 sm:w-40">
+                    vacía del header (sin texto que la tape). Segunda pasada tras el
+                    audit ciego #2: el vientre todavía cruzaba la columna de montos ETH
+                    (filas 1-3) — achicada otra vez (9rem->7.5rem) + subida (-top-10) +
+                    brillo bajado, para que el vientre quede al filo del header. */}
+                <div ref={feather} className="pointer-events-none absolute right-1 -top-10 w-[7.5rem] opacity-90 sm:w-32">
                   {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img
                     src="/legend/feather.jpg"
@@ -209,7 +224,7 @@ export function LegendHome() {
                     className="block w-full"
                     style={{
                       mixBlendMode: "screen",
-                      filter: "brightness(1.1) contrast(1.24) saturate(1.08)",
+                      filter: "brightness(0.95) contrast(1.18) saturate(1.0)",
                       maskImage: "radial-gradient(64% 70% at 54% 48%, black 68%, transparent 100%)",
                       WebkitMaskImage: "radial-gradient(64% 70% at 54% 48%, black 68%, transparent 100%)",
                     }}
