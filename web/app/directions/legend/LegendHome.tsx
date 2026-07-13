@@ -31,6 +31,12 @@ const GREEN = "#00C805";
 // incluso el 3:1 de WCAG para texto grande). Mismo hue, oscurecido a ~5:1
 // para titulares/labels; el verde puro queda para fills/dots donde no carga texto.
 const GREEN_TEXT = "#087C2E";
+// mismo hallazgo, otro angulo: #00C805 a plena saturacion en los FILLS de CTA
+// lee "app de trading retail", no "brokerage suizo solemne" (audit ciclo 3).
+// El verde puro queda exclusivo del tape en vivo (dot + LiveVaultFeed) donde
+// el neon SI lee como señal; los botones sobre papel usan este verde-bosque
+// mas oscuro + texto blanco (~6.6:1 — INK sobre este tono ya no alcanza 4.5:1).
+const GREEN_CTA = "#0B6B2E";
 const DIM = "rgba(13,18,14,0.6)";
 // 0.42 rondaba ~2.7:1 sobre PAPER (fallaba AA hasta en texto grande) — los
 // eyebrows/labels de dato son parte del sistema editorial, no decoracion.
@@ -123,8 +129,8 @@ export function LegendHome() {
             className="w-full opacity-80"
             style={{
               filter: "saturate(0.6) brightness(0.78) contrast(1.05)",
-              maskImage: "radial-gradient(64% 70% at 54% 48%, black 60%, transparent 92%)",
-              WebkitMaskImage: "radial-gradient(64% 70% at 54% 48%, black 60%, transparent 92%)",
+              maskImage: "radial-gradient(64% 70% at 54% 48%, black 50%, transparent 85%)",
+              WebkitMaskImage: "radial-gradient(64% 70% at 54% 48%, black 50%, transparent 85%)",
             }}
             draggable={false}
           />
@@ -150,7 +156,7 @@ export function LegendHome() {
             <a href="#ledger" className="hidden text-sm font-medium underline-offset-4 hover:underline sm:block" style={{ color: DIM }}>
               Check a balance
             </a>
-            <Link href="/create" className="rounded-full px-4 py-1.5 text-sm font-bold" style={{ background: GREEN, color: INK }}>
+            <Link href="/create" className="rounded-full px-4 py-1.5 text-sm font-bold" style={{ background: GREEN_CTA, color: "#fff" }}>
               Launch a coin
             </Link>
           </div>
@@ -180,7 +186,7 @@ export function LegendHome() {
             </p>
             <div className="mt-8 flex flex-wrap items-center gap-4">
               <Magnetic>
-                <Link href="/create" className="inline-block rounded-full px-6 py-3 text-base font-bold" style={{ background: GREEN, color: INK }}>
+                <Link href="/create" className="inline-block rounded-full px-6 py-3 text-base font-bold" style={{ background: GREEN_CTA, color: "#fff" }}>
                   Launch a coin
                 </Link>
               </Magnetic>
@@ -382,11 +388,13 @@ export function LegendHome() {
                   disabled={loading || !value}
                   className="rounded-full border-2 px-7 py-3 font-bold transition-colors disabled:cursor-not-allowed"
                   // estado disabled ya NO es un opacity-40 del fill verde (leia a boton
-                  // roto) — es un outline explicito que comunica "todavia no accionable"
+                  // roto) — es un outline explicito que comunica "todavia no accionable".
+                  // Borde subido de HAIR(0.14) a 0.3 tras el audit: al filo de HAIR el
+                  // ghost quedaba tan tenue que la accion principal leia a fantasma.
                   style={
                     loading || !value
-                      ? { background: "transparent", borderColor: HAIR, color: FAINT }
-                      : { background: GREEN, borderColor: GREEN, color: INK }
+                      ? { background: "transparent", borderColor: "rgba(13,18,14,0.3)", color: FAINT }
+                      : { background: GREEN_CTA, borderColor: GREEN_CTA, color: "#fff" }
                   }
                 >
                   {loading ? "Checking…" : "Check balance"}
@@ -417,7 +425,7 @@ export function LegendHome() {
                         </div>
                       )}
                     </div>
-                    <Link href={`/claim/${r.vault}`} className="rounded-full px-5 py-2 font-bold" style={{ background: GREEN, color: INK }}>
+                    <Link href={`/claim/${r.vault}`} className="rounded-full px-5 py-2 font-bold" style={{ background: GREEN_CTA, color: "#fff" }}>
                       Claim
                     </Link>
                   </li>
@@ -442,7 +450,7 @@ export function LegendHome() {
             </Reveal>
             <Reveal delay={220}>
               <Magnetic strength={10}>
-                <Link href="/create" className="mt-8 inline-block rounded-full px-8 py-4 text-lg font-bold" style={{ background: GREEN, color: INK }}>
+                <Link href="/create" className="mt-8 inline-block rounded-full px-8 py-4 text-lg font-bold" style={{ background: GREEN_CTA, color: "#fff" }}>
                   Launch a coin for someone
                 </Link>
               </Magnetic>
