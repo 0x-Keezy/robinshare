@@ -200,9 +200,14 @@ export function SherwoodHome() {
   const [preGone, setPreGone] = useState(false);
   const { bg, dark, fog, arrow, hint } = useCinema(reduce);
 
-  const inCls = (d: number) =>
-    `transition-all duration-700 ${revealed ? "opacity-100 translate-y-0 blur-0" : "opacity-0 translate-y-5 blur-[6px]"}` +
-    ` [transition-delay:${d}ms]`;
+  // el delay va por inline style, NUNCA por clase arbitraria con valor
+  // interpolado (`[transition-delay:${d}ms]`) — Tailwind escanea el TEXTO
+  // fuente para generar CSS; una clase armada en runtime con un template
+  // string nunca aparece completa en el archivo, así que no se emite y el
+  // stagger de entrada colapsaba a un fade simultáneo.
+  const inCls = () =>
+    `transition-all duration-700 ${revealed ? "opacity-100 translate-y-0 blur-0" : "opacity-0 translate-y-5 blur-[6px]"}`;
+  const inStyle = (d: number): { transitionDelay: string } => ({ transitionDelay: `${d}ms` });
 
   return (
     <main
@@ -272,7 +277,7 @@ export function SherwoodHome() {
         }}
       >
         <div className="mx-auto flex max-w-6xl items-center justify-between px-6 py-5">
-          <div className={`flex items-center gap-2 ${inCls(500)}`}>
+          <div className={`flex items-center gap-2 ${inCls()}`} style={inStyle(500)}>
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden>
               <path d="M2 15 L12 7 L22 15" stroke={SIGNAL} strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" />
               <path d="M7 11 L12 16 L17 11" stroke={SIGNAL} strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" />
@@ -283,8 +288,8 @@ export function SherwoodHome() {
           </div>
           <Link
             href="/create"
-            className={`rounded-full px-4 py-1.5 text-sm font-semibold ${inCls(620)}`}
-            style={{ background: SIGNAL, color: "#04120a" }}
+            className={`rounded-full px-4 py-1.5 text-sm font-semibold ${inCls()}`}
+            style={{ background: SIGNAL, color: "#04120a", ...inStyle(620) }}
           >
             Launch a coin
           </Link>
@@ -301,12 +306,12 @@ export function SherwoodHome() {
               style={{ background: "radial-gradient(72% 60% at 26% 48%, rgba(3,8,5,0.66), transparent 70%)" }}
             />
             <div className="relative max-w-2xl">
-              <div className={inCls(150)} style={{ fontFamily: "var(--f-mono)", letterSpacing: "0.26em", color: SIGNAL }}>
+              <div className={inCls()} style={{ fontFamily: "var(--f-mono)", letterSpacing: "0.26em", color: SIGNAL, ...inStyle(150) }}>
                 <span className="text-xs uppercase">Social fee escrow · Robinhood Chain</span>
               </div>
               <h1
-                style={{ fontFamily: "var(--f-display)", lineHeight: 0.96, fontWeight: 400 }}
-                className={`mt-6 text-[clamp(3rem,7.6vw,6.6rem)] tracking-tight ${inCls(280)}`}
+                style={{ fontFamily: "var(--f-display)", lineHeight: 0.96, fontWeight: 400, ...inStyle(280) }}
+                className={`mt-6 text-[clamp(3rem,7.6vw,6.6rem)] tracking-tight ${inCls()}`}
               >
                 <span className="block" style={{ color: CREAM }}>
                   Take from the fees.
@@ -315,11 +320,11 @@ export function SherwoodHome() {
                   Give to the builder.
                 </span>
               </h1>
-              <p className={`mt-8 max-w-md text-lg ${inCls(430)}`} style={{ color: "rgba(242,239,230,0.78)" }}>
+              <p className={`mt-8 max-w-md text-lg ${inCls()}`} style={{ color: "rgba(242,239,230,0.78)", ...inStyle(430) }}>
                 Launch a coin for someone who ships. A slice of every trade escrows to their GitHub,
                 X, or wallet — and only they can ever claim it.
               </p>
-              <div className={`mt-9 flex flex-wrap items-center gap-4 ${inCls(560)}`}>
+              <div className={`mt-9 flex flex-wrap items-center gap-4 ${inCls()}`} style={inStyle(560)}>
                 <Magnetic>
                   <Link
                     href="/create"
@@ -334,8 +339,8 @@ export function SherwoodHome() {
                 </a>
               </div>
               <div
-                className={`mt-12 flex flex-wrap gap-x-8 gap-y-2 text-[11px] uppercase tracking-[0.2em] ${inCls(660)}`}
-                style={{ fontFamily: "var(--f-mono)", color: "rgba(242,239,230,0.5)" }}
+                className={`mt-12 flex flex-wrap gap-x-8 gap-y-2 text-[11px] uppercase tracking-[0.2em] ${inCls()}`}
+                style={{ fontFamily: "var(--f-mono)", color: "rgba(242,239,230,0.5)", ...inStyle(660) }}
               >
                 <span>Immutable</span>
                 <span>0 admin keys</span>
@@ -345,8 +350,8 @@ export function SherwoodHome() {
             </div>
             <div
               ref={hint}
-              className={`pointer-events-none absolute bottom-8 left-1/2 hidden [@media(min-height:760px)]:flex -translate-x-1/2 flex-col items-center gap-3 ${inCls(700)}`}
-              style={{ fontFamily: "var(--f-mono)", color: "rgba(242,239,230,0.45)" }}
+              className={`pointer-events-none absolute bottom-8 left-1/2 hidden [@media(min-height:760px)]:flex -translate-x-1/2 flex-col items-center gap-3 ${inCls()}`}
+              style={{ fontFamily: "var(--f-mono)", color: "rgba(242,239,230,0.45)", ...inStyle(700) }}
             >
               <span className="text-[10px] uppercase tracking-[0.3em]">Scroll — loose the arrow</span>
               <span aria-hidden className="block h-10 w-px" style={{ background: hairline(0.35) }} />
@@ -358,9 +363,9 @@ export function SherwoodHome() {
         <div className="relative select-none py-8">
           <Marquee duration={36}>
             <span style={{ fontFamily: "var(--f-display)", fontStyle: "italic" }} className="text-[clamp(1.8rem,3.6vw,2.9rem)]">
-              <span style={{ color: "rgba(242,239,230,0.2)" }}>Take from the fees&nbsp;·&nbsp;</span>
+              <span style={{ color: "rgba(242,239,230,0.28)", textShadow: "0 1px 3px rgba(3,8,5,0.6)" }}>Take from the fees&nbsp;·&nbsp;</span>
               <span style={{ color: "rgba(0,200,5,0.45)" }}>give to the builder&nbsp;·&nbsp;</span>
-              <span style={{ color: "rgba(242,239,230,0.2)" }}>only they can claim it&nbsp;·&nbsp;</span>
+              <span style={{ color: "rgba(242,239,230,0.28)", textShadow: "0 1px 3px rgba(3,8,5,0.6)" }}>only they can claim it&nbsp;·&nbsp;</span>
               <span style={{ color: "rgba(217,164,65,0.4)" }}>sworn on-chain&nbsp;·&nbsp;</span>
             </span>
           </Marquee>
