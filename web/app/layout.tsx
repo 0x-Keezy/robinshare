@@ -29,6 +29,20 @@ export default function RootLayout({
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
     >
       <body className="min-h-full flex flex-col" suppressHydrationWarning>
+        {/* RobinShare (Legend): fija data-robinshare-theme ANTES de que React
+            hidrate, leyendo localStorage. Sin esto, un usuario que ya eligió
+            "light" vería un flash de oscuro (el default) antes de corregirse
+            cuando React monta. Script síncrono e inline = bloquea el pintado
+            hasta terminar, por eso corre a tiempo. Inocuo para el resto de
+            las direcciones del bake-off (nadie más lee este atributo). */}
+        <script
+          dangerouslySetInnerHTML={{
+            __html:
+              '(function(){try{var t=localStorage.getItem("robinshare-theme");' +
+              'document.documentElement.setAttribute("data-robinshare-theme",' +
+              '(t==="light"||t==="dark")?t:"dark");}catch(e){}})();',
+          }}
+        />
         <Providers>{children}</Providers>
       </body>
     </html>
