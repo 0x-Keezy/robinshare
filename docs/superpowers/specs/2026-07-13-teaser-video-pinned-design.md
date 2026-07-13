@@ -24,7 +24,7 @@ hayamos hecho"* — lo generado solo complementa, nunca protagoniza.
 |---|------|--------|-----------|
 | 1 | Hook | 0–4s | **"Robin Hood is about sharing."** tipografía gigante. En Versión B: abre sobre naturaleza muerta 3D (arco físico, luz de estudio, fondo papel) con parallax lento; el texto entra encima. |
 | 2 | Twist | 4–7s | **"We built that on-chain."** corte seco, lima sobre oscuro. |
-| 3 | Producto real | 7–19s | La web en prod: hero con el **tape llenándose en vivo** (captura animada, no still) → scroll dirigido por **/01 Name them → /02 They trade → /03 Only they claim**. |
+| 3 | Producto real | 7–19s | La web en prod: hero con el **tape llenándose en vivo** (captura animada, no still) → scroll dirigido por **/01 Name them → /02 Fees accrue → /03 They claim** (copy real del sitio). |
 | 4 | La promesa | 19–24s | Stats reales en tipografía cinética: **"Every trade pays the builder." / "0 admin keys." / "100% of the fee → builder."** |
 | 5 | Remate | 24–28s | BowMark + **ROBINSHARE** + "Soon on Robinhood Chain." + robinshare.vercel.app. En Versión B: still 3D hermano del hook como fondo del cierre. |
 
