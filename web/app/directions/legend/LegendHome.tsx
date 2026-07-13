@@ -9,21 +9,28 @@ import { Marquee } from "@/components/Marquee";
 import { Stat } from "@/components/Stat";
 import { Magnetic } from "@/components/Magnetic";
 import { useVaultLookup } from "@/lib/useVaultLookup";
-import { Scroll, useScrollSync } from "@/lib/scrollProgress";
+import { useScrollSync } from "@/lib/scrollProgress";
 import { useHideNav } from "@/lib/useHideNav";
+
+/*
+ * LEGEND v4 — el BROKERAGE (registro claro-suizo-snappy del bake-off).
+ * Página blanca papel como el roberage real: tipografía negra gigante, grid denso,
+ * hairlines grises. El verde #00C805 es COLOR DE ACCIÓN (CTAs, deltas) y nada más.
+ * La única zona oscura es el panel terminal del hero: adentro viven la pluma de luz
+ * (screen-blend) y el feed verde-fósforo. Cero dolly — motion snappy.
+ */
 
 const display = Archivo_Black({ weight: "400", subsets: ["latin"], variable: "--f-display" });
 const body = Archivo({ subsets: ["latin"], variable: "--f-body" });
 const mono = IBM_Plex_Mono({ weight: ["400", "500"], subsets: ["latin"], variable: "--f-mono" });
 
-const BG = "#04070a";
-const WHITE = "#f4f6f5";
+const PAPER = "#F7F8F4";
+const INK = "#0D120E";
 const GREEN = "#00C805";
+const DIM = "rgba(13,18,14,0.6)";
+const FAINT = "rgba(13,18,14,0.42)";
+const HAIR = "rgba(13,18,14,0.14)";
 const ZERO = "0x0000000000000000000000000000000000000000";
-const HAIR = "rgba(244,246,245,0.14)";
-
-const hairline = (o = 0.2) =>
-  `linear-gradient(to right, transparent, rgba(244,246,245,${o}) 28%, rgba(244,246,245,${o}) 72%, transparent)`;
 
 function useReducedMotion() {
   const [reduce, setReduce] = useState(false);
@@ -37,15 +44,11 @@ function useReducedMotion() {
   return reduce;
 }
 
-// la pluma de la marca (la pluma de la gorra = el logo de Robinhood, como guiño SVG propio)
+// la pluma del logo como guiño SVG propio
 function Feather({ size = 20, color = GREEN }: { size?: number; color?: string }) {
   return (
     <svg width={size} height={size} viewBox="0 0 24 24" fill="none" aria-hidden>
-      <path
-        d="M20 4 C14 4, 7 9, 5 20 L7 20 C8 14, 12 8, 20 4 Z"
-        fill={color}
-        opacity="0.9"
-      />
+      <path d="M20 4 C14 4, 7 9, 5 20 L7 20 C8 14, 12 8, 20 4 Z" fill={color} opacity="0.9" />
       <path d="M5 20 C9 15, 14 10, 20 4" stroke={color} strokeWidth="0.6" opacity="0.6" />
     </svg>
   );
@@ -57,488 +60,362 @@ export function LegendHome() {
   const reduce = useReducedMotion();
   const { type, setType, value, setValue, rows, error, loading, lookup } = useVaultLookup();
   const feather = useRef<HTMLDivElement>(null);
-  const glow = useRef<HTMLDivElement>(null);
 
-  // LA PLUMA (foto sobre negro, mix-blend screen): flota en el hero y CAE con el
-  // scroll — rotando suave — hasta posarse hacia el cierre. Un solo rAF scrubbed.
+  // la pluma flota SOLO dentro de su panel terminal (time-based, sin scroll)
   useEffect(() => {
+    if (reduce) return;
     let raf = 0;
-    let cur = 0;
-    const mouse = { x: 0, y: 0 };
-    const onMove = (e: MouseEvent) => {
-      mouse.x = (e.clientX / window.innerWidth - 0.5) * 2;
-      mouse.y = (e.clientY / window.innerHeight - 0.5) * 2;
-    };
-    window.addEventListener("mousemove", onMove, { passive: true });
     const tick = () => {
       raf = requestAnimationFrame(tick);
-      const target = reduce ? 0.06 : Scroll.progress;
-      cur += (target - cur) * 0.08;
-      const p = cur;
       const t = performance.now() / 1000;
       if (feather.current) {
-        const sway = reduce ? 0 : Math.sin(t * 0.5) * 2.2;
-        const bob = reduce ? 0 : Math.sin(t * 0.8) * 10;
-        const fall = p * 62; // vh que cae a lo largo de la página
-        const rot = -8 + Math.sin(p * Math.PI * 2.2) * 14 + sway;
         feather.current.style.transform =
-          `translate3d(calc(${mouse.x * 14}px + ${p * -6}vw), calc(${bob + mouse.y * 8}px + ${fall}vh), 0) rotate(${rot}deg)`;
-      }
-      if (glow.current) {
-        glow.current.style.opacity = String(0.5 + Math.sin(t * 1.1) * 0.12);
+          `translate3d(0, ${Math.sin(t * 0.7) * 9}px, 0) rotate(${Math.sin(t * 0.4) * 3.5}deg)`;
       }
     };
     raf = requestAnimationFrame(tick);
-    return () => {
-      cancelAnimationFrame(raf);
-      window.removeEventListener("mousemove", onMove);
-    };
+    return () => cancelAnimationFrame(raf);
   }, [reduce]);
 
   return (
     <main
       className={`${display.variable} ${body.variable} ${mono.variable} relative`}
-      style={{ background: BG, color: WHITE, fontFamily: "var(--f-body)" }}
+      style={{ background: PAPER, color: INK, fontFamily: "var(--f-body)" }}
     >
-      {/* ============ EL SET: negro puro + la pluma de luz ============ */}
-      <div aria-hidden className="fixed inset-0 z-0 overflow-hidden">
-        {/* resplandor que respira detrás de la pluma */}
-        <div
-          ref={glow}
-          className="absolute right-[2%] top-[6%] h-[70vh] w-[46vw]"
-          style={{ background: "radial-gradient(50% 45% at 55% 40%, rgba(0,200,5,0.13), transparent 70%)", filter: "blur(10px)" }}
-        />
-        <div ref={feather} className="absolute right-[4%] top-[-4%] w-[min(38vw,520px)] will-change-transform">
-          {/* máscara radial: el borde de la foto se funde — solo queda la pluma de luz */}
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
-            src="/legend/feather.jpg"
-            alt=""
-            className="block w-full"
-            style={{
-              mixBlendMode: "screen",
-              filter: "brightness(1.02) contrast(1.1)",
-              maskImage: "radial-gradient(58% 58% at 50% 50%, black 52%, transparent 76%)",
-              WebkitMaskImage: "radial-gradient(58% 58% at 50% 50%, black 52%, transparent 76%)",
-            }}
-            draggable={false}
-          />
-        </div>
-        {/* viñeta fintech */}
-        <div
-          className="pointer-events-none absolute inset-0"
-          style={{ background: "radial-gradient(120% 90% at 50% 40%, transparent 58%, rgba(0,0,0,0.5))" }}
-        />
-      </div>
-
-      {/* nav */}
+      {/* nav claro */}
       <nav
-        className="fixed inset-x-0 top-0 z-20 transition-transform duration-300"
+        className="fixed inset-x-0 top-0 z-40 transition-transform duration-300"
         style={{
-          background: "linear-gradient(to bottom, rgba(4,7,10,0.96) 0%, rgba(4,7,10,0.75) 55%, transparent)",
+          background: "linear-gradient(to bottom, rgba(247,248,244,0.97) 0%, rgba(247,248,244,0.85) 60%, transparent)",
           transform: navHidden ? "translateY(-100%)" : "none",
         }}
       >
-        <div className="mx-auto flex max-w-6xl items-center justify-between px-6 py-5">
+        <div className="mx-auto flex max-w-6xl items-center justify-between px-6 py-4">
           <div className="flex items-center gap-2">
             <Feather />
-            <span style={{ fontFamily: "var(--f-mono)", letterSpacing: "0.26em" }} className="text-xs uppercase">
+            <span style={{ fontFamily: "var(--f-mono)", letterSpacing: "0.26em" }} className="text-xs font-medium uppercase">
               Fledge
             </span>
           </div>
-          <Link
-            href="/create"
-            className="rounded-full px-4 py-1.5 text-sm font-bold"
-            style={{ background: GREEN, color: "#03140a" }}
-          >
-            Launch a coin
-          </Link>
+          <div className="flex items-center gap-5">
+            <a href="#ledger" className="hidden text-sm font-medium underline-offset-4 hover:underline sm:block" style={{ color: DIM }}>
+              Check a balance
+            </a>
+            <Link href="/create" className="rounded-full px-4 py-1.5 text-sm font-bold text-white" style={{ background: GREEN }}>
+              Launch a coin
+            </Link>
+          </div>
         </div>
       </nav>
 
-      <div className="relative z-10">
-        {/* hero — overview del mercado */}
-        <section className="relative min-h-[160vh]">
-          <div className="relative mx-auto flex min-h-screen w-full max-w-6xl flex-col justify-center px-6 pt-20">
-            <div
-              aria-hidden
-              className="pointer-events-none absolute left-0 top-0 h-[110vh] w-full"
-              style={{ background: "radial-gradient(85% 60% at 32% 46%, rgba(4,7,10,0.68), transparent 74%)" }}
-            />
-            <div className="relative max-w-3xl">
-              <div style={{ fontFamily: "var(--f-mono)", letterSpacing: "0.26em", color: GREEN }} className="text-xs uppercase">
-                Social fee escrow · Robinhood Chain
-              </div>
-              <h1
-                style={{ fontFamily: "var(--f-display)", lineHeight: 0.98 }}
-                className="mt-6 text-[clamp(2.6rem,6.6vw,5.6rem)] uppercase tracking-tight"
-              >
-                <span style={{ WebkitTextStroke: `2px ${WHITE}`, color: "transparent" }}>Route the fees</span>
-                <br />
-                <span style={{ color: GREEN }}>to the builder.</span>
-              </h1>
-              <p className="mt-7 max-w-md text-lg" style={{ color: "rgba(244,246,245,0.72)" }}>
-                Launch a coin for someone who ships. A slice of every trade escrows on-chain to
-                their GitHub, X, or wallet — claimable by them alone.
-              </p>
-              <div className="mt-9 flex flex-wrap items-center gap-4">
-                <Magnetic>
-                  <Link
-                    href="/create"
-                    className="inline-block rounded-full px-6 py-3 text-base font-bold"
-                    style={{ background: GREEN, color: "#03140a" }}
-                  >
-                    Launch a coin
-                  </Link>
-                </Magnetic>
-                <a
-                  href="#ledger"
-                  className="text-base font-medium underline decoration-1 underline-offset-4"
-                  style={{ color: WHITE }}
-                >
-                  I was funded →
-                </a>
-              </div>
-              {/* fila de datos mono — registro fintech */}
-              <div
-                className="mt-14 flex flex-wrap gap-x-10 gap-y-3 text-xs"
-                style={{ fontFamily: "var(--f-mono)", color: "rgba(244,246,245,0.5)" }}
-              >
-                <span>CHAIN 4663</span>
-                <span>BLOCKS 100MS</span>
-                <span>CUSTODY NONE</span>
-                <span>CLAIM = PROOF OF IDENTITY</span>
-              </div>
+      <div className="relative">
+        {/* HERO — titular negro + panel terminal oscuro */}
+        <section className="mx-auto grid max-w-6xl gap-10 px-6 pb-16 pt-28 lg:grid-cols-[1.15fr_1fr] lg:items-center lg:pt-32">
+          <div>
+            <div style={{ fontFamily: "var(--f-mono)", letterSpacing: "0.24em", color: FAINT }} className="text-xs uppercase">
+              Social fee escrow · Robinhood Chain
+            </div>
+            <h1
+              style={{ fontFamily: "var(--f-display)", lineHeight: 0.96 }}
+              className="mt-5 text-[clamp(2.8rem,6.4vw,5.4rem)] uppercase tracking-tight"
+            >
+              Route fees
+              <br />
+              to builders.
+              <br />
+              <span style={{ color: GREEN }}>Automatically.</span>
+            </h1>
+            <p className="mt-6 max-w-md text-lg" style={{ color: DIM }}>
+              Launch a coin for someone who ships. A slice of every trade escrows on-chain to
+              their GitHub, X, or wallet — claimable by them alone.
+            </p>
+            <div className="mt-8 flex flex-wrap items-center gap-4">
+              <Magnetic>
+                <Link href="/create" className="inline-block rounded-full px-6 py-3 text-base font-bold text-white" style={{ background: GREEN }}>
+                  Launch a coin
+                </Link>
+              </Magnetic>
+              <a href="#ledger" className="text-base font-semibold underline decoration-2 underline-offset-4" style={{ color: INK }}>
+                I was funded →
+              </a>
             </div>
             <div
-              className="pointer-events-none absolute bottom-4 right-6 hidden [@media(min-height:760px)]:flex flex-col items-center gap-2"
-              style={{ fontFamily: "var(--f-mono)", color: "rgba(244,246,245,0.4)" }}
+              className="mt-10 flex flex-wrap gap-x-8 gap-y-2 text-[11px] uppercase tracking-[0.18em]"
+              style={{ fontFamily: "var(--f-mono)", color: FAINT }}
             >
-              <span className="text-[10px] uppercase tracking-[0.3em]">Scroll</span>
-              <span aria-hidden className="block h-9 w-px" style={{ background: hairline(0.35) }} />
+              <span>Chain 4663</span>
+              <span>Blocks 100ms</span>
+              <span>Custody none</span>
+              <span>Claim = proof of identity</span>
             </div>
           </div>
+
+          {/* la única zona oscura: el terminal con la pluma + el feed */}
+          <Reveal>
+            <div className="overflow-hidden rounded-2xl shadow-2xl" style={{ background: "#080D0A", border: "1px solid rgba(13,18,14,0.2)" }}>
+              <div className="flex items-center gap-2 border-b px-4 py-2.5" style={{ borderColor: "rgba(247,248,244,0.12)" }}>
+                <span className="h-2.5 w-2.5 rounded-full" style={{ background: "rgba(247,248,244,0.25)" }} />
+                <span className="h-2.5 w-2.5 rounded-full" style={{ background: "rgba(247,248,244,0.25)" }} />
+                <span className="h-2.5 w-2.5 rounded-full" style={{ background: GREEN }} />
+                <span className="ml-2 text-[11px]" style={{ fontFamily: "var(--f-mono)", color: "rgba(247,248,244,0.55)" }}>
+                  fledge://tape — live preview
+                </span>
+              </div>
+              <div className="relative">
+                {/* la pluma de luz, flotando en su terrario */}
+                <div ref={feather} className="pointer-events-none absolute -right-8 -top-6 w-56 opacity-90 sm:w-64">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
+                    src="/legend/feather.jpg"
+                    alt=""
+                    className="block w-full"
+                    style={{
+                      mixBlendMode: "screen",
+                      filter: "brightness(1.02) contrast(1.1)",
+                      maskImage: "radial-gradient(58% 58% at 50% 50%, black 50%, transparent 75%)",
+                      WebkitMaskImage: "radial-gradient(58% 58% at 50% 50%, black 50%, transparent 75%)",
+                    }}
+                    draggable={false}
+                  />
+                </div>
+                <div className="px-5 py-3">
+                  <LiveVaultFeed
+                    accent={GREEN}
+                    gold="#9ff0b5"
+                    dim="rgba(247,248,244,0.55)"
+                    hair="rgba(247,248,244,0.08)"
+                    verb="fill"
+                  />
+                </div>
+              </div>
+            </div>
+            <p className="mt-2 text-right text-[11px]" style={{ fontFamily: "var(--f-mono)", color: FAINT }}>
+              Illustrative — live with the first launch
+            </p>
+          </Reveal>
         </section>
 
-        {/* la cinta — teletipo bursátil */}
-        <div
-          className="relative border-y py-3"
-          style={{ borderColor: HAIR, background: "rgba(0,200,5,0.05)" }}
-        >
+        {/* tape ticker claro */}
+        <div className="border-y py-2.5" style={{ borderColor: HAIR }}>
           <Marquee duration={26}>
-            <span
-              style={{ fontFamily: "var(--f-mono)", letterSpacing: "0.14em", color: "rgba(244,246,245,0.6)" }}
-              className="text-xs uppercase"
-            >
-              Fledge on Robinhood Chain <span style={{ color: GREEN }}>▲</span> every trade pays the
-              builder <span style={{ color: GREEN }}>▲</span> escrow sworn to one name{" "}
+            <span style={{ fontFamily: "var(--f-mono)", letterSpacing: "0.14em", color: DIM }} className="text-xs uppercase">
+              Fledge on Robinhood Chain <span style={{ color: GREEN }}>▲</span> every trade pays
+              the builder <span style={{ color: GREEN }}>▲</span> escrow sworn to one name{" "}
               <span style={{ color: GREEN }}>▲</span> claim = proof of identity{" "}
               <span style={{ color: GREEN }}>▲</span>&nbsp;
             </span>
           </Marquee>
         </div>
 
-        {/* mecanismo */}
-        <section className="relative min-h-[120vh]">
-          <div className="mx-auto max-w-6xl px-6 py-24">
-            <div
-              aria-hidden
-              className="pointer-events-none absolute inset-x-0 top-0 h-full"
-              style={{ background: "radial-gradient(75% 55% at 50% 45%, rgba(4,7,10,0.7), transparent 80%)" }}
-            />
-            <div className="relative">
-              <Reveal>
-                <div style={{ fontFamily: "var(--f-mono)", letterSpacing: "0.26em", color: "rgba(244,246,245,0.45)" }} className="text-xs uppercase">
-                  How it works
-                </div>
-                <h2
-                  style={{ fontFamily: "var(--f-display)", lineHeight: 1 }}
-                  className="mt-4 max-w-3xl text-[clamp(1.9rem,4.4vw,3.2rem)] uppercase"
-                >
-                  Every trade <span style={{ color: GREEN }}>pays the person</span> who earned it.
-                </h2>
-              </Reveal>
-              <div className="mt-14 grid gap-px overflow-hidden rounded-2xl sm:grid-cols-3" style={{ background: HAIR }}>
-                {[
-                  { n: "01", t: "Name them", d: "Pick a builder by GitHub, X, or wallet. Their coin lists on Flap in seconds." },
-                  { n: "02", t: "Fees accrue", d: "A slice of the trading tax streams into an on-chain vault held in their name." },
-                  { n: "03", t: "They claim", d: "They prove the identity — signature, OAuth, or the X oracle — and sweep the ETH." },
-                ].map((s, i) => (
-                  <Reveal key={s.n} delay={i * 100}>
-                    <div className="h-full p-7" style={{ background: "rgba(6,10,14,0.85)" }}>
-                      <div style={{ fontFamily: "var(--f-mono)", color: GREEN }} className="text-sm">
-                        {s.n}
-                      </div>
-                      <h3 style={{ fontFamily: "var(--f-display)" }} className="mt-3 text-xl uppercase">
-                        {s.t}
-                      </h3>
-                      <p className="mt-3 text-[15px] leading-relaxed" style={{ color: "rgba(244,246,245,0.66)" }}>
-                        {s.d}
-                      </p>
-                    </div>
-                  </Reveal>
-                ))}
-              </div>
-
-              {/* hechos, en cifra gorda */}
-              <div className="mt-16 grid grid-cols-2 gap-x-8 gap-y-12 sm:grid-cols-4">
-                <Stat value={100} suffix="ms" label="Block time" accent={WHITE} dim="rgba(244,246,245,0.45)" />
-                <Stat value={0} label="Admin keys" accent={GREEN} dim="rgba(244,246,245,0.45)" />
-                <Stat value={3} label="Proof paths" accent={WHITE} dim="rgba(244,246,245,0.45)" />
-                <Stat value={51} label="Tests green" accent={GREEN} dim="rgba(244,246,245,0.45)" />
-              </div>
-            </div>
-          </div>
-        </section>
-
-        {/* LA CINTA EN VIVO — terminal */}
-        <section className="relative">
-          <div className="mx-auto max-w-4xl px-6 py-20">
-            <div
-              aria-hidden
-              className="pointer-events-none absolute inset-0"
-              style={{ background: "radial-gradient(75% 65% at 50% 50%, rgba(4,7,10,0.75), transparent 84%)" }}
-            />
-            <div className="relative">
-              <Reveal>
-                <div style={{ fontFamily: "var(--f-mono)", letterSpacing: "0.26em", color: "rgba(244,246,245,0.45)" }} className="text-xs uppercase">
-                  The tape
-                </div>
-                <h2 style={{ fontFamily: "var(--f-display)", lineHeight: 1 }} className="mt-4 text-[clamp(1.9rem,4.4vw,3.2rem)] uppercase">
-                  Fees streaming, <span style={{ color: GREEN }}>block by block.</span>
-                </h2>
-              </Reveal>
-              <Reveal delay={120}>
-                <div className="mt-8 overflow-hidden rounded-xl border" style={{ borderColor: HAIR, background: "rgba(2,5,8,0.9)" }}>
-                  <div
-                    className="flex items-center gap-2 border-b px-4 py-2.5"
-                    style={{ borderColor: HAIR }}
-                  >
-                    <span className="h-2.5 w-2.5 rounded-full" style={{ background: "rgba(244,246,245,0.25)" }} />
-                    <span className="h-2.5 w-2.5 rounded-full" style={{ background: "rgba(244,246,245,0.25)" }} />
-                    <span className="h-2.5 w-2.5 rounded-full" style={{ background: GREEN }} />
-                    <span className="ml-2 text-[11px]" style={{ fontFamily: "var(--f-mono)", color: "rgba(244,246,245,0.5)" }}>
-                      fledge://tape — live preview
-                    </span>
+        {/* mecanismo — cards suizas */}
+        <section className="mx-auto max-w-6xl px-6 py-20">
+          <Reveal>
+            <h2 style={{ fontFamily: "var(--f-display)", lineHeight: 1 }} className="max-w-3xl text-[clamp(1.8rem,4.2vw,3rem)] uppercase">
+              Every trade pays the <span style={{ color: GREEN }}>person</span> who earned it.
+            </h2>
+          </Reveal>
+          <div className="mt-12 grid gap-px overflow-hidden rounded-2xl border sm:grid-cols-3" style={{ borderColor: HAIR, background: HAIR }}>
+            {[
+              { n: "01", t: "Name them", d: "Pick a builder by GitHub, X, or wallet. Their coin lists on Flap in seconds." },
+              { n: "02", t: "Fees accrue", d: "A slice of the trading tax streams into an on-chain vault held in their name." },
+              { n: "03", t: "They claim", d: "They prove the identity — signature, OAuth, or the X oracle — and sweep the ETH." },
+            ].map((s, i) => (
+              <Reveal key={s.n} delay={i * 90}>
+                <div className="h-full p-7" style={{ background: PAPER }}>
+                  <div style={{ fontFamily: "var(--f-mono)", color: GREEN }} className="text-sm font-medium">
+                    {s.n}
                   </div>
-                  <div className="px-5 py-2">
-                    <LiveVaultFeed
-                      accent={GREEN}
-                      gold="#9ff0b5"
-                      dim="rgba(244,246,245,0.5)"
-                      hair="rgba(244,246,245,0.07)"
-                      verb="fill"
-                    />
-                  </div>
-                </div>
-              </Reveal>
-            </div>
-          </div>
-        </section>
-
-        {/* identidad */}
-        <section className="relative min-h-[120vh]">
-          <div className="mx-auto flex min-h-screen max-w-6xl items-center px-6">
-            <div className="relative max-w-xl">
-              <div
-                aria-hidden
-                className="pointer-events-none absolute -inset-x-16 -inset-y-16"
-                style={{ background: "radial-gradient(80% 70% at 40% 50%, rgba(4,7,10,0.66), transparent 78%)" }}
-              />
-              <div className="relative">
-                <Reveal>
-                  <div style={{ fontFamily: "var(--f-mono)", letterSpacing: "0.26em", color: "rgba(244,246,245,0.45)" }} className="text-xs uppercase">
-                    Custody
-                  </div>
-                  <h2 style={{ fontFamily: "var(--f-display)", lineHeight: 1 }} className="mt-4 text-[clamp(2rem,4.8vw,3.4rem)] uppercase">
-                    One vault. <span style={{ color: GREEN }}>One identity.</span> Zero keys held.
-                  </h2>
-                </Reveal>
-                <Reveal delay={140}>
-                  <p className="mt-7 max-w-md text-lg leading-relaxed" style={{ color: "rgba(244,246,245,0.7)" }}>
-                    The escrow is immutable and sworn to a single identity at launch. No admin, no
-                    upgrade path, no freeze switch. Funds move once: to the wallet that proves the name.
+                  <h3 style={{ fontFamily: "var(--f-display)" }} className="mt-3 text-xl uppercase">
+                    {s.t}
+                  </h3>
+                  <p className="mt-3 text-[15px] leading-relaxed" style={{ color: DIM }}>
+                    {s.d}
                   </p>
-                </Reveal>
-                <Reveal delay={260}>
-                  <div className="mt-8 flex flex-wrap gap-3" style={{ fontFamily: "var(--f-mono)" }}>
-                    {["wallet signature", "github oauth", "x oracle proof"].map((m) => (
-                      <span
-                        key={m}
-                        className="rounded-full border px-4 py-1.5 text-xs uppercase tracking-[0.14em]"
-                        style={{ borderColor: HAIR, color: "rgba(244,246,245,0.7)" }}
-                      >
-                        {m}
-                      </span>
-                    ))}
-                  </div>
-                </Reveal>
-              </div>
-            </div>
+                </div>
+              </Reveal>
+            ))}
+          </div>
+
+          {/* hechos en negro gigante */}
+          <div className="mt-16 grid grid-cols-2 gap-x-8 gap-y-10 border-t pt-12 sm:grid-cols-4" style={{ borderColor: HAIR }}>
+            <Stat value={100} suffix="ms" label="Block time" accent={INK} dim={FAINT} />
+            <Stat value={0} label="Admin keys" accent={INK} dim={FAINT} />
+            <Stat value={3} label="Proof paths" accent={INK} dim={FAINT} />
+            <Stat value={51} label="Tests green" accent={GREEN} dim={FAINT} />
           </div>
         </section>
 
-        {/* ledger */}
-        <section id="ledger" className="relative min-h-[125vh]">
-          <div className="mx-auto flex min-h-screen max-w-4xl flex-col justify-center px-6 py-24">
+        {/* custodia */}
+        <section className="border-y" style={{ borderColor: HAIR, background: "#FFFFFF" }}>
+          <div className="mx-auto grid max-w-6xl gap-10 px-6 py-20 lg:grid-cols-2 lg:items-center">
             <Reveal>
-              <div
-                className="relative overflow-hidden rounded-2xl p-8 sm:p-12"
-                style={{ background: "rgba(3,6,9,0.82)", border: `1px solid ${HAIR}` }}
-              >
-                <div aria-hidden className="absolute inset-x-0 top-0 h-px" style={{ background: hairline(0.4) }} />
-                <div style={{ fontFamily: "var(--f-mono)", letterSpacing: "0.26em", color: GREEN }} className="text-xs uppercase">
-                  Balance check
-                </div>
-                <h2 style={{ fontFamily: "var(--f-display)", lineHeight: 1 }} className="mt-4 text-[clamp(1.9rem,4.4vw,3rem)] uppercase">
-                  Is a vault accruing <span style={{ color: GREEN }}>to you</span>?
-                </h2>
-                <p className="mt-3 max-w-md" style={{ color: "rgba(244,246,245,0.66)" }}>
-                  Look up the escrows held for your GitHub, X, or wallet — and claim what is yours.
+              <h2 style={{ fontFamily: "var(--f-display)", lineHeight: 1 }} className="text-[clamp(1.8rem,4.2vw,3rem)] uppercase">
+                One vault. One identity.
+                <br />
+                <span style={{ color: GREEN }}>Zero keys held.</span>
+              </h2>
+            </Reveal>
+            <Reveal delay={120}>
+              <div>
+                <p className="max-w-md text-lg leading-relaxed" style={{ color: DIM }}>
+                  The escrow is immutable and sworn to a single identity at launch. No admin, no
+                  upgrade path, no freeze switch. Funds move once: to the wallet that proves the name.
                 </p>
-
-                <div className="mt-8 flex flex-col gap-3 sm:flex-row">
-                  <select
-                    suppressHydrationWarning
-                    value={type}
-                    onChange={(e) => setType(e.target.value as typeof type)}
-                    className="rounded-lg border bg-transparent px-4 py-3"
-                    style={{ borderColor: HAIR, color: WHITE, fontFamily: "var(--f-mono)" }}
-                  >
-                    <option style={{ color: "#000" }} value="github">GitHub</option>
-                    <option style={{ color: "#000" }} value="twitter">X (Twitter)</option>
-                    <option style={{ color: "#000" }} value="wallet">Wallet</option>
-                  </select>
-                  <input
-                    suppressHydrationWarning
-                    value={value}
-                    onChange={(e) => setValue(e.target.value)}
-                    onKeyDown={(e) => e.key === "Enter" && lookup()}
-                    placeholder={type === "wallet" ? "0x wallet address" : "handle"}
-                    className="flex-1 rounded-lg border bg-transparent px-5 py-3 placeholder:opacity-40"
-                    style={{ borderColor: HAIR, color: WHITE, fontFamily: "var(--f-mono)" }}
-                  />
-                  <button
-                    onClick={lookup}
-                    disabled={loading || !value}
-                    className="rounded-lg px-6 py-3 font-bold disabled:opacity-40"
-                    style={{ background: GREEN, color: "#03140a" }}
-                  >
-                    {loading ? "Checking…" : "Check balance"}
-                  </button>
+                <div className="mt-6 flex flex-wrap gap-2.5" style={{ fontFamily: "var(--f-mono)" }}>
+                  {["wallet signature", "github oauth", "x oracle proof"].map((m) => (
+                    <span
+                      key={m}
+                      className="rounded-full border px-4 py-1.5 text-xs uppercase tracking-[0.12em]"
+                      style={{ borderColor: HAIR, color: DIM }}
+                    >
+                      {m}
+                    </span>
+                  ))}
                 </div>
-
-                {error && <p className="mt-4 text-sm" style={{ color: "#ff8f6b" }}>{error}</p>}
-                {rows && rows.length === 0 && (
-                  <p className="mt-8" style={{ color: "rgba(244,246,245,0.5)" }}>
-                    No vault under this identity yet.
-                  </p>
-                )}
-                {rows && rows.length > 0 && (
-                  <ul className="mt-8 flex flex-col">
-                    {rows.map((r) => (
-                      <li
-                        key={r.vault}
-                        className="flex items-center justify-between gap-4 py-4"
-                        style={{ borderTop: `1px solid ${HAIR}` }}
-                      >
-                        <div>
-                          <div className="text-xs" style={{ fontFamily: "var(--f-mono)", color: "rgba(244,246,245,0.55)" }}>
-                            {r.vault}
-                          </div>
-                          <div
-                            style={{ fontFamily: "var(--f-display)", color: GREEN, fontVariantNumeric: "tabular-nums" }}
-                            className="mt-1 text-2xl"
-                          >
-                            {r.pendingLabel} ETH
-                          </div>
-                          {r.bound !== ZERO && (
-                            <div className="mt-1 text-xs" style={{ color: "rgba(244,246,245,0.4)" }}>
-                              bound to {r.bound}
-                            </div>
-                          )}
-                        </div>
-                        <Link
-                          href={`/claim/${r.vault}`}
-                          className="rounded-full px-5 py-2 font-bold"
-                          style={{ background: GREEN, color: "#03140a" }}
-                        >
-                          Claim
-                        </Link>
-                      </li>
-                    ))}
-                  </ul>
-                )}
               </div>
             </Reveal>
           </div>
         </section>
 
-        {/* CTA final + footer */}
-        <section className="relative">
-          <div
-            aria-hidden
-            className="pointer-events-none absolute inset-0"
-            style={{ background: "radial-gradient(75% 60% at 50% 45%, rgba(3,6,9,0.72), transparent 84%)" }}
-          />
-          <div className="relative mx-auto flex min-h-[90vh] max-w-6xl flex-col items-center justify-center px-6 text-center">
+        {/* ledger — formulario de brokerage */}
+        <section id="ledger" className="mx-auto max-w-3xl px-6 py-24">
+          <Reveal>
+            <div style={{ fontFamily: "var(--f-mono)", letterSpacing: "0.24em", color: GREEN }} className="text-xs font-medium uppercase">
+              Balance check
+            </div>
+            <h2 style={{ fontFamily: "var(--f-display)", lineHeight: 1 }} className="mt-3 text-[clamp(1.9rem,4.4vw,3rem)] uppercase">
+              Is a vault accruing to you?
+            </h2>
+            <p className="mt-3 max-w-md" style={{ color: DIM }}>
+              Look up the escrows held for your GitHub, X, or wallet — and claim what is yours.
+            </p>
+
+            <div className="mt-10 flex flex-col gap-6 sm:flex-row sm:items-end">
+              <label className="flex flex-col gap-2">
+                <span style={{ fontFamily: "var(--f-mono)", color: FAINT, letterSpacing: "0.16em" }} className="text-[10px] uppercase">
+                  Identity
+                </span>
+                <select
+                  suppressHydrationWarning
+                  value={type}
+                  onChange={(e) => setType(e.target.value as typeof type)}
+                  className="border-0 border-b-2 bg-transparent py-2 pr-6 focus:outline-none"
+                  style={{ borderColor: INK, color: INK, fontFamily: "var(--f-mono)" }}
+                >
+                  <option value="github">GitHub</option>
+                  <option value="twitter">X (Twitter)</option>
+                  <option value="wallet">Wallet</option>
+                </select>
+              </label>
+              <label className="flex flex-1 flex-col gap-2">
+                <span style={{ fontFamily: "var(--f-mono)", color: FAINT, letterSpacing: "0.16em" }} className="text-[10px] uppercase">
+                  Name on the vault
+                </span>
+                <input
+                  suppressHydrationWarning
+                  value={value}
+                  onChange={(e) => setValue(e.target.value)}
+                  onKeyDown={(e) => e.key === "Enter" && lookup()}
+                  placeholder={type === "wallet" ? "0x…" : "handle"}
+                  className="border-0 border-b-2 bg-transparent py-2 text-lg placeholder:opacity-35 focus:outline-none"
+                  style={{ borderColor: INK, color: INK, fontFamily: "var(--f-mono)" }}
+                />
+              </label>
+              <Magnetic>
+                <button
+                  onClick={lookup}
+                  disabled={loading || !value}
+                  className="rounded-full px-7 py-3 font-bold text-white disabled:opacity-40"
+                  style={{ background: GREEN }}
+                >
+                  {loading ? "Checking…" : "Check balance"}
+                </button>
+              </Magnetic>
+            </div>
+
+            {error && <p className="mt-4 text-sm" style={{ color: "#c0392b" }}>{error}</p>}
+            {rows && rows.length === 0 && (
+              <p className="mt-8" style={{ color: DIM }}>
+                No vault under this identity yet.
+              </p>
+            )}
+            {rows && rows.length > 0 && (
+              <ul className="mt-8 flex flex-col">
+                {rows.map((r) => (
+                  <li key={r.vault} className="flex items-center justify-between gap-4 border-t py-4" style={{ borderColor: HAIR }}>
+                    <div>
+                      <div className="text-xs" style={{ fontFamily: "var(--f-mono)", color: FAINT }}>
+                        {r.vault}
+                      </div>
+                      <div style={{ fontFamily: "var(--f-display)", color: INK, fontVariantNumeric: "tabular-nums" }} className="mt-1 text-2xl">
+                        {r.pendingLabel} ETH
+                      </div>
+                      {r.bound !== ZERO && (
+                        <div className="mt-1 text-xs" style={{ color: FAINT }}>
+                          bound to {r.bound}
+                        </div>
+                      )}
+                    </div>
+                    <Link href={`/claim/${r.vault}`} className="rounded-full px-5 py-2 font-bold text-white" style={{ background: GREEN }}>
+                      Claim
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </Reveal>
+        </section>
+
+        {/* CTA final + footer claro */}
+        <section className="border-t" style={{ borderColor: HAIR, background: "#FFFFFF" }}>
+          <div className="mx-auto flex max-w-6xl flex-col items-center px-6 py-24 text-center">
             <Reveal>
-              <h2 style={{ fontFamily: "var(--f-display)", lineHeight: 0.98 }} className="text-[clamp(2.3rem,5.6vw,4.4rem)] uppercase">
+              <h2 style={{ fontFamily: "var(--f-display)", lineHeight: 0.98 }} className="text-[clamp(2.2rem,5.4vw,4.2rem)] uppercase">
                 Back the one <span style={{ color: GREEN }}>who ships.</span>
               </h2>
             </Reveal>
             <Reveal delay={120}>
-              <p className="mt-6 max-w-md text-lg" style={{ color: "rgba(244,246,245,0.7)" }}>
+              <p className="mt-5 max-w-md text-lg" style={{ color: DIM }}>
                 Someone you follow builds every day and nobody pays them. Fix that in one transaction.
               </p>
             </Reveal>
-            <Reveal delay={240}>
-              <Link
-                href="/create"
-                className="mt-9 inline-block rounded-full px-8 py-4 text-lg font-bold"
-                style={{ background: GREEN, color: "#03140a" }}
-              >
-                Launch a coin for someone
-              </Link>
+            <Reveal delay={220}>
+              <Magnetic strength={10}>
+                <Link href="/create" className="mt-8 inline-block rounded-full px-8 py-4 text-lg font-bold text-white" style={{ background: GREEN }}>
+                  Launch a coin for someone
+                </Link>
+              </Magnetic>
             </Reveal>
           </div>
-          <footer className="relative mx-auto max-w-6xl overflow-hidden px-6 pb-10 pt-16">
+          <footer className="relative mx-auto max-w-6xl overflow-hidden px-6 pb-10 pt-8">
             <div
               aria-hidden
-              className="pointer-events-none absolute -bottom-14 right-0 select-none leading-none"
-              style={{
-                fontFamily: "var(--f-display)",
-                fontSize: "clamp(6rem, 18vw, 15rem)",
-                color: "rgba(244,246,245,0.03)",
-                letterSpacing: "-0.02em",
-              }}
+              className="pointer-events-none absolute -bottom-16 right-0 select-none leading-none"
+              style={{ fontFamily: "var(--f-display)", fontSize: "clamp(6rem,18vw,15rem)", color: "rgba(13,18,14,0.045)", letterSpacing: "-0.02em" }}
             >
               FLEDGE
             </div>
-            <div className="relative">
-              <div aria-hidden className="mb-10 h-px" style={{ background: hairline(0.16) }} />
-              <div className="grid gap-10 pb-6 sm:grid-cols-3">
-                <div>
-                  <span className="flex items-center gap-2 text-xs uppercase tracking-[0.26em]" style={{ fontFamily: "var(--f-mono)" }}>
-                    <Feather size={14} color="rgba(244,246,245,0.5)" /> Fledge
-                  </span>
-                  <p className="mt-3 max-w-xs text-sm leading-relaxed" style={{ color: "rgba(244,246,245,0.55)" }}>
-                    Social fee escrow on Robinhood Chain. A coin&apos;s trading fees, routed to one name.
-                  </p>
-                </div>
-                <div className="flex flex-col gap-2 text-sm" style={{ color: "rgba(244,246,245,0.65)" }}>
-                  <Link href="/create" className="underline decoration-1 underline-offset-4 hover:opacity-80">
-                    Launch a coin →
-                  </Link>
-                  <a href="#ledger" className="underline decoration-1 underline-offset-4 hover:opacity-80">
-                    Check a balance →
-                  </a>
-                </div>
-                <p className="text-xs leading-relaxed" style={{ fontFamily: "var(--f-mono)", color: "rgba(244,246,245,0.4)" }}>
-                  Permissionless and non-custodial. Funds release only to the wallet that proves the
-                  recipient identity. Not affiliated with Robinhood or Flap.
+            <div className="relative grid gap-10 border-t pb-6 pt-10 sm:grid-cols-3" style={{ borderColor: HAIR }}>
+              <div>
+                <span className="flex items-center gap-2 text-xs uppercase tracking-[0.26em]" style={{ fontFamily: "var(--f-mono)" }}>
+                  <Feather size={14} /> Fledge
+                </span>
+                <p className="mt-3 max-w-xs text-sm leading-relaxed" style={{ color: DIM }}>
+                  Social fee escrow on Robinhood Chain. A coin&apos;s trading fees, routed to one name.
                 </p>
               </div>
+              <div className="flex flex-col gap-2 text-sm font-medium" style={{ color: INK }}>
+                <Link href="/create" className="underline decoration-1 underline-offset-4 hover:opacity-70">
+                  Launch a coin →
+                </Link>
+                <a href="#ledger" className="underline decoration-1 underline-offset-4 hover:opacity-70">
+                  Check a balance →
+                </a>
+              </div>
+              <p className="text-xs leading-relaxed" style={{ fontFamily: "var(--f-mono)", color: FAINT }}>
+                Permissionless and non-custodial. Funds release only to the wallet that proves the
+                recipient identity. Not affiliated with Robinhood or Flap.
+              </p>
             </div>
           </footer>
         </section>

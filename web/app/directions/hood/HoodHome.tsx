@@ -26,6 +26,7 @@ const INK = "#03070a";
 const CREAM = "#efeee6";
 const GREEN = "#00C805";
 const GOLD = "#d9a441";
+const GOLDB = "#F0B750"; // oro de acción (CTAs, acentos) — el verde queda SOLO en la estela
 const ZERO = "0x0000000000000000000000000000000000000000";
 const HAIR = "rgba(239,238,230,0.15)";
 
@@ -204,6 +205,7 @@ export function HoodHome() {
             backgroundSize: "cover",
             backgroundPosition: "50% 42%", // origen del dolly = el beam
             transformOrigin: "50% 42%",
+            filter: "sepia(0.34) hue-rotate(-16deg) saturate(1.3) brightness(1.03)", // grade ámbar: la película dorada
           }}
         />
         {/* CORTE 2: el claro del cofre (funde en el ledger) */}
@@ -215,6 +217,7 @@ export function HoodHome() {
             backgroundSize: "cover",
             backgroundPosition: "50% 55%",
             transformOrigin: "50% 55%",
+            filter: "sepia(0.2) hue-rotate(-10deg) saturate(1.2) brightness(1.02)",
           }}
         />
         {/* niebla multiplano — profundidad real dentro del dolly */}
@@ -222,7 +225,7 @@ export function HoodHome() {
           ref={fogA}
           className="absolute inset-x-[-10%] top-[30%] h-[55%] will-change-transform"
           style={{
-            background: "radial-gradient(60% 55% at 50% 55%, rgba(120,220,160,0.10), transparent 70%)",
+            background: "radial-gradient(60% 55% at 50% 55%, rgba(240,183,80,0.10), transparent 70%)",
             filter: "blur(6px)",
           }}
         />
@@ -230,7 +233,7 @@ export function HoodHome() {
           ref={fogB}
           className="absolute inset-x-[-14%] top-[48%] h-[60%] will-change-transform"
           style={{
-            background: "radial-gradient(55% 50% at 50% 50%, rgba(200,240,215,0.07), transparent 72%)",
+            background: "radial-gradient(55% 50% at 50% 50%, rgba(245,210,140,0.07), transparent 72%)",
             filter: "blur(10px)",
           }}
         />
@@ -280,7 +283,7 @@ export function HoodHome() {
           <Link
             href="/create"
             className="rounded-full px-4 py-1.5 text-sm font-semibold"
-            style={{ background: GREEN, color: "#03140a" }}
+            style={{ background: GOLDB, color: "#1a1206" }}
           >
             Launch a coin
           </Link>
@@ -304,7 +307,7 @@ export function HoodHome() {
               >
                 The fees find
                 <br />
-                <span style={{ color: GREEN }}>their mark.</span>
+                <span style={{ color: GOLDB }}>their mark.</span>
               </h1>
               <p className="ml-auto mt-7 max-w-md text-lg" style={{ color: "rgba(239,238,230,0.78)" }}>
                 Launch a coin for someone who ships. Every trade sends a slice into escrow, sworn
@@ -321,7 +324,7 @@ export function HoodHome() {
                 <Link
                   href="/create"
                   className="rounded-full px-6 py-3 text-base font-semibold"
-                  style={{ background: GREEN, color: "#03140a" }}
+                  style={{ background: GOLDB, color: "#1a1206" }}
                 >
                   Launch a coin
                 </Link>
@@ -406,7 +409,7 @@ export function HoodHome() {
                 style={{ background: "rgba(2,5,7,0.82)", border: `1px solid ${HAIR}` }}
               >
                 <div aria-hidden className="absolute inset-x-0 top-0 h-px" style={{ background: hairline(0.4) }} />
-                <div style={{ fontFamily: "var(--f-mono)", letterSpacing: "0.28em", color: GREEN }} className="text-xs uppercase">
+                <div style={{ fontFamily: "var(--f-mono)", letterSpacing: "0.28em", color: GOLDB }} className="text-xs uppercase">
                   The reckoning
                 </div>
                 <h2 style={{ fontFamily: "var(--f-display)", fontWeight: 700 }} className="mt-4 text-[clamp(1.9rem,4.6vw,3rem)] uppercase">
@@ -441,7 +444,7 @@ export function HoodHome() {
                     onClick={lookup}
                     disabled={loading || !value}
                     className="rounded-lg px-6 py-3 font-semibold disabled:opacity-40"
-                    style={{ background: GREEN, color: "#03140a" }}
+                    style={{ background: GOLDB, color: "#1a1206" }}
                   >
                     {loading ? "Checking…" : "Check the vaults"}
                   </button>
@@ -480,7 +483,7 @@ export function HoodHome() {
                         <Link
                           href={`/claim/${r.vault}`}
                           className="rounded-full px-5 py-2 font-semibold"
-                          style={{ background: GREEN, color: "#03140a" }}
+                          style={{ background: GOLDB, color: "#1a1206" }}
                         >
                           Claim
                         </Link>
@@ -508,7 +511,7 @@ export function HoodHome() {
               >
                 Every legend starts
                 <br />
-                with <span style={{ color: GREEN }}>one shot.</span>
+                with <span style={{ color: GOLDB }}>one shot.</span>
               </h2>
             </Reveal>
             <Reveal delay={140}>
@@ -516,7 +519,7 @@ export function HoodHome() {
                 <Link
                   href="/create"
                   className="mt-10 inline-block rounded-full px-8 py-4 text-lg font-semibold"
-                  style={{ background: GREEN, color: "#03140a" }}
+                  style={{ background: GOLDB, color: "#1a1206" }}
                 >
                   Launch a coin for someone
                 </Link>

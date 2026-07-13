@@ -296,7 +296,7 @@ export function SherwoodHome() {
                 style={{ fontFamily: "var(--f-display)", lineHeight: 0.96, fontWeight: 400 }}
                 className={`mt-6 text-[clamp(3rem,7.6vw,6.6rem)] tracking-tight ${inCls(280)}`}
               >
-                <span className="block" style={{ WebkitTextStroke: `1.5px ${CREAM}`, color: "transparent" }}>
+                <span className="block" style={{ color: CREAM }}>
                   Take from the fees.
                 </span>
                 <span className="block" style={{ color: SIGNAL, fontStyle: "italic" }}>
