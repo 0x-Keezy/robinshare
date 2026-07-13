@@ -11,11 +11,11 @@ import { useEffect, useRef, useState } from "react";
 type Row = { id: number; t: string; amt: string; handle: string; drip: string };
 
 // Ficticios a propósito — nombres reales con montos ETH inventados rozaba
-// la suplantación (hallazgo del audit ciego). Mismo registro "builder que
-// shippea", cero identidades reales.
+// la suplantación (hallazgo del audit ciego). Y ficticios que lean como
+// PERSONAS, no como roles ("@core-dev"/"@indiehacker" cantaban placeholder).
 const HANDLES = [
-  "@shipsdaily", "@night-builder", "@0xmerge", "@the-committer",
-  "@indiehacker", "@basecamp-dev", "@anon-shipper", "@core-dev", "@the-forker",
+  "@aveline", "@0xtapir", "@mkoivu", "@june_ships", "@peblo",
+  "@arlo_dev", "@nkoto", "@saltmine", "@varga",
 ];
 
 function mulberry32(seed: number) {
@@ -79,7 +79,7 @@ export function LiveVaultFeed({
         {rows.map((r, i) => (
           <li
             key={r.id}
-            className="feed-row flex items-baseline justify-between gap-3 py-2.5 text-[13px]"
+            className="feed-row flex items-baseline justify-between gap-2 py-2.5 text-[11.5px] sm:gap-3 sm:text-[13px]"
             style={{
               borderTop: i === 0 ? "none" : `1px solid ${hair}`,
               opacity: 1 - i * 0.13,

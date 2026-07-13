@@ -9,9 +9,10 @@ import { TerminalHome } from "./directions/terminal/TerminalHome";
 import { MangaHome } from "./directions/manga/MangaHome";
 
 // La dirección de arte se elige al build por subdominio: NEXT_PUBLIC_DIRECTION.
-// v2 (Robin Hood): sherwood (3D leyenda) · legend (3D corporativo) · hood (2.5D cine).
+// LEGEND ganó el bake-off (2026-07-13) y es la identidad de RobinShare — default
+// de producción. El resto queda archivado, navegable solo via /v/<dir>.
 export default function Home() {
-  const dir = process.env.NEXT_PUBLIC_DIRECTION ?? "sherwood";
+  const dir = process.env.NEXT_PUBLIC_DIRECTION ?? "legend";
   switch (dir) {
     case "sky":
       return <SkyHome />;
@@ -19,8 +20,8 @@ export default function Home() {
       return <AvionHome />;
     case "nest":
       return <NestHome />;
-    case "legend":
-      return <LegendHome />;
+    case "sherwood":
+      return <SherwoodHome />;
     case "hood":
       return <HoodHome />;
     case "decree":
@@ -29,8 +30,8 @@ export default function Home() {
       return <TerminalHome />;
     case "manga":
       return <MangaHome />;
-    case "sherwood":
+    case "legend":
     default:
-      return <SherwoodHome />;
+      return <LegendHome />;
   }
 }

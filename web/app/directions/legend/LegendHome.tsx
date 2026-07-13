@@ -11,13 +11,16 @@ import { Magnetic } from "@/components/Magnetic";
 import { useVaultLookup } from "@/lib/useVaultLookup";
 import { Scroll, useScrollSync } from "@/lib/scrollProgress";
 import { useHideNav } from "@/lib/useHideNav";
+import { useTheme } from "@/lib/useTheme";
+import { BowMark } from "@/components/BowMark";
 
 /*
- * LEGEND v4 — el BROKERAGE (registro claro-suizo-snappy del bake-off).
- * Página blanca papel como el roberage real: tipografía negra gigante, grid denso,
- * hairlines grises. El verde #00C805 es COLOR DE ACCIÓN (CTAs, deltas) y nada más.
- * La única zona oscura es el panel terminal del hero: adentro viven la pluma de luz
- * (screen-blend) y el feed verde-fósforo. Cero dolly — motion snappy.
+ * ROBINSHARE (ex-Legend, ganadora del bake-off) — el BROKERAGE.
+ * Registro suizo-snappy: tipografía negra gigante, grid denso, hairlines.
+ * Oscuro por defecto (tokens var(--rs-*), toggle a claro en el nav). El lima
+ * es el acento de marca; el verde Robinhood puro queda SOLO en el tape en
+ * vivo. La marca es el arco (BowMark) — el guiño a Robin Hood: compartir
+ * con los que lo merecen. Cero dolly — motion snappy.
  */
 
 const display = Archivo_Black({ weight: "400", subsets: ["latin"], variable: "--f-display" });
@@ -40,38 +43,6 @@ const FAINT = "var(--rs-faint)";
 const HAIR = "var(--rs-hair)";
 const ZERO = "0x0000000000000000000000000000000000000000";
 
-type Theme = "dark" | "light";
-
-// Lee el tema real recién en el efecto (igual que useReducedMotion) — el
-// valor inicial "dark" coincide con el default de primera visita, así que
-// no hay mismatch de hidratación. El script anti-flash de layout.tsx ya
-// pintó el color correcto por CSS antes de este punto; este hook solo
-// necesita saber el tema para dibujar el ícono correcto del toggle.
-function useTheme() {
-  const [theme, setTheme] = useState<Theme>("dark");
-
-  useEffect(() => {
-    const attr = document.documentElement.getAttribute("data-robinshare-theme");
-    if (attr === "light" || attr === "dark") setTheme(attr);
-  }, []);
-
-  const toggle = () => {
-    setTheme((prev) => {
-      const next: Theme = prev === "dark" ? "light" : "dark";
-      document.documentElement.setAttribute("data-robinshare-theme", next);
-      try {
-        localStorage.setItem("robinshare-theme", next);
-      } catch {
-        // localStorage puede fallar en modo privado — el toggle sigue
-        // funcionando para esta sesión, solo no persiste.
-      }
-      return next;
-    });
-  };
-
-  return { theme, toggle };
-}
-
 function useReducedMotion() {
   const [reduce, setReduce] = useState(false);
   useEffect(() => {
@@ -82,16 +53,6 @@ function useReducedMotion() {
     return () => mq.removeEventListener("change", on);
   }, []);
   return reduce;
-}
-
-// la pluma del logo como guiño SVG propio
-function Feather({ size = 20, color = GREEN }: { size?: number; color?: string }) {
-  return (
-    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" aria-hidden>
-      <path d="M20 4 C14 4, 7 9, 5 20 L7 20 C8 14, 12 8, 20 4 Z" fill={color} opacity="0.9" />
-      <path d="M5 20 C9 15, 14 10, 20 4" stroke={color} strokeWidth="0.6" opacity="0.6" />
-    </svg>
-  );
 }
 
 export function LegendHome() {
@@ -171,10 +132,10 @@ export function LegendHome() {
         }}
       >
         <div className="mx-auto flex max-w-6xl items-center justify-between px-6 py-4">
-          <div className="flex items-center gap-2">
-            <Feather />
+          <div className="flex items-center gap-2" style={{ color: INK }}>
+            <BowMark color={GREEN} />
             <span style={{ fontFamily: "var(--f-mono)", letterSpacing: "0.26em" }} className="text-xs font-medium uppercase">
-              Fledge
+              RobinShare
             </span>
           </div>
           <div className="flex items-center gap-5">
@@ -215,7 +176,7 @@ export function LegendHome() {
             </div>
             <h1
               style={{ fontFamily: "var(--f-display)", lineHeight: 0.96 }}
-              className="mt-5 text-[clamp(2.8rem,6.4vw,5.4rem)] uppercase tracking-tight"
+              className="mt-5 text-[clamp(2rem,9vw,5.4rem)] uppercase tracking-tight"
             >
               Route fees
               <br />
@@ -224,8 +185,8 @@ export function LegendHome() {
               <span style={{ color: GREEN_TEXT }}>Automatically.</span>
             </h1>
             <p className="mt-6 max-w-md text-lg" style={{ color: DIM }}>
-              Launch a coin for someone who ships. A slice of every trade escrows on-chain to
-              their GitHub, X, or wallet — claimable by them alone.
+              Launch a coin for any builder. Every trade sets 3% aside for their GitHub, X, or
+              wallet. Only they can claim it.
             </p>
             <div className="mt-8 flex flex-wrap items-center gap-4">
               <Magnetic>
@@ -244,7 +205,7 @@ export function LegendHome() {
               <span>Chain 4663</span>
               <span>Blocks 100ms</span>
               <span>Custody none</span>
-              <span>Claim = proof of identity</span>
+              <span>Fee 3% → vault</span>
             </div>
           </div>
 
@@ -256,7 +217,7 @@ export function LegendHome() {
                 <span className="h-2.5 w-2.5 rounded-full" style={{ background: "rgba(247,248,244,0.25)" }} />
                 <span className="h-2.5 w-2.5 rounded-full" style={{ background: GREEN }} />
                 <span className="ml-2 text-[11px]" style={{ fontFamily: "var(--f-mono)", color: "rgba(247,248,244,0.55)" }}>
-                  fledge://tape — live preview
+                  robinshare://tape — live preview
                 </span>
               </div>
               {/* Jose: la pluma de luz sobre el tape quedaba incómoda pese a los
@@ -283,9 +244,8 @@ export function LegendHome() {
         <div className="border-y py-2.5" style={{ borderColor: HAIR }}>
           <Marquee duration={26}>
             <span style={{ fontFamily: "var(--f-mono)", letterSpacing: "0.14em", color: DIM }} className="text-xs uppercase">
-              Fledge on Robinhood Chain <span style={{ color: GREEN_TEXT }}>▲</span> every trade pays
-              the builder <span style={{ color: GREEN_TEXT }}>▲</span> escrow sworn to one name{" "}
-              <span style={{ color: GREEN_TEXT }}>▲</span> claim = proof of identity{" "}
+              RobinShare on Robinhood Chain <span style={{ color: GREEN_TEXT }}>▲</span> every trade
+              pays the builder <span style={{ color: GREEN_TEXT }}>▲</span> only they can claim it{" "}
               <span style={{ color: GREEN_TEXT }}>▲</span>&nbsp;
             </span>
           </Marquee>
@@ -301,8 +261,8 @@ export function LegendHome() {
           <div className="mt-12 grid gap-px overflow-hidden rounded-2xl border sm:grid-cols-3" style={{ borderColor: HAIR, background: HAIR }}>
             {[
               { n: "01", t: "Name them", d: "Pick a builder by GitHub, X, or wallet. Their coin lists on Flap in seconds." },
-              { n: "02", t: "Fees accrue", d: "A slice of the trading tax streams into an on-chain vault held in their name." },
-              { n: "03", t: "They claim", d: "They prove the identity — signature, OAuth, or the X oracle — and sweep the ETH." },
+              { n: "02", t: "Fees accrue", d: "3% of every trade lands in an on-chain vault under their name." },
+              { n: "03", t: "They claim", d: "They prove it's them (GitHub login, a tweet, or a signature) and sweep the ETH." },
             ].map((s, i) => (
               <Reveal key={s.n} delay={i * 90}>
                 <div className="h-full p-7" style={{ background: PAPER }}>
@@ -342,8 +302,8 @@ export function LegendHome() {
             <Reveal delay={120}>
               <div>
                 <p className="max-w-md text-lg leading-relaxed" style={{ color: DIM }}>
-                  The escrow is immutable and sworn to a single identity at launch. No admin, no
-                  upgrade path, no freeze switch. Funds move once: to the wallet that proves the name.
+                  The vault is fixed at launch. There are no admin keys and no way to redirect
+                  it, not even for us. The money only moves to the wallet that proves the name.
                 </p>
                 <div className="mt-6 flex flex-wrap gap-2.5" style={{ fontFamily: "var(--f-mono)" }}>
                   {["wallet signature", "github oauth", "x oracle proof"].map((m) => (
@@ -368,10 +328,10 @@ export function LegendHome() {
               Balance check
             </div>
             <h2 style={{ fontFamily: "var(--f-display)", lineHeight: 1 }} className="mt-3 text-[clamp(1.9rem,4.4vw,3rem)] uppercase">
-              Is a vault accruing to you?
+              Someone may have launched you a coin.
             </h2>
             <p className="mt-3 max-w-md" style={{ color: DIM }}>
-              Look up the escrows held for your GitHub, X, or wallet — and claim what is yours.
+              Search your GitHub, X, or wallet. If there&apos;s a vault, it&apos;s yours to claim.
             </p>
 
             <div className="mt-10 flex flex-col gap-6 sm:flex-row sm:items-end">
@@ -482,18 +442,18 @@ export function LegendHome() {
           <footer className="relative mx-auto max-w-6xl overflow-hidden px-6 pb-10 pt-8">
             <div
               aria-hidden
-              className="pointer-events-none absolute -bottom-16 right-0 select-none leading-none"
-              style={{ fontFamily: "var(--f-display)", fontSize: "clamp(6rem,18vw,15rem)", color: "var(--rs-watermark)", letterSpacing: "-0.02em" }}
+              className="pointer-events-none absolute -bottom-10 right-0 select-none leading-none"
+              style={{ fontFamily: "var(--f-display)", fontSize: "clamp(4rem,11vw,9.5rem)", color: "var(--rs-watermark)", letterSpacing: "-0.02em" }}
             >
-              FLEDGE
+              ROBINSHARE
             </div>
             <div className="relative grid gap-10 border-t pb-6 pt-10 sm:grid-cols-3" style={{ borderColor: HAIR }}>
               <div>
                 <span className="flex items-center gap-2 text-xs uppercase tracking-[0.26em]" style={{ fontFamily: "var(--f-mono)" }}>
-                  <Feather size={14} /> Fledge
+                  <BowMark size={14} color={GREEN} /> RobinShare
                 </span>
                 <p className="mt-3 max-w-xs text-sm leading-relaxed" style={{ color: DIM }}>
-                  Social fee escrow on Robinhood Chain. A coin&apos;s trading fees, routed to one name.
+                  A coin&apos;s trading fees, routed to the builder who earned them. On Robinhood Chain.
                 </p>
               </div>
               <div className="flex flex-col gap-2 text-sm font-medium" style={{ color: INK }}>

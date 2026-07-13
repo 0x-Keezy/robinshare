@@ -14,8 +14,9 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "FLEDGE — claim your fees",
-  description: "Trading fees escrowed to a wallet, GitHub or X identity on Robinhood Chain.",
+  title: "RobinShare — route fees to builders",
+  description:
+    "Launch a coin for any builder on Robinhood Chain. 3% of every trade goes to a vault only they can claim — via GitHub, X, or wallet.",
 };
 
 export default function RootLayout({
