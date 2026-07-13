@@ -12,7 +12,7 @@ type Row = { id: number; t: string; amt: string; handle: string; drip: string };
 
 const HANDLES = [
   "@torvalds", "@gakonst", "@shadcn", "@dabit3", "@rauchg",
-  "@the-maintainer", "@evanw", "@your-favorite-dev", "@transmissions11",
+  "@antfu7", "@evanw", "@t3dotgg", "@transmissions11",
 ];
 
 function mulberry32(seed: number) {
@@ -45,6 +45,7 @@ export function LiveVaultFeed({
   const [rows, setRows] = useState<Row[]>([]);
   const seq = useRef(0);
   const rand = useRef(mulberry32(4663));
+  const lastHandle = useRef<string | null>(null);
 
   useEffect(() => {
     const make = (): Row => {
@@ -53,7 +54,14 @@ export function LiveVaultFeed({
       const drip = ((parseFloat(amt) * (0.008 + r() * 0.004))).toFixed(4);
       const now = new Date();
       const t = `${String(now.getHours()).padStart(2, "0")}:${String(now.getMinutes()).padStart(2, "0")}:${String(now.getSeconds()).padStart(2, "0")}`;
-      return { id: seq.current++, t, amt, handle: HANDLES[Math.floor(r() * HANDLES.length)], drip };
+      // nunca repetir el handle anterior en la ventana visible — evita que el
+      // mismo nombre "domine" el feed y se sienta a fixture, no a producto real
+      let handle = HANDLES[Math.floor(r() * HANDLES.length)];
+      if (handle === lastHandle.current) {
+        handle = HANDLES[(HANDLES.indexOf(handle) + 1) % HANDLES.length];
+      }
+      lastHandle.current = handle;
+      return { id: seq.current++, t, amt, handle, drip };
     };
     setRows(Array.from({ length: 3 }, make));
     const iv = setInterval(() => {

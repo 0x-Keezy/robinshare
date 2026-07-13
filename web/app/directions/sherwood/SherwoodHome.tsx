@@ -56,6 +56,7 @@ function useCinema(reduce: boolean) {
   const dark = useRef<HTMLDivElement>(null);
   const fog = useRef<HTMLDivElement>(null);
   const arrow = useRef<HTMLDivElement>(null);
+  const hint = useRef<HTMLDivElement>(null);
   const mouse = useRef({ x: 0, y: 0 });
 
   useEffect(() => {
@@ -88,13 +89,21 @@ function useCinema(reduce: boolean) {
         fog.current.style.transform = `translate3d(${mx * -24}px, ${p * -18}vh, 0) scale(${1 + p * 0.25})`;
       }
       // la flecha: flota nocked en el hero; con el scroll SE DISPARA hacia la luz
+      // (mismo vector que el dolly de la cámara: derecha-arriba, hacia los rayos)
       if (arrow.current) {
         const shot = clamp01((p - 0.05) / 0.17);
         const s = 1 - ease(shot) * 0.72;
         const bob = reduce ? 0 : Math.sin(t * 0.9) * 8;
         arrow.current.style.transform =
-          `translate3d(calc(${mx * 16}px + ${8 - ease(shot) * 22}vw), calc(${my * 10 + bob}px + ${2 - ease(shot) * 14}vh), 0) scale(${s})`;
-        arrow.current.style.opacity = String(1 - ease(clamp01((shot - 0.75) / 0.25)));
+          `translate3d(calc(${mx * 16}px + ${8 + ease(shot) * 22}vw), calc(${my * 10 + bob}px + ${2 - ease(shot) * 14}vh), 0) scale(${s})`;
+        // funde ANTES de que el tamaño quede ambiguo (arrancaba en shot 0.75, ya
+        // demasiado chica y todavía casi opaca — leía como artefacto, no como lejanía)
+        arrow.current.style.opacity = String(1 - ease(clamp01((shot - 0.45) / 0.4)));
+      }
+      // el hint de scroll: se apaga apenas arranca el scroll real (antes quedaba
+      // flotando, sin afordancia, durante todo el vuelo de la flecha)
+      if (hint.current && p > 0.002) {
+        hint.current.style.opacity = String(Math.max(0, 1 - ease(clamp01((p - 0.002) / 0.04))));
       }
     };
     raf = requestAnimationFrame(tick);
@@ -104,7 +113,7 @@ function useCinema(reduce: boolean) {
     };
   }, [reduce]);
 
-  return { bg, dark, fog, arrow };
+  return { bg, dark, fog, arrow, hint };
 }
 
 /* preloader-obra: % honesto (fuentes + plate decodificado), reveal por iris */
@@ -189,7 +198,7 @@ export function SherwoodHome() {
   const { type, setType, value, setValue, rows, error, loading, lookup } = useVaultLookup();
   const [revealed, setRevealed] = useState(false);
   const [preGone, setPreGone] = useState(false);
-  const { bg, dark, fog, arrow } = useCinema(reduce);
+  const { bg, dark, fog, arrow, hint } = useCinema(reduce);
 
   const inCls = (d: number) =>
     `transition-all duration-700 ${revealed ? "opacity-100 translate-y-0 blur-0" : "opacity-0 translate-y-5 blur-[6px]"}` +
@@ -231,7 +240,7 @@ export function SherwoodHome() {
         {/* LA FLECHA — foto macro sobre negro: mix-blend screen (el negro desaparece) */}
         <div
           ref={arrow}
-          className="absolute left-[30%] top-[30%] w-[min(52vw,760px)] will-change-transform"
+          className="absolute left-[30%] top-[34%] w-[min(52vw,760px)] will-change-transform"
           style={{ mixBlendMode: "screen" }}
         >
           {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -332,6 +341,7 @@ export function SherwoodHome() {
               </div>
             </div>
             <div
+              ref={hint}
               className={`pointer-events-none absolute bottom-8 left-1/2 hidden [@media(min-height:760px)]:flex -translate-x-1/2 flex-col items-center gap-3 ${inCls(700)}`}
               style={{ fontFamily: "var(--f-mono)", color: "rgba(242,239,230,0.45)" }}
             >
@@ -354,12 +364,12 @@ export function SherwoodHome() {
         </div>
 
         {/* ACTO 2 — el mecanismo (ledger editorial) */}
-        <section className="relative min-h-[115vh]">
+        <section className="relative min-h-[100vh]">
           <div className="mx-auto max-w-6xl px-6 py-24">
             <div
               aria-hidden
               className="pointer-events-none absolute inset-x-0 top-0 h-full"
-              style={{ background: "radial-gradient(88% 62% at 50% 42%, rgba(3,8,5,0.8), transparent 86%)" }}
+              style={{ background: "radial-gradient(88% 62% at 50% 42%, rgba(3,8,5,0.62), transparent 86%)" }}
             />
             <div className="relative">
               <Reveal>
@@ -411,7 +421,7 @@ export function SherwoodHome() {
             <div
               aria-hidden
               className="pointer-events-none absolute inset-0"
-              style={{ background: "radial-gradient(78% 68% at 50% 50%, rgba(3,8,5,0.78), transparent 86%)" }}
+              style={{ background: "radial-gradient(78% 68% at 50% 50%, rgba(3,8,5,0.6), transparent 86%)" }}
             />
             <div className="relative">
               <Reveal>
@@ -445,7 +455,7 @@ export function SherwoodHome() {
         </section>
 
         {/* ACTO 3 — el claim */}
-        <section className="relative min-h-[110vh]">
+        <section className="relative min-h-[100vh]">
           <div className="mx-auto flex min-h-screen max-w-6xl items-center px-6">
             <div className="relative max-w-xl">
               <div
@@ -488,7 +498,7 @@ export function SherwoodHome() {
         </section>
 
         {/* ACTO 4 — el ledger */}
-        <section id="ledger" className="relative min-h-[120vh]">
+        <section id="ledger" className="relative min-h-[105vh]">
           <div className="mx-auto flex min-h-screen max-w-4xl flex-col justify-center px-6 py-24">
             <Reveal>
               <div className="relative overflow-hidden rounded-2xl p-8 sm:p-12" style={{ background: "rgba(2,6,4,0.82)", border: `1px solid ${HAIR}` }}>
