@@ -386,6 +386,39 @@
         </div>
         <div id="beat5-veil"></div>
       </section>
+
+      <!-- ============ CAPA DE SONIDO — SFX diseñados (bundled, sin credenciales) ============
+           Sin BGM continuo: una capa de sonido puntual que subraya los cortes secos del
+           teaser brutalista. 6 archivos, 7 disparos, registro minimal/premium/tech. Cada
+           <audio> es hijo directo del root (requisito HyperFrames), en pistas 10+ para no
+           chocar con las reglas de solape de las visuales (1-5). data-duration = largo real
+           del archivo → se reproduce entero una vez, con su decay. -->
+
+      <!-- beat 2 · corte seco "We built that on-chain" (4s) → sub-boom que marca el twist -->
+      <audio id="sfx-cut" src="assets/sfx-impact-cut.mp3"
+        data-start="4" data-duration="2.116" data-track-index="10" data-volume="0.82"></audio>
+
+      <!-- beat 3 · transición hero→/01 (~12.6s, primer slide) → whoosh suave, editorial -->
+      <audio id="sfx-slide" src="assets/sfx-whoosh.mp3"
+        data-start="12.6" data-duration="0.575" data-track-index="11" data-volume="0.34"></audio>
+
+      <!-- puente · riser de ~10s que crestea en el logo del beat 5 (24.0s = 14.0 + 10.03);
+           bajo (0.42) para levantar tensión sin volverse épica de trailer -->
+      <audio id="sfx-riser" src="assets/sfx-riser.mp3"
+        data-start="14" data-duration="10.032" data-track-index="12" data-volume="0.42"></audio>
+
+      <!-- beat 4 · un hit corto en la entrada de cada una de las 3 líneas -->
+      <audio id="sfx-l1" src="assets/sfx-whoosh.mp3"
+        data-start="19" data-duration="0.575" data-track-index="13" data-volume="0.5"></audio>
+      <audio id="sfx-l2" src="assets/sfx-whoosh-short.mp3"
+        data-start="20.7" data-duration="0.575" data-track-index="14" data-volume="0.5"></audio>
+      <!-- L3 es la línea lima "100% of the fee → builder": ping nítido, el dato clave -->
+      <audio id="sfx-l3" src="assets/sfx-ping.mp3"
+        data-start="22.3" data-duration="1.32" data-track-index="15" data-volume="0.56"></audio>
+
+      <!-- beat 5 · impacto final en el lockup ROBINSHARE (24.3s), resuelve el riser -->
+      <audio id="sfx-lockup" src="assets/sfx-impact-lockup.mp3"
+        data-start="24.3" data-duration="2.592" data-track-index="16" data-volume="0.85"></audio>
     </div>
 
     <script>
@@ -467,6 +500,11 @@
       // content opacity) so the ending reads as a true fade-out in both bookend
       // variants, whether the backdrop is the close photo or flat paper.
       tl.fromTo("#beat5-veil", { opacity: 0 }, { opacity: 1, duration: 0.6, ease: "power2.in" }, 27.4);
+
+      // Capa de sonido: los SFX se disparan por su data-start/data-duration en el
+      // motor de HyperFrames (playback determinista); su nivel es estático
+      // (data-volume) y cada archivo ya trae su propia envolvente/decay, así que
+      // no hacen falta tweens de volumen en el timeline.
 
       window.__timelines["main"] = tl;
     </script>
