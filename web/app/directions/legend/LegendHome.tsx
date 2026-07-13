@@ -168,7 +168,7 @@ export function LegendHome() {
               RobinShare
             </span>
           </div>
-          <div className="flex items-center gap-5">
+          <div className="flex items-center gap-4 sm:gap-5">
             <button
               type="button"
               onClick={toggleTheme}
@@ -190,7 +190,7 @@ export function LegendHome() {
             <a href="#ledger" className="hidden text-sm font-medium underline-offset-4 hover:underline sm:block" style={{ color: DIM }}>
               Check a balance
             </a>
-            <Link href="/create" className="rounded-full px-4 py-1.5 text-sm font-bold" style={{ background: GREEN_CTA, color: GREEN_CTA_TEXT }}>
+            <Link href="/create" className="whitespace-nowrap rounded-full px-3.5 py-1.5 text-sm font-bold sm:px-4" style={{ background: GREEN_CTA, color: GREEN_CTA_TEXT }}>
               Launch a coin
             </Link>
           </div>
@@ -204,9 +204,12 @@ export function LegendHome() {
             <div style={{ fontFamily: "var(--f-mono)", letterSpacing: "0.24em", color: FAINT }} className="text-xs uppercase">
               Social fee escrow · Robinhood Chain
             </div>
+            {/* lg+: el titular convive con el panel en un grid — "AUTOMATICALLY." no
+                quiebra (801px a 86px), así que el tamaño se acota para que palabra +
+                gap + min-content del panel (367px) quepan en el contenedor (1064px) */}
             <h1
               style={{ fontFamily: "var(--f-display)", lineHeight: 0.96 }}
-              className="mt-5 text-[clamp(2rem,9vw,5.4rem)] uppercase tracking-tight"
+              className="mt-5 text-[clamp(2rem,9vw,5.4rem)] uppercase tracking-tight lg:text-[clamp(3rem,5.5vw,4.35rem)]"
             >
               Route fees
               <br />

@@ -42,3 +42,6 @@ next-env.d.ts
 
 # backups locales de assets (planchas Gemini pre-Higgsfield)
 *.jpg.bak
+
+.vercel
+.env*
