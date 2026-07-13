@@ -19,7 +19,12 @@ await ctx.close();                     // flushea el webm
 console.log("video:", await vid.path());
 
 // 2) stills de secciones /01 /02 /03 y stats (scroll dirigido)
-const page2 = await browser.newPage({ viewport: VP });
+// reducedMotion: "reduce" -> Stat.tsx (líneas 26-29) salta el count-up y
+// pinta el valor final al instante. Son stills, no animaciones, así que
+// no pierden nada visualmente; y evita la carrera 900ms-de-espera vs.
+// 1100ms-de-duración del count-up que congelaba stats.png en 99/99 en vez
+// de 100/100 (root cause del blocker de quality-gate).
+const page2 = await browser.newPage({ viewport: VP, reducedMotion: "reduce" });
 await page2.goto(URL, { waitUntil: "load" });
 await page2.waitForTimeout(1500);
 const beats = [
