@@ -27,6 +27,10 @@ export default function RootLayout({
     <html
       lang="en"
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
+      // el script de abajo fija data-robinshare-theme en este mismo tag ANTES
+      // de que React hidrate (a propósito) — sin esto React marca ese atributo
+      // como mismatch servidor/cliente, igual que ya vimos con extensiones
+      suppressHydrationWarning
     >
       <body className="min-h-full flex flex-col" suppressHydrationWarning>
         {/* RobinShare (Legend): fija data-robinshare-theme ANTES de que React

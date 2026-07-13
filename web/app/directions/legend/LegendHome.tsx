@@ -24,24 +24,20 @@ const display = Archivo_Black({ weight: "400", subsets: ["latin"], variable: "--
 const body = Archivo({ subsets: ["latin"], variable: "--f-body" });
 const mono = IBM_Plex_Mono({ weight: ["400", "500"], subsets: ["latin"], variable: "--f-mono" });
 
-const PAPER = "#F7F8F4";
-const INK = "#0D120E";
-const GREEN = "#00C805";
-// #00C805 sobre papel ronda 2.1:1 de contraste — ilegible como texto (falla
-// incluso el 3:1 de WCAG para texto grande). Mismo hue, oscurecido a ~5:1
-// para titulares/labels; el verde puro queda para fills/dots donde no carga texto.
-const GREEN_TEXT = "#087C2E";
-// mismo hallazgo, otro angulo: #00C805 a plena saturacion en los FILLS de CTA
-// lee "app de trading retail", no "brokerage suizo solemne" (audit ciclo 3).
-// El verde puro queda exclusivo del tape en vivo (dot + LiveVaultFeed) donde
-// el neon SI lee como señal; los botones sobre papel usan este verde-bosque
-// mas oscuro + texto blanco (~6.6:1 — INK sobre este tono ya no alcanza 4.5:1).
-const GREEN_CTA = "#0B6B2E";
-const DIM = "rgba(13,18,14,0.6)";
-// 0.42 rondaba ~2.7:1 sobre PAPER (fallaba AA hasta en texto grande) — los
-// eyebrows/labels de dato son parte del sistema editorial, no decoracion.
-const FAINT = "rgba(13,18,14,0.58)";
-const HAIR = "rgba(13,18,14,0.14)";
+// Los 7 tokens de color ahora son referencias a variables CSS (ver
+// web/app/globals.css) en vez de literales — el navegador resuelve el valor
+// correcto por la cascada CSS según el atributo data-robinshare-theme del
+// <html>, que un script bloqueante en layout.tsx fija ANTES de que React
+// hidrate. Ningún otro sitio de uso de estas constantes cambia.
+const PAPER = "var(--rs-paper)";
+const INK = "var(--rs-ink)";
+const GREEN = "#00C805"; // sin variar por tema: color de "dato en vivo" (dot + feed)
+const GREEN_TEXT = "var(--rs-green-text)";
+const GREEN_CTA = "var(--rs-green-cta)";
+const GREEN_CTA_TEXT = "var(--rs-green-cta-text)";
+const DIM = "var(--rs-dim)";
+const FAINT = "var(--rs-faint)";
+const HAIR = "var(--rs-hair)";
 const ZERO = "0x0000000000000000000000000000000000000000";
 
 function useReducedMotion() {
@@ -124,7 +120,7 @@ export function LegendHome() {
             alt=""
             className="w-full opacity-80"
             style={{
-              filter: "saturate(0.6) brightness(0.78) contrast(1.05)",
+              filter: "var(--rs-feather-ink-filter)",
               maskImage: "radial-gradient(64% 70% at 54% 48%, black 50%, transparent 85%)",
               WebkitMaskImage: "radial-gradient(64% 70% at 54% 48%, black 50%, transparent 85%)",
             }}
@@ -137,7 +133,7 @@ export function LegendHome() {
       <nav
         className="fixed inset-x-0 top-0 z-40 transition-transform duration-300"
         style={{
-          background: "linear-gradient(to bottom, rgba(247,248,244,0.97) 0%, rgba(247,248,244,0.85) 60%, transparent)",
+          background: "var(--rs-nav-gradient)",
           transform: navHidden ? "translateY(-100%)" : "none",
         }}
       >
@@ -152,7 +148,7 @@ export function LegendHome() {
             <a href="#ledger" className="hidden text-sm font-medium underline-offset-4 hover:underline sm:block" style={{ color: DIM }}>
               Check a balance
             </a>
-            <Link href="/create" className="rounded-full px-4 py-1.5 text-sm font-bold" style={{ background: GREEN_CTA, color: "#fff" }}>
+            <Link href="/create" className="rounded-full px-4 py-1.5 text-sm font-bold" style={{ background: GREEN_CTA, color: GREEN_CTA_TEXT }}>
               Launch a coin
             </Link>
           </div>
@@ -182,7 +178,7 @@ export function LegendHome() {
             </p>
             <div className="mt-8 flex flex-wrap items-center gap-4">
               <Magnetic>
-                <Link href="/create" className="inline-block rounded-full px-6 py-3 text-base font-bold" style={{ background: GREEN_CTA, color: "#fff" }}>
+                <Link href="/create" className="inline-block rounded-full px-6 py-3 text-base font-bold" style={{ background: GREEN_CTA, color: GREEN_CTA_TEXT }}>
                   Launch a coin
                 </Link>
               </Magnetic>
@@ -369,7 +365,7 @@ export function LegendHome() {
                   // ghost quedaba tan tenue que la accion principal leia a fantasma.
                   style={
                     loading || !value
-                      ? { background: "transparent", borderColor: "rgba(13,18,14,0.3)", color: FAINT }
+                      ? { background: "transparent", borderColor: FAINT, color: FAINT }
                       : { background: GREEN_CTA, borderColor: GREEN_CTA, color: "#fff" }
                   }
                 >
@@ -401,7 +397,7 @@ export function LegendHome() {
                         </div>
                       )}
                     </div>
-                    <Link href={`/claim/${r.vault}`} className="rounded-full px-5 py-2 font-bold" style={{ background: GREEN_CTA, color: "#fff" }}>
+                    <Link href={`/claim/${r.vault}`} className="rounded-full px-5 py-2 font-bold" style={{ background: GREEN_CTA, color: GREEN_CTA_TEXT }}>
                       Claim
                     </Link>
                   </li>
@@ -426,7 +422,7 @@ export function LegendHome() {
             </Reveal>
             <Reveal delay={220}>
               <Magnetic strength={10}>
-                <Link href="/create" className="mt-8 inline-block rounded-full px-8 py-4 text-lg font-bold" style={{ background: GREEN_CTA, color: "#fff" }}>
+                <Link href="/create" className="mt-8 inline-block rounded-full px-8 py-4 text-lg font-bold" style={{ background: GREEN_CTA, color: GREEN_CTA_TEXT }}>
                   Launch a coin for someone
                 </Link>
               </Magnetic>
@@ -436,7 +432,7 @@ export function LegendHome() {
             <div
               aria-hidden
               className="pointer-events-none absolute -bottom-16 right-0 select-none leading-none"
-              style={{ fontFamily: "var(--f-display)", fontSize: "clamp(6rem,18vw,15rem)", color: "rgba(13,18,14,0.045)", letterSpacing: "-0.02em" }}
+              style={{ fontFamily: "var(--f-display)", fontSize: "clamp(6rem,18vw,15rem)", color: "var(--rs-watermark)", letterSpacing: "-0.02em" }}
             >
               FLEDGE
             </div>
