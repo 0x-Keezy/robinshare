@@ -7,6 +7,7 @@ import { useAccount, useConnect, useWriteContract } from "wagmi";
 import { injected } from "wagmi/connectors";
 import { publicClient } from "@/lib/chain";
 import { escrowAbi } from "@/lib/abis";
+import { RSShell, RS } from "@/components/RSShell";
 
 const ZERO = "0x0000000000000000000000000000000000000000";
 
@@ -20,6 +21,11 @@ type State = {
   totalPaid: bigint;
   description: string;
 };
+
+const ctaCls = "rounded-full px-7 py-3 font-bold transition-colors disabled:cursor-not-allowed disabled:opacity-60";
+const ctaStyle = { background: RS.GREEN_CTA, color: RS.GREEN_CTA_TEXT } as const;
+const ghostCls = "rounded-full border-2 px-7 py-3 font-bold transition-colors";
+const ghostStyle = { background: "transparent", borderColor: RS.INK, color: RS.INK } as const;
 
 export function ClaimClient({ vault }: { vault: Address }) {
   const { address, isConnected } = useAccount();
@@ -132,124 +138,170 @@ export function ClaimClient({ vault }: { vault: Address }) {
     }
   }
 
-  if (!s) return <main className="mx-auto max-w-2xl px-6 py-16 text-neutral-400">Loading vault…</main>;
+  if (!s)
+    return (
+      <RSShell>
+        <main className="mx-auto w-full max-w-2xl px-6 py-14">
+          <p style={{ fontFamily: "var(--f-mono)", color: RS.FAINT }} className="text-sm">
+            Loading vault…
+          </p>
+        </main>
+      </RSShell>
+    );
 
   const isBound = s.bound !== ZERO;
   const label = s.identityType === 0 ? "wallet" : s.identityType === 1 ? `github:${s.identityValue}` : `x:${s.identityValue}`;
 
   return (
-    <main className="mx-auto w-full max-w-2xl px-6 py-16">
-      <Link href="/" className="text-sm text-neutral-500 hover:text-neutral-300">
-        ← all vaults
-      </Link>
-      <h1 className="mt-4 text-2xl font-bold">Claim — {label}</h1>
-      <p className="mt-2 text-sm text-neutral-400">{s.description}</p>
-
-      <div className="mt-6 rounded-lg border border-neutral-800 p-5">
-        <div className="text-3xl font-semibold">{formatEther(s.pending)} ETH</div>
-        <div className="mt-1 text-sm text-neutral-500">
-          pending · {formatEther(s.totalPaid)} ETH paid out{isBound ? ` · bound to ${s.bound}` : ""}
+    <RSShell>
+      <main className="mx-auto w-full max-w-2xl px-6 py-14">
+        <div style={{ fontFamily: "var(--f-mono)", letterSpacing: "0.24em", color: RS.GREEN_TEXT }} className="text-xs font-medium uppercase">
+          Claim · {label}
         </div>
-
-        <div className="mt-5 flex flex-col gap-3">
-          {!isConnected ? (
-            <button
-              onClick={() => connect({ connector: injected() })}
-              className="rounded-md bg-white px-4 py-2 font-medium text-black"
-            >
-              Connect wallet
-            </button>
-          ) : (
-            <>
-              {/* Ya probada la identidad: cualquiera puede empujar los fees a la wallet bound */}
-              {isBound && (
-                <button
-                  onClick={() => sendTx("sweep")}
-                  disabled={isPending || s.pending === 0n}
-                  className="rounded-md bg-emerald-500 px-4 py-2 font-medium text-black disabled:opacity-40"
-                >
-                  Sweep to {s.bound.slice(0, 6)}…{s.bound.slice(-4)}
-                </button>
-              )}
-
-              {/* Social: hay voucher listo -> Claim; si no, verificar */}
-              {!isBound && s.identityType !== 0 && voucher && (
-                <button
-                  onClick={() => sendTx("claimAndBind", [voucher.payout, BigInt(voucher.deadline), voucher.signature])}
-                  disabled={isPending}
-                  className="rounded-md bg-emerald-500 px-4 py-2 font-medium text-black disabled:opacity-40"
-                >
-                  Claim to {voucher.payout.slice(0, 6)}…{voucher.payout.slice(-4)}
-                </button>
-              )}
-              {!isBound && s.identityType === 1 && !voucher && (
-                <button onClick={verifyGithub} className="rounded-md bg-white px-4 py-2 font-medium text-black">
-                  Verify with GitHub
-                </button>
-              )}
-              {!isBound && s.identityType === 2 && (
-                <div className="flex flex-col gap-2">
-                  <p className="text-sm text-neutral-400">
-                    Post this exact text on X from{" "}
-                    <span className="text-neutral-200">@{s.identityValue}</span>, then paste the tweet link. Flap&apos;s
-                    oracle verifies it and the fees are released to your connected wallet.
-                  </p>
-                  <div className="rounded-md border border-neutral-800 bg-neutral-950 p-3 font-mono text-xs text-neutral-300 break-all">
-                    {tweetText ?? "loading tweet text…"}
-                  </div>
-                  <div className="flex gap-2">
-                    <button
-                      onClick={() => tweetText && navigator.clipboard.writeText(tweetText)}
-                      disabled={!tweetText}
-                      className="rounded-md border border-neutral-700 px-3 py-2 text-sm text-neutral-200 disabled:opacity-40"
-                    >
-                      Copy
-                    </button>
-                    <a
-                      href={`https://x.com/intent/tweet?text=${encodeURIComponent(tweetText ?? "")}`}
-                      target="_blank"
-                      rel="noreferrer"
-                      className={`rounded-md border border-neutral-700 px-3 py-2 text-sm text-neutral-200 ${tweetText ? "" : "pointer-events-none opacity-40"}`}
-                    >
-                      Open X
-                    </a>
-                  </div>
-                  <input
-                    value={tweetUrl}
-                    onChange={(e) => setTweetUrl(e.target.value)}
-                    placeholder="paste the tweet link (x.com/…/status/…)"
-                    className="rounded-md border border-neutral-700 bg-neutral-900 px-3 py-2 text-sm"
-                  />
-                  <button
-                    onClick={proveAndClaimTwitter}
-                    disabled={isPending || !tweetText || !tweetUrl}
-                    className="rounded-md bg-emerald-500 px-4 py-2 font-medium text-black disabled:opacity-40"
-                  >
-                    Verify tweet & claim
-                  </button>
-                </div>
-              )}
-              {!isBound && s.identityType === 0 && (
-                <p className="text-sm text-neutral-500">
-                  This is a wallet vault — its fees can only ever go to {s.bound}. Use Sweep above once it has a balance.
-                </p>
-              )}
-            </>
-          )}
-        </div>
-      </div>
-
-      {msg && <p className="mt-4 text-sm text-neutral-300">{msg}</p>}
-      {txHash && (
-        <a
-          href={`https://robinhoodchain.blockscout.com/tx/${txHash}`}
-          target="_blank"
-          rel="noreferrer"
-          className="mt-2 block text-sm text-emerald-400 underline"
+        <h1
+          style={{ fontFamily: "var(--f-display)", lineHeight: 1 }}
+          className="mt-3 text-[clamp(1.9rem,7vw,3rem)] uppercase tracking-tight"
         >
-          view transaction
-        </a>
-      )}
-    </main>
+          This vault is yours to prove.
+        </h1>
+        {s.description && (
+          <p className="mt-3 max-w-md" style={{ color: RS.DIM }}>
+            {s.description}
+          </p>
+        )}
+
+        <div className="mt-10 rounded-2xl border p-6 sm:p-8" style={{ borderColor: RS.HAIR }}>
+          <div
+            style={{ fontFamily: "var(--f-display)", fontVariantNumeric: "tabular-nums" }}
+            className="text-[clamp(2rem,6vw,3.2rem)] tracking-tight"
+          >
+            {formatEther(s.pending)} ETH
+          </div>
+          <div className="mt-2 text-xs uppercase tracking-[0.14em]" style={{ fontFamily: "var(--f-mono)", color: RS.FAINT }}>
+            pending · {formatEther(s.totalPaid)} ETH paid out
+            {isBound ? ` · bound to ${s.bound.slice(0, 6)}…${s.bound.slice(-4)}` : ""}
+          </div>
+
+          <div className="mt-7 flex flex-col gap-3">
+            {!isConnected ? (
+              <button onClick={() => connect({ connector: injected() })} className={ghostCls} style={ghostStyle}>
+                Connect wallet
+              </button>
+            ) : (
+              <>
+                {/* Ya probada la identidad: cualquiera puede empujar los fees a la wallet bound */}
+                {isBound && (
+                  <button onClick={() => sendTx("sweep")} disabled={isPending || s.pending === 0n} className={ctaCls} style={ctaStyle}>
+                    Sweep to {s.bound.slice(0, 6)}…{s.bound.slice(-4)}
+                  </button>
+                )}
+
+                {/* Social: hay voucher listo -> Claim; si no, verificar */}
+                {!isBound && s.identityType !== 0 && voucher && (
+                  <button
+                    onClick={() => sendTx("claimAndBind", [voucher.payout, BigInt(voucher.deadline), voucher.signature])}
+                    disabled={isPending}
+                    className={ctaCls}
+                    style={ctaStyle}
+                  >
+                    Claim to {voucher.payout.slice(0, 6)}…{voucher.payout.slice(-4)}
+                  </button>
+                )}
+                {!isBound && s.identityType === 1 && !voucher && (
+                  <button onClick={verifyGithub} className={ctaCls} style={ctaStyle}>
+                    Verify with GitHub
+                  </button>
+                )}
+                {!isBound && s.identityType === 2 && (
+                  <div className="flex flex-col gap-3">
+                    <p className="text-sm leading-relaxed" style={{ color: RS.DIM }}>
+                      Post this exact text on X from{" "}
+                      <span className="font-semibold" style={{ color: RS.INK }}>
+                        @{s.identityValue}
+                      </span>
+                      , then paste the tweet link. Flap&apos;s oracle verifies it and the fees release
+                      to your connected wallet.
+                    </p>
+                    <div
+                      className="break-all rounded-xl border p-4 text-xs leading-relaxed"
+                      style={{ borderColor: RS.HAIR, fontFamily: "var(--f-mono)", color: RS.DIM }}
+                    >
+                      {tweetText ?? "loading tweet text…"}
+                    </div>
+                    <div className="flex gap-2.5" style={{ fontFamily: "var(--f-mono)" }}>
+                      <button
+                        onClick={() => tweetText && navigator.clipboard.writeText(tweetText)}
+                        disabled={!tweetText}
+                        className="rounded-full border px-4 py-1.5 text-xs uppercase tracking-[0.12em] disabled:opacity-40"
+                        style={{ borderColor: RS.HAIR, color: RS.DIM }}
+                      >
+                        Copy
+                      </button>
+                      <a
+                        href={`https://x.com/intent/tweet?text=${encodeURIComponent(tweetText ?? "")}`}
+                        target="_blank"
+                        rel="noreferrer"
+                        className={`rounded-full border px-4 py-1.5 text-xs uppercase tracking-[0.12em] ${tweetText ? "" : "pointer-events-none opacity-40"}`}
+                        style={{ borderColor: RS.HAIR, color: RS.DIM }}
+                      >
+                        Open X
+                      </a>
+                    </div>
+                    <label className="flex flex-col gap-2">
+                      <span className="text-[10px] uppercase" style={{ fontFamily: "var(--f-mono)", color: RS.FAINT, letterSpacing: "0.16em" }}>
+                        Tweet link
+                      </span>
+                      <input
+                        value={tweetUrl}
+                        onChange={(e) => setTweetUrl(e.target.value)}
+                        placeholder="x.com/…/status/…"
+                        className="w-full border-0 border-b-2 bg-transparent py-2 text-sm placeholder:opacity-35 focus:outline-none"
+                        style={{ borderColor: RS.INK, color: RS.INK, fontFamily: "var(--f-mono)" }}
+                      />
+                    </label>
+                    <button onClick={proveAndClaimTwitter} disabled={isPending || !tweetText || !tweetUrl} className={ctaCls} style={ctaStyle}>
+                      Verify tweet &amp; claim
+                    </button>
+                  </div>
+                )}
+                {!isBound && s.identityType === 0 && (
+                  <p className="text-sm leading-relaxed" style={{ color: RS.FAINT }}>
+                    This is a wallet vault — its fees can only ever go to {s.bound.slice(0, 6)}…{s.bound.slice(-4)}.
+                    Sweep above once it has a balance.
+                  </p>
+                )}
+              </>
+            )}
+          </div>
+        </div>
+
+        {msg && (
+          <p className="mt-5 text-sm" style={{ color: RS.DIM }}>
+            {msg}
+          </p>
+        )}
+        {txHash && (
+          <a
+            href={`https://robinhoodchain.blockscout.com/tx/${txHash}`}
+            target="_blank"
+            rel="noreferrer"
+            className="mt-2 block text-sm font-medium underline decoration-1 underline-offset-4 hover:opacity-70"
+            style={{ color: RS.INK }}
+          >
+            View transaction →
+          </a>
+        )}
+
+        <p className="mt-10">
+          <Link
+            href="/"
+            className="text-sm font-medium underline decoration-1 underline-offset-4 hover:opacity-70"
+            style={{ color: RS.DIM }}
+          >
+            ← All vaults
+          </Link>
+        </p>
+      </main>
+    </RSShell>
   );
 }

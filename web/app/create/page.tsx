@@ -14,6 +14,11 @@ import {
   buildLaunchParams,
   type IdentityType,
 } from "@/lib/fledge";
+import { RSShell, RS } from "@/components/RSShell";
+
+const inputCls = "w-full border-0 border-b-2 bg-transparent py-2 placeholder:opacity-35 focus:outline-none";
+const inputStyle = { borderColor: RS.INK, color: RS.INK, fontFamily: "var(--f-mono)" } as const;
+const labelStyle = { fontFamily: "var(--f-mono)", color: RS.FAINT, letterSpacing: "0.16em" } as const;
 
 export default function CreatePage() {
   const { address, isConnected } = useAccount();
@@ -39,21 +44,21 @@ export default function CreatePage() {
   async function create() {
     setMsg(null);
     setResult(null);
-    if (!factory) return setMsg("NEXT_PUBLIC_FACTORY_ADDRESS no configurada.");
-    if (!isConnected || !address) return setMsg("Conectá tu wallet primero.");
-    if (!name || !symbol) return setMsg("Nombre y símbolo son obligatorios.");
+    if (!factory) return setMsg("NEXT_PUBLIC_FACTORY_ADDRESS is not configured.");
+    if (!isConnected || !address) return setMsg("Connect your wallet first.");
+    if (!name || !symbol) return setMsg("Name and ticker are required.");
 
     const recipientWallet = (type === "wallet" ? wallet || address : address) as Address;
     if (type === "wallet" && !/^0x[0-9a-fA-F]{40}$/.test(recipientWallet)) {
-      return setMsg("Wallet receptora inválida.");
+      return setMsg("That recipient wallet is not a valid address.");
     }
     if (type !== "wallet" && !handle.trim()) {
-      return setMsg("Escribí el handle de GitHub / X.");
+      return setMsg("Enter the GitHub / X handle.");
     }
 
     try {
-      setBusy("Minando salt (vanity 7777)…");
-      const { salt, token } = await mineSalt((t) => setBusy(`Minando salt… (${t} intentos)`));
+      setBusy("Mining salt (vanity 7777)…");
+      const { salt, token } = await mineSalt((t) => setBusy(`Mining salt… (${t} attempts)`));
 
       const vaultData = encodeVaultData(type, handle.trim(), recipientWallet, Number(recoveryDays) || 0);
 
@@ -66,7 +71,7 @@ export default function CreatePage() {
         const fd = new FormData();
         fd.append("name", name);
         fd.append("symbol", symbol);
-        fd.append("description", description || `${name} — fees on FLEDGE`);
+        fd.append("description", description || `${name} — fees on RobinShare`);
         if (type === "twitter") fd.append("twitter", handle.trim());
         if (type === "github") fd.append("website", `https://github.com/${handle.trim()}`);
         if (imageFile) fd.append("image", imageFile);
@@ -93,7 +98,7 @@ export default function CreatePage() {
         devBuyWei,
       });
 
-      setBusy(`Lanzando ${symbol} (token ${token.slice(0, 6)}…7777)…`);
+      setBusy(`Launching ${symbol} (token ${token.slice(0, 6)}…7777)…`);
       const tx = await writeContractAsync({
         address: VAULT_PORTAL,
         abi: vaultPortalAbi,
@@ -102,7 +107,7 @@ export default function CreatePage() {
         value: devBuyWei,
       } as never);
 
-      setBusy("Esperando confirmación…");
+      setBusy("Waiting for confirmation…");
       await publicClient.waitForTransactionReceipt({ hash: tx });
       setResult({ token, tx });
       setBusy(null);
@@ -114,168 +119,203 @@ export default function CreatePage() {
   }
 
   return (
-    <main className="mx-auto w-full max-w-2xl px-6 py-16">
-      <Link href="/" className="text-sm text-neutral-500 hover:text-neutral-300">
-        ← vaults
-      </Link>
-      <h1 className="mt-4 text-3xl font-bold tracking-tight">Create a coin</h1>
-      <p className="mt-2 text-neutral-400">
-        Launch a token on Flap (Robinhood Chain) whose trading fees are escrowed to a person — by their GitHub, X or
-        wallet. They claim by proving that identity.
-      </p>
-
-      {result ? (
-        <div className="mt-8 rounded-lg border border-emerald-800 bg-emerald-950/40 p-5">
-          <div className="text-lg font-semibold text-emerald-300">Live 🎉</div>
-          <div className="mt-2 font-mono text-sm text-neutral-300">{result.token}</div>
-          <div className="mt-3 flex flex-col gap-1 text-sm">
-            <a
-              className="text-emerald-400 underline"
-              href={`https://robinhoodchain.blockscout.com/address/${result.token}`}
-              target="_blank"
-              rel="noreferrer"
-            >
-              view token on Blockscout
-            </a>
-            <a
-              className="text-emerald-400 underline"
-              href={`https://robinhoodchain.blockscout.com/tx/${result.tx}`}
-              target="_blank"
-              rel="noreferrer"
-            >
-              view launch transaction
-            </a>
-          </div>
-          <p className="mt-3 text-sm text-neutral-400">
-            Fees now accrue to the {type} identity. Share the{" "}
-            <Link className="underline" href="/">
-              claim page
-            </Link>{" "}
-            with the recipient.
-          </p>
+    <RSShell>
+      <main className="mx-auto w-full max-w-2xl px-6 py-14">
+        <div style={{ fontFamily: "var(--f-mono)", letterSpacing: "0.24em", color: RS.GREEN_TEXT }} className="text-xs font-medium uppercase">
+          Launch · Robinhood Chain
         </div>
-      ) : (
-        <div className="mt-8 flex flex-col gap-4">
-          <div className="flex gap-3">
-            <input
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              placeholder="Token name"
-              className="flex-1 rounded-md border border-neutral-700 bg-neutral-900 px-3 py-2"
-            />
-            <input
-              value={symbol}
-              onChange={(e) => setSymbol(e.target.value.toUpperCase())}
-              placeholder="TICKER"
-              className="w-32 rounded-md border border-neutral-700 bg-neutral-900 px-3 py-2"
-            />
-          </div>
-          <input
-            value={description}
-            onChange={(e) => setDescription(e.target.value)}
-            placeholder="Short description (optional)"
-            className="rounded-md border border-neutral-700 bg-neutral-900 px-3 py-2"
-          />
+        <h1
+          style={{ fontFamily: "var(--f-display)", lineHeight: 1 }}
+          className="mt-3 text-[clamp(1.9rem,7vw,3rem)] uppercase tracking-tight"
+        >
+          Launch a coin for a builder.
+        </h1>
+        <p className="mt-3 max-w-md" style={{ color: RS.DIM }}>
+          Name a builder. Their coin goes live on Flap, and 3% of every trade lands in a vault
+          only they can claim.
+        </p>
 
-          <label className="flex flex-col gap-1 text-sm text-neutral-400">
-            Token image {imageFile ? `· ${imageFile.name}` : "(optional)"}
-            <input
-              type="file"
-              accept="image/*"
-              onChange={(e) => setImageFile(e.target.files?.[0] ?? null)}
-              className="rounded-md border border-neutral-700 bg-neutral-900 px-3 py-2 text-neutral-300 file:mr-3 file:rounded file:border-0 file:bg-neutral-800 file:px-3 file:py-1 file:text-neutral-200"
-            />
-            {type === "github" && !imageFile && (
-              <span className="text-xs text-neutral-500">
-                No image? We&apos;ll use{" "}
-                <span className="text-neutral-300">{handle.trim() ? `@${handle.trim()}` : "the dev"}</span>&apos;s
-                GitHub avatar as the coin art.
-              </span>
-            )}
-          </label>
-
-          <div className="rounded-lg border border-neutral-800 p-4">
-            <div className="text-sm font-medium text-neutral-300">Who gets the fees?</div>
-            <div className="mt-3 flex gap-2">
-              {(["github", "twitter", "wallet"] as IdentityType[]).map((t) => (
-                <button
-                  key={t}
-                  onClick={() => setType(t)}
-                  className={`rounded-md px-3 py-1.5 text-sm ${
-                    type === t ? "bg-white text-black" : "border border-neutral-700 text-neutral-300"
-                  }`}
-                >
-                  {t === "twitter" ? "X" : t === "github" ? "GitHub" : "Wallet"}
-                </button>
-              ))}
+        {result ? (
+          <div className="mt-10 rounded-2xl border p-6" style={{ borderColor: RS.HAIR }}>
+            <div style={{ fontFamily: "var(--f-mono)", letterSpacing: "0.24em", color: RS.GREEN_TEXT }} className="text-xs font-medium uppercase">
+              Live
             </div>
-            <div className="mt-3">
-              {type === "wallet" ? (
-                <input
-                  value={wallet}
-                  onChange={(e) => setWallet(e.target.value)}
-                  placeholder={address ? `${address} (you, default)` : "0x recipient wallet"}
-                  className="w-full rounded-md border border-neutral-700 bg-neutral-900 px-3 py-2 font-mono text-sm"
-                />
-              ) : (
-                <input
-                  value={handle}
-                  onChange={(e) => setHandle(e.target.value)}
-                  placeholder={type === "github" ? "github username" : "x handle"}
-                  className="w-full rounded-md border border-neutral-700 bg-neutral-900 px-3 py-2"
-                />
-              )}
+            <div className="mt-3 break-all text-sm" style={{ fontFamily: "var(--f-mono)", color: RS.INK }}>
+              {result.token}
             </div>
-            <p className="mt-2 text-xs text-neutral-500">
-              {type === "wallet"
-                ? "Fees are bound to this wallet immediately — it just sweeps them."
-                : "The FLEDGE oracle verifies ownership when they claim. You cannot redirect it."}
+            <div className="mt-4 flex flex-col gap-1.5 text-sm font-medium" style={{ color: RS.INK }}>
+              <a
+                className="underline decoration-1 underline-offset-4 hover:opacity-70"
+                href={`https://robinhoodchain.blockscout.com/address/${result.token}`}
+                target="_blank"
+                rel="noreferrer"
+              >
+                Token on Blockscout →
+              </a>
+              <a
+                className="underline decoration-1 underline-offset-4 hover:opacity-70"
+                href={`https://robinhoodchain.blockscout.com/tx/${result.tx}`}
+                target="_blank"
+                rel="noreferrer"
+              >
+                Launch transaction →
+              </a>
+            </div>
+            <p className="mt-4 text-sm leading-relaxed" style={{ color: RS.DIM }}>
+              Fees now accrue to the {type === "twitter" ? "X" : type === "github" ? "GitHub" : "wallet"} identity.
+              Share the{" "}
+              <Link className="underline decoration-1 underline-offset-4" href="/" style={{ color: RS.INK }}>
+                claim page
+              </Link>{" "}
+              with the recipient.
             </p>
           </div>
+        ) : (
+          <div className="mt-10 flex flex-col gap-8">
+            <div className="flex gap-6">
+              <label className="flex flex-1 flex-col gap-2">
+                <span className="text-[10px] uppercase" style={labelStyle}>
+                  Token name
+                </span>
+                <input value={name} onChange={(e) => setName(e.target.value)} placeholder="Aveline Coin" className={inputCls} style={inputStyle} />
+              </label>
+              <label className="flex w-32 flex-col gap-2">
+                <span className="text-[10px] uppercase" style={labelStyle}>
+                  Ticker
+                </span>
+                <input
+                  value={symbol}
+                  onChange={(e) => setSymbol(e.target.value.toUpperCase())}
+                  placeholder="AVE"
+                  className={inputCls}
+                  style={inputStyle}
+                />
+              </label>
+            </div>
 
-          <div className="flex gap-3">
-            <label className="flex-1 text-sm text-neutral-400">
-              Dev-buy (ETH)
+            <label className="flex flex-col gap-2">
+              <span className="text-[10px] uppercase" style={labelStyle}>
+                Description <span className="normal-case">(optional)</span>
+              </span>
               <input
-                value={devBuy}
-                onChange={(e) => setDevBuy(e.target.value)}
-                className="mt-1 w-full rounded-md border border-neutral-700 bg-neutral-900 px-3 py-2"
+                value={description}
+                onChange={(e) => setDescription(e.target.value)}
+                placeholder="What is this coin for?"
+                className={inputCls}
+                style={inputStyle}
               />
             </label>
-            <label className="flex-1 text-sm text-neutral-400">
-              Recovery days (0 = never)
+
+            <label className="flex flex-col gap-2">
+              <span className="text-[10px] uppercase" style={labelStyle}>
+                Token image {imageFile ? `· ${imageFile.name}` : <span className="normal-case">(optional)</span>}
+              </span>
               <input
-                value={recoveryDays}
-                onChange={(e) => setRecoveryDays(e.target.value)}
-                className="mt-1 w-full rounded-md border border-neutral-700 bg-neutral-900 px-3 py-2"
+                type="file"
+                accept="image/*"
+                onChange={(e) => setImageFile(e.target.files?.[0] ?? null)}
+                className="text-sm file:mr-3 file:rounded-full file:border file:bg-transparent file:px-4 file:py-1.5 file:text-xs file:uppercase file:tracking-[0.12em]"
+                style={{ color: RS.DIM, fontFamily: "var(--f-mono)" }}
               />
+              {type === "github" && !imageFile && (
+                <span className="text-xs" style={{ color: RS.FAINT }}>
+                  No image? We use {handle.trim() ? `@${handle.trim()}` : "the builder"}&apos;s GitHub avatar.
+                </span>
+              )}
             </label>
+
+            <div className="rounded-2xl border p-6" style={{ borderColor: RS.HAIR }}>
+              <div className="text-[10px] uppercase" style={labelStyle}>
+                Who gets the fees?
+              </div>
+              <div className="mt-4 flex gap-2.5" style={{ fontFamily: "var(--f-mono)" }}>
+                {(["github", "twitter", "wallet"] as IdentityType[]).map((t) => (
+                  <button
+                    key={t}
+                    onClick={() => setType(t)}
+                    className="rounded-full border px-4 py-1.5 text-xs uppercase tracking-[0.12em] transition-colors"
+                    style={
+                      type === t
+                        ? { background: RS.GREEN_CTA, borderColor: RS.GREEN_CTA, color: RS.GREEN_CTA_TEXT }
+                        : { background: "transparent", borderColor: RS.HAIR, color: RS.DIM }
+                    }
+                  >
+                    {t === "twitter" ? "X" : t === "github" ? "GitHub" : "Wallet"}
+                  </button>
+                ))}
+              </div>
+              <div className="mt-5">
+                {type === "wallet" ? (
+                  <input
+                    value={wallet}
+                    onChange={(e) => setWallet(e.target.value)}
+                    placeholder={address ? `${address} (you, default)` : "0x recipient wallet"}
+                    className={`${inputCls} text-sm`}
+                    style={inputStyle}
+                  />
+                ) : (
+                  <input
+                    value={handle}
+                    onChange={(e) => setHandle(e.target.value)}
+                    placeholder={type === "github" ? "github username" : "x handle"}
+                    className={inputCls}
+                    style={inputStyle}
+                  />
+                )}
+              </div>
+              <p className="mt-3 text-xs leading-relaxed" style={{ color: RS.FAINT }}>
+                {type === "wallet"
+                  ? "Fees are bound to this wallet from launch. It just sweeps them."
+                  : "They claim by proving the handle is theirs. You can't redirect it — neither can we."}
+              </p>
+            </div>
+
+            <div className="flex gap-6">
+              <label className="flex flex-1 flex-col gap-2">
+                <span className="text-[10px] uppercase" style={labelStyle}>
+                  Dev-buy (ETH)
+                </span>
+                <input value={devBuy} onChange={(e) => setDevBuy(e.target.value)} className={inputCls} style={inputStyle} />
+              </label>
+              <label className="flex flex-1 flex-col gap-2">
+                <span className="text-[10px] uppercase" style={labelStyle}>
+                  Recovery days (0 = never)
+                </span>
+                <input value={recoveryDays} onChange={(e) => setRecoveryDays(e.target.value)} className={inputCls} style={inputStyle} />
+              </label>
+            </div>
+
+            {!isConnected ? (
+              <button
+                onClick={() => connect({ connector: injected() })}
+                className="rounded-full border-2 px-7 py-3 font-bold transition-colors"
+                style={{ background: "transparent", borderColor: RS.INK, color: RS.INK }}
+              >
+                Connect wallet
+              </button>
+            ) : (
+              <button
+                onClick={create}
+                disabled={!!busy}
+                className="rounded-full px-7 py-3 font-bold disabled:cursor-not-allowed disabled:opacity-60"
+                style={{ background: RS.GREEN_CTA, color: RS.GREEN_CTA_TEXT }}
+              >
+                {busy ?? `Launch ${symbol || "the coin"}`}
+              </button>
+            )}
+
+            {msg && (
+              <p className="text-sm" style={{ color: "#c0392b" }}>
+                {msg}
+              </p>
+            )}
+            <p className="text-xs leading-relaxed" style={{ fontFamily: "var(--f-mono)", color: RS.FAINT }}>
+              Tax is 3% per side and all of it goes to the vault. Token addresses are mined
+              locally to end in 7777.
+            </p>
           </div>
-
-          {!isConnected ? (
-            <button
-              onClick={() => connect({ connector: injected() })}
-              className="rounded-md bg-white px-4 py-2 font-medium text-black"
-            >
-              Connect wallet
-            </button>
-          ) : (
-            <button
-              onClick={create}
-              disabled={!!busy}
-              className="rounded-md bg-emerald-500 px-4 py-3 font-semibold text-black disabled:opacity-40"
-            >
-              {busy ?? `Launch ${symbol || "token"} (3% tax → recipient)`}
-            </button>
-          )}
-
-          {msg && <p className="text-sm text-red-400">{msg}</p>}
-          <p className="text-xs text-neutral-600">
-            100% of the trading tax goes to the escrow. Tax 3%/3%, ~100y duration. The token address is mined locally to
-            end in 7777 (Flap vanity).
-          </p>
-        </div>
-      )}
-    </main>
+        )}
+      </main>
+    </RSShell>
   );
 }
