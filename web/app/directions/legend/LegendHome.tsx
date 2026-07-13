@@ -189,8 +189,10 @@ export function LegendHome() {
                 </span>
               </div>
               <div className="relative">
-                {/* la pluma de luz, flotando en su terrario */}
-                <div ref={feather} className="pointer-events-none absolute -right-8 -top-6 w-56 opacity-90 sm:w-64">
+                {/* la pluma de luz, flotando en su terrario — la punta vive en la zona
+                    vacía del header (sin texto que la tape); la máscara ahora cubre TODO
+                    el núcleo brillante (punta arriba + cálamo abajo), no solo el vientre */}
+                <div ref={feather} className="pointer-events-none absolute right-1 -top-8 w-[12.5rem] opacity-95 sm:w-56">
                   {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img
                     src="/legend/feather.jpg"
@@ -198,14 +200,16 @@ export function LegendHome() {
                     className="block w-full"
                     style={{
                       mixBlendMode: "screen",
-                      filter: "brightness(1.02) contrast(1.1)",
-                      maskImage: "radial-gradient(58% 58% at 50% 50%, black 50%, transparent 75%)",
-                      WebkitMaskImage: "radial-gradient(58% 58% at 50% 50%, black 50%, transparent 75%)",
+                      filter: "brightness(1.18) contrast(1.28) saturate(1.12)",
+                      maskImage: "radial-gradient(64% 70% at 54% 48%, black 68%, transparent 100%)",
+                      WebkitMaskImage: "radial-gradient(64% 70% at 54% 48%, black 68%, transparent 100%)",
                     }}
                     draggable={false}
                   />
                 </div>
-                <div className="px-5 py-3">
+                {/* relative+z-10: sin esto, el feed (sin position) pinta DEBAJO del
+                    absolute de la pluma pese a ir después en el DOM — tapaba los handles/montos */}
+                <div className="relative z-10 px-5 py-3">
                   <LiveVaultFeed
                     accent={GREEN}
                     gold="#9ff0b5"
