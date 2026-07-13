@@ -8,6 +8,7 @@ import { HoodHome } from "../../directions/hood/HoodHome";
 import { DecreeHome } from "../../directions/decree/DecreeHome";
 import { TerminalHome } from "../../directions/terminal/TerminalHome";
 import { MangaHome } from "../../directions/manga/MangaHome";
+import { VersionSwitcher } from "@/components/VersionSwitcher";
 
 // Preview de TODAS las direcciones en un solo dev server: /v/sherwood, /v/legend, /v/hood…
 // (prod sigue eligiendo por NEXT_PUBLIC_DIRECTION en app/page.tsx)
@@ -31,5 +32,10 @@ export default async function DirectionPreview({ params }: { params: Promise<{ d
   const { dir } = await params;
   const Comp = DIRS[dir];
   if (!Comp) notFound();
-  return <Comp />;
+  return (
+    <>
+      <Comp />
+      <VersionSwitcher current={dir} />
+    </>
+  );
 }
