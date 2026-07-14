@@ -164,15 +164,24 @@
         <h1 id="title-3a" class="title" style="font-size: 168px;">Name them.</h1>
 
         <svg class="diagram-svg" viewBox="0 0 1920 1080">
-          <circle id="coin-outer-3a" cx="760" cy="660" r="130" fill="rgba(204,255,0,0.05)" stroke="var(--lime)" stroke-width="3" opacity="0" />
-          <circle id="coin-inner-3a" cx="760" cy="660" r="52" fill="none" stroke="var(--lime)" stroke-width="1.5" opacity="0" />
-          <circle id="coin-dot-3a" cx="760" cy="660" r="6" fill="var(--lime)" opacity="0" />
-          <circle id="mint-ring-3a" cx="760" cy="660" r="52" fill="none" stroke="var(--lime)" stroke-width="2" opacity="0" />
-          <line id="connector-3a" x1="892" y1="660" x2="1072" y2="660" stroke="var(--lime)" stroke-width="2" />
+          <!-- connector: the builder (left) -> THEIR coin (right). Draws L->R so the
+               coin reads as BORN from the name, not as a pre-existing avatar. -->
+          <line id="connector-3a" x1="700" y1="660" x2="1108" y2="660" stroke="var(--lime)" stroke-width="2" />
+          <!-- THE COIN (unmistakably a token, not a profile): coin face + milled rim
+               bevel + edge ridges; the "$ARLO" ticker is stamped via an HTML label. -->
+          <g id="coin-3a" opacity="0">
+            <circle id="coin-edge-3a" cx="1240" cy="660" r="120" fill="rgba(204,255,0,0.08)" stroke="var(--lime)" stroke-width="4" />
+            <circle id="coin-rim-3a" cx="1240" cy="660" r="103" fill="none" stroke="var(--lime)" stroke-width="1.5" opacity="0.6" />
+            <g id="coin-ridges-3a" stroke="var(--lime)" stroke-width="2" opacity="0.5"></g>
+          </g>
+          <circle id="mint-ring-3a" cx="1240" cy="660" r="70" fill="none" stroke="var(--lime)" stroke-width="2" opacity="0" />
         </svg>
 
-        <div id="chip-arlo-3a" class="chip" style="left: 1080px; top: 610px; width: 320px; height: 100px; font-size: 34px; font-weight: 500;">@arlo_dev</div>
-        <div id="label-builder-3a" class="label label-dim" style="left: 630px; top: 860px; width: 770px; font-size: 26px;">a builder — github &middot; x &middot; wallet</div>
+        <div id="coin-ticker-3a" class="label" style="left: 1080px; top: 628px; width: 320px; font-family: 'Archivo Black', sans-serif; font-size: 44px; letter-spacing: -0.01em; color: var(--lime);">$ARLO</div>
+
+        <div id="chip-arlo-3a" class="chip" style="left: 360px; top: 610px; width: 320px; height: 100px; font-size: 34px; font-weight: 500;">@arlo_dev</div>
+        <div id="label-builder-3a" class="label label-dim" style="left: 280px; top: 750px; width: 480px; font-size: 24px;">a builder — github &middot; x &middot; wallet</div>
+        <div id="label-coin-3a" class="label label-dim" style="left: 1010px; top: 818px; width: 460px; font-size: 24px; white-space: nowrap;">their coin &middot; lists in seconds</div>
 
         <div class="brandtag">robinshare.vercel.app</div>
         <svg class="bowmark-corner" width="26" height="26" viewBox="0 0 24 24" fill="none">
@@ -371,24 +380,48 @@
       var lockBodyGroup = document.getElementById("lock-body-group-3d");
       pivotScale(lockBodyGroup, 960, 570, 0.85);
 
+      /* coin milled-edge ridges (static decoration built once at setup — deterministic,
+         no random) so the 3A object reads as a struck COIN, not a radar/avatar ring */
+      (function buildCoinRidges() {
+        var g = document.getElementById("coin-ridges-3a");
+        var CX = 1240, CY = 660, rIn = 108, rOut = 118, N = 36;
+        for (var i = 0; i < N; i++) {
+          var a = (i / N) * Math.PI * 2;
+          var ln = document.createElementNS("http://www.w3.org/2000/svg", "line");
+          ln.setAttribute("x1", (CX + Math.cos(a) * rIn).toFixed(2));
+          ln.setAttribute("y1", (CY + Math.sin(a) * rIn).toFixed(2));
+          ln.setAttribute("x2", (CX + Math.cos(a) * rOut).toFixed(2));
+          ln.setAttribute("y2", (CY + Math.sin(a) * rOut).toFixed(2));
+          g.appendChild(ln);
+        }
+      })();
+
       /* ================================================================ */
       /* 3A — NAME THEM (0 - 3.5)                                          */
       /* ================================================================ */
       tl.fromTo("#title-3a", { y: 40, opacity: 0 }, { y: 0, opacity: 1, duration: 0.6, ease: "power3.out" }, 0.15);
 
-      tl.fromTo("#coin-outer-3a", { scale: 0, opacity: 0 }, { scale: 1, opacity: 1, duration: 0.5, ease: "back.out(2.2)" }, 0.3);
-      tl.fromTo("#coin-inner-3a", { opacity: 0 }, { opacity: 0.8, duration: 0.3, ease: "power1.out" }, 0.55);
-      tl.fromTo("#coin-dot-3a", { opacity: 0 }, { opacity: 1, duration: 0.2, ease: "power1.out" }, 0.6);
+      /* 1 — the builder is NAMED first (identity, neutral chip) */
+      tl.fromTo("#chip-arlo-3a", { scale: 0.85, opacity: 0 }, { scale: 1, opacity: 1, duration: 0.45, ease: "back.out(1.8)" }, 0.5);
+      tl.fromTo("#label-builder-3a", { y: 10, opacity: 0 }, { y: 0, opacity: 1, duration: 0.4, ease: "power2.out" }, 0.8);
 
-      tl.set("#mint-ring-3a", { opacity: 0 }, 0.3);
-      tl.fromTo("#mint-ring-3a", { attr: { r: 35 }, opacity: 0.7 }, { attr: { r: 95 }, opacity: 0, duration: 0.6, ease: "power2.out" }, 0.3);
+      /* 2 — a connector draws FROM the name toward where the coin is about to be born */
+      tl.to(connector3a, { strokeDashoffset: 0, duration: 0.5, ease: "power2.out" }, 1.1);
 
-      tl.to(connector3a, { strokeDashoffset: 0, duration: 0.45, ease: "power2.out" }, 0.9);
-      tl.fromTo("#chip-arlo-3a", { scale: 0.85, opacity: 0 }, { scale: 1, opacity: 1, duration: 0.45, ease: "back.out(1.8)" }, 1.15);
-      tl.fromTo("#label-builder-3a", { y: 10, opacity: 0 }, { y: 0, opacity: 1, duration: 0.4, ease: "power2.out" }, 1.4);
+      /* 3 — THEIR coin MINTS at the end of that connector (launched for @arlo_dev).
+         mint-ring uses set/set/to (not fromTo) so its visible "from" (opacity .75)
+         never bleeds backward before its own start — see the pilot gotcha. */
+      tl.set("#mint-ring-3a", { opacity: 0 }, 0);
+      tl.set("#mint-ring-3a", { attr: { r: 45 }, opacity: 0.75 }, 1.5);
+      tl.to("#mint-ring-3a", { attr: { r: 150 }, opacity: 0, duration: 0.7, ease: "power2.out" }, 1.5);
+      tl.fromTo("#coin-3a", { scale: 0, opacity: 0, transformOrigin: "50% 50%" }, { scale: 1, opacity: 1, duration: 0.55, ease: "back.out(2.0)" }, 1.5);
 
-      /* continuous mid-scene activity: coin ring breathes (finite, alive) */
-      tl.to("#coin-inner-3a", { attr: { r: 58 }, duration: 0.55, ease: "sine.inOut", yoyo: true, repeat: 3 }, 1.7);
+      /* 4 — the ticker STAMPS into the coin face — it is a TOKEN, not a profile */
+      tl.fromTo("#coin-ticker-3a", { scale: 1.4, opacity: 0, transformOrigin: "50% 50%" }, { scale: 1, opacity: 1, duration: 0.3, ease: "back.out(1.4)" }, 1.98);
+      tl.fromTo("#label-coin-3a", { y: 10, opacity: 0 }, { y: 0, opacity: 1, duration: 0.4, ease: "power2.out" }, 2.25);
+
+      /* continuous mid-scene activity: the coin's milled rim breathes (alive, freshly minted) */
+      tl.to("#coin-rim-3a", { attr: { r: 109 }, duration: 0.6, ease: "sine.inOut", yoyo: true, repeat: 2 }, 2.6);
 
       /* ================================================================ */
       /* 3B — FEES ACCRUE (3.5 - 8.7)                                      */
