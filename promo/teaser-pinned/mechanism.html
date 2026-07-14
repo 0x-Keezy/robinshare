@@ -1,0 +1,570 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=1920, height=1080" />
+    <title>RobinShare — the mechanism (fee travels, vault fills, lock opens)</title>
+    <script src="https://cdn.jsdelivr.net/npm/gsap@3.14.2/dist/gsap.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/gsap@3.14.2/dist/MotionPathPlugin.min.js"></script>
+    <style>
+      /* STANDALONE composition (gate piece) — animates the 4 approved
+         storyboard.html frames (3A-3D) with visible causality: the fee
+         TRAVELS trade -> vault, the vault FILLS bottom-up with a live
+         count-up, the lock ROTATES open, the payout TRAVELS vault -> avatar.
+         Reuses storyboard's palette / type / chip / label / chrome exactly.
+         The vault is ONE persistent element across 3B->3C->3D (the
+         through-line): compact + off-center during 3B (receiving fees),
+         then a single zoom-transform lands it at its full centered box,
+         where it stays put through 3C (fills) and 3D (unlocks). */
+
+      @font-face {
+        font-family: "Archivo Black";
+        src: url("fonts/archivo-black-400-latin.woff2") format("woff2");
+        font-weight: 400;
+        font-style: normal;
+        font-display: block;
+      }
+      @font-face {
+        font-family: "IBM Plex Mono";
+        src: url("fonts/ibm-plex-mono-400-latin.woff2") format("woff2");
+        font-weight: 400;
+        font-style: normal;
+        font-display: block;
+      }
+      @font-face {
+        font-family: "IBM Plex Mono";
+        src: url("fonts/ibm-plex-mono-500-latin.woff2") format("woff2");
+        font-weight: 500;
+        font-style: normal;
+        font-display: block;
+      }
+
+      * { margin: 0; padding: 0; box-sizing: border-box; }
+      :root {
+        --paper: #0d120e;
+        --ink: #f2f3ee;
+        --lime: #ccff00;
+        --signal: #00c805;
+        --dim: rgba(242, 243, 238, 0.6);
+        --hairline: rgba(242, 243, 238, 0.12);
+      }
+      html, body { background: var(--paper); }
+      body { font-family: "IBM Plex Mono", monospace; color: var(--ink); }
+
+      #root {
+        position: relative;
+        width: 1920px;
+        height: 1080px;
+        overflow: hidden;
+        background: var(--paper);
+      }
+
+      #bg-fill { position: absolute; inset: 0; background: var(--paper); z-index: 0; }
+
+      .scene { position: absolute; inset: 0; z-index: 2; }
+      .diagram-svg { position: absolute; inset: 0; width: 1920px; height: 1080px; }
+
+      /* ---------- shared chrome (verbatim from storyboard.html) ---------- */
+      .eyebrow {
+        position: absolute; left: 150px; top: 90px;
+        font-size: 22px; letter-spacing: 0.2em; text-transform: uppercase; color: var(--dim);
+      }
+      .framenum {
+        position: absolute; right: 150px; top: 90px;
+        font-size: 20px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--dim);
+      }
+      .title {
+        position: absolute; left: 150px; top: 158px;
+        font-family: "Archivo Black", sans-serif; text-transform: uppercase;
+        letter-spacing: -0.02em; color: var(--ink); line-height: 1.02; margin: 0;
+      }
+      .caption {
+        position: absolute; top: 1000px; width: 900px;
+        display: flex; align-items: center; justify-content: center; gap: 14px;
+        font-size: 22px; letter-spacing: 0.03em; color: var(--dim); white-space: nowrap;
+      }
+      .brandtag {
+        position: absolute; left: 150px; bottom: 50px;
+        font-size: 18px; letter-spacing: 0.08em; color: var(--dim);
+      }
+      .bowmark-corner { position: absolute; right: 150px; bottom: 36px; opacity: 0.55; }
+      .bracket { position: absolute; width: 34px; height: 34px; border-color: var(--hairline); }
+      .bracket-tl { left: 48px; top: 48px; border-left: 2px solid; border-top: 2px solid; }
+      .bracket-tr { right: 48px; top: 48px; border-right: 2px solid; border-top: 2px solid; }
+      .bracket-bl { left: 48px; bottom: 48px; border-left: 2px solid; border-bottom: 2px solid; }
+      .bracket-br { right: 48px; bottom: 48px; border-right: 2px solid; border-bottom: 2px solid; }
+
+      .chip {
+        position: absolute;
+        display: flex; align-items: center; justify-content: center;
+        border: 1.5px solid rgba(242, 243, 238, 0.26);
+        background: rgba(242, 243, 238, 0.035);
+        color: var(--ink);
+        font-size: 26px; letter-spacing: 0.01em; white-space: nowrap;
+        opacity: 0;
+      }
+      .chip-lime { border-color: var(--lime); background: rgba(204, 255, 0, 0.05); }
+
+      .label { position: absolute; text-align: center; opacity: 0; }
+      .label-dim { color: var(--dim); }
+      .label-ink { color: var(--ink); }
+      .label-signal { color: var(--signal); font-variant-numeric: tabular-nums; }
+
+      /* ---------- persistent vault (lives 3.5s -> end) ---------- */
+      #vault-box {
+        position: absolute;
+        left: 760px; top: 360px; width: 400px; height: 420px;
+        border: 2.5px solid var(--lime);
+        background: rgba(204, 255, 0, 0.045);
+        overflow: visible;
+        z-index: 1;
+      }
+      #vault-fill {
+        position: absolute; left: 0; bottom: 0; width: 100%; height: 100%;
+        background: rgba(204, 255, 0, 0.22);
+        transform: scaleY(0);
+        transform-origin: bottom center;
+      }
+      .vault-tick {
+        position: absolute; left: -14px; width: 14px; height: 2px;
+        background: var(--hairline);
+      }
+
+      /* ---------- 3A ---------- */
+      .coin-wrap { position: absolute; inset: 0; }
+
+      /* ---------- 3B ---------- */
+      .fee-dot { opacity: 0; }
+      .impact-ring { opacity: 0; }
+
+      /* ---------- 3D ---------- */
+      .live-dot {
+        display: inline-block; width: 9px; height: 9px; border-radius: 50%;
+        background: var(--signal); margin-right: 10px; vertical-align: middle;
+      }
+    </style>
+  </head>
+  <body>
+    <div
+      id="root"
+      data-composition-id="mechanism"
+      data-start="0"
+      data-width="1920"
+      data-height="1080"
+      data-duration="17"
+    >
+      <div id="bg-fill" class="clip" data-start="0" data-duration="17" data-track-index="0"></div>
+
+      <!-- ============================================================ -->
+      <!-- 3A — NAME THEM (0 - 3.5)                                      -->
+      <!-- ============================================================ -->
+      <section id="scene-3a" class="clip scene" data-start="0" data-duration="3.5" data-track-index="1">
+        <div class="eyebrow">/ the mechanism</div>
+        <div class="framenum">3A / 4</div>
+        <h1 id="title-3a" class="title" style="font-size: 168px;">Name them.</h1>
+
+        <svg class="diagram-svg" viewBox="0 0 1920 1080">
+          <circle id="coin-outer-3a" cx="760" cy="660" r="130" fill="rgba(204,255,0,0.05)" stroke="var(--lime)" stroke-width="3" opacity="0" />
+          <circle id="coin-inner-3a" cx="760" cy="660" r="52" fill="none" stroke="var(--lime)" stroke-width="1.5" opacity="0" />
+          <circle id="coin-dot-3a" cx="760" cy="660" r="6" fill="var(--lime)" opacity="0" />
+          <circle id="mint-ring-3a" cx="760" cy="660" r="52" fill="none" stroke="var(--lime)" stroke-width="2" opacity="0" />
+          <line id="connector-3a" x1="892" y1="660" x2="1072" y2="660" stroke="var(--lime)" stroke-width="2" />
+        </svg>
+
+        <div id="chip-arlo-3a" class="chip" style="left: 1080px; top: 610px; width: 320px; height: 100px; font-size: 34px; font-weight: 500;">@arlo_dev</div>
+        <div id="label-builder-3a" class="label label-dim" style="left: 630px; top: 860px; width: 770px; font-size: 26px;">a builder — github &middot; x &middot; wallet</div>
+
+        <div class="brandtag">robinshare.vercel.app</div>
+        <svg class="bowmark-corner" width="26" height="26" viewBox="0 0 24 24" fill="none">
+          <path d="M7 3 A 13 13 0 0 1 7 21" stroke="var(--ink)" stroke-width="1.7" stroke-linecap="round" />
+          <path d="M7 3 L7 21" stroke="var(--ink)" stroke-width="0.8" opacity="0.65" />
+          <path d="M3 12 L21 12" stroke="var(--ink)" stroke-width="1.5" stroke-linecap="round" />
+          <path d="M21 12 L16.8 9.9 M21 12 L16.8 14.1" stroke="var(--ink)" stroke-width="1.5" stroke-linecap="round" />
+          <path d="M3 12 L5.4 9.9 M3 12 L5.4 14.1" stroke="var(--ink)" stroke-width="1" opacity="0.7" stroke-linecap="round" />
+        </svg>
+        <div class="bracket bracket-tl"></div>
+        <div class="bracket bracket-tr"></div>
+        <div class="bracket bracket-bl"></div>
+        <div class="bracket bracket-br"></div>
+      </section>
+
+      <!-- ============================================================ -->
+      <!-- 3B — FEES ACCRUE (3.5 - 8.7)                                  -->
+      <!-- ============================================================ -->
+      <section id="scene-3b" class="clip scene" data-start="3.5" data-duration="5.2" data-track-index="1">
+        <div class="eyebrow">/ the mechanism</div>
+        <div class="framenum">3B / 4</div>
+        <h1 id="title-3b" class="title" style="font-size: 138px;">Fees accrue.</h1>
+
+        <svg class="diagram-svg" viewBox="0 0 1920 1080">
+          <path id="arc-top-3b" d="M490,465 Q990,380 1500,470" fill="none" stroke="var(--lime)" stroke-width="2" opacity="0" />
+          <path id="arc-mid-3b" d="M490,581 Q990,470 1500,581" fill="none" stroke="var(--lime)" stroke-width="3.5" opacity="0" />
+          <path id="arc-bottom-3b" d="M490,697 Q990,780 1500,692" fill="none" stroke="var(--lime)" stroke-width="2" opacity="0" />
+
+          <!-- cx/cy are 0,0 deliberately: GSAP's motionPath computes a transform
+               that lands the element AT the path's coordinates; a non-zero
+               native cx/cy would be ADDED on top of that (attribute position +
+               transform), flinging the dot far off-canvas. Position comes
+               entirely from the motionPath tween. -->
+          <circle id="dot-top-3b" class="fee-dot" cx="0" cy="0" r="16" fill="var(--lime)" />
+          <circle id="dot-mid1-3b" class="fee-dot" cx="0" cy="0" r="18" fill="var(--lime)" />
+          <circle id="dot-mid2-3b" class="fee-dot" cx="0" cy="0" r="18" fill="var(--lime)" />
+          <circle id="dot-bottom-3b" class="fee-dot" cx="0" cy="0" r="16" fill="var(--lime)" />
+
+          <circle id="impact-ring-3b" class="impact-ring" cx="1500" cy="581" r="22" fill="none" stroke="var(--lime)" stroke-width="2" />
+        </svg>
+
+        <div id="chip-trade-1" class="chip" style="left: 150px; top: 430px; width: 340px; height: 70px;">trade &middot; 1.62 ETH</div>
+        <div id="chip-trade-2" class="chip" style="left: 150px; top: 546px; width: 340px; height: 70px;">trade &middot; 2.05 ETH</div>
+        <div id="chip-trade-3" class="chip" style="left: 150px; top: 662px; width: 340px; height: 70px;">trade &middot; 0.94 ETH</div>
+
+        <div id="label-fee-3b" class="label label-ink" style="left: 892px; top: 478px; width: 200px; font-size: 22px; letter-spacing: 0.14em; text-transform: uppercase; font-weight: 500;">fee</div>
+        <div id="label-vault-3b" class="label label-dim" style="left: 1500px; top: 362px; width: 270px; font-size: 24px;">@arlo_dev's vault</div>
+
+        <div id="caption-3b" class="caption" style="left: 510px; opacity: 0;">
+          <span>a cut of every trade</span>
+          <svg width="30" height="14" viewBox="0 0 30 14"><path d="M0,7 H24 M24,7 L16,1 M24,7 L16,13" fill="none" stroke="var(--dim)" stroke-width="1.6" /></svg>
+          <span>their vault</span>
+        </div>
+
+        <div class="brandtag">robinshare.vercel.app</div>
+        <svg class="bowmark-corner" width="26" height="26" viewBox="0 0 24 24" fill="none">
+          <path d="M7 3 A 13 13 0 0 1 7 21" stroke="var(--ink)" stroke-width="1.7" stroke-linecap="round" />
+          <path d="M7 3 L7 21" stroke="var(--ink)" stroke-width="0.8" opacity="0.65" />
+          <path d="M3 12 L21 12" stroke="var(--ink)" stroke-width="1.5" stroke-linecap="round" />
+          <path d="M21 12 L16.8 9.9 M21 12 L16.8 14.1" stroke="var(--ink)" stroke-width="1.5" stroke-linecap="round" />
+          <path d="M3 12 L5.4 9.9 M3 12 L5.4 14.1" stroke="var(--ink)" stroke-width="1" opacity="0.7" stroke-linecap="round" />
+        </svg>
+        <div class="bracket bracket-tl"></div>
+        <div class="bracket bracket-tr"></div>
+        <div class="bracket bracket-bl"></div>
+        <div class="bracket bracket-br"></div>
+      </section>
+
+      <!-- ============================================================ -->
+      <!-- 3C — THEIR VAULT FILLS (8.7 - 12.7)                           -->
+      <!-- ============================================================ -->
+      <section id="scene-3c" class="clip scene" data-start="8.7" data-duration="4.0" data-track-index="1">
+        <div class="eyebrow">/ the mechanism</div>
+        <div class="framenum">3C / 4</div>
+        <h1 id="title-3c" class="title" style="font-size: 104px;">Their vault fills.</h1>
+
+        <div id="label-vault-3c" class="label label-dim" style="left: 660px; top: 818px; width: 600px; font-size: 26px;">@arlo_dev's vault</div>
+        <div id="counter-3c" class="label label-signal" style="left: 560px; top: 858px; width: 800px; font-size: 48px; font-weight: 500;">+0.0000 ETH</div>
+        <div id="and-counting-3c" class="label label-dim" style="left: 660px; top: 924px; width: 600px; font-size: 20px; letter-spacing: 0.08em;"><span class="live-dot" id="live-dot-3c"></span>and counting</div>
+
+        <div id="caption-3c" class="caption" style="left: 585px; opacity: 0;">
+          <span>on-chain &middot; in their name</span>
+        </div>
+
+        <div class="brandtag">robinshare.vercel.app</div>
+        <svg class="bowmark-corner" width="26" height="26" viewBox="0 0 24 24" fill="none">
+          <path d="M7 3 A 13 13 0 0 1 7 21" stroke="var(--ink)" stroke-width="1.7" stroke-linecap="round" />
+          <path d="M7 3 L7 21" stroke="var(--ink)" stroke-width="0.8" opacity="0.65" />
+          <path d="M3 12 L21 12" stroke="var(--ink)" stroke-width="1.5" stroke-linecap="round" />
+          <path d="M21 12 L16.8 9.9 M21 12 L16.8 14.1" stroke="var(--ink)" stroke-width="1.5" stroke-linecap="round" />
+          <path d="M3 12 L5.4 9.9 M3 12 L5.4 14.1" stroke="var(--ink)" stroke-width="1" opacity="0.7" stroke-linecap="round" />
+        </svg>
+        <div class="bracket bracket-tl"></div>
+        <div class="bracket bracket-tr"></div>
+        <div class="bracket bracket-bl"></div>
+        <div class="bracket bracket-br"></div>
+      </section>
+
+      <!-- ============================================================ -->
+      <!-- 3D — ONLY THEY CAN CLAIM IT (12.7 - 17.0)                     -->
+      <!-- ============================================================ -->
+      <section id="scene-3d" class="clip scene" data-start="12.7" data-duration="4.3" data-track-index="1">
+        <div class="eyebrow">/ the mechanism</div>
+        <div class="framenum">3D / 4</div>
+        <h1 id="title-3d" class="title" style="font-size: 112px; line-height: 1.05;">Only they can<br />claim it.</h1>
+
+        <svg class="diagram-svg" viewBox="0 0 1920 1080">
+          <path id="arc-proof-1" d="M490,554 Q625,510 760,480" fill="none" stroke="var(--lime)" stroke-width="2" opacity="0" />
+          <path id="arc-proof-2" d="M490,670 Q625,630 760,570" fill="none" stroke="var(--lime)" stroke-width="2" opacity="0" />
+          <path id="arc-proof-3" d="M490,786 Q625,760 760,660" fill="none" stroke="var(--lime)" stroke-width="2" opacity="0" />
+          <path id="arc-payout-3d" d="M1160,570 Q1350,490 1535,570" fill="none" stroke="var(--lime)" stroke-width="3.5" opacity="0" />
+
+          <g id="lock-body-group-3d" opacity="0">
+            <rect id="lock-body-3d" x="910" y="520" width="100" height="100" rx="12" fill="none" stroke="var(--lime)" stroke-width="3" />
+            <circle cx="960" cy="555" r="8" fill="var(--dim)" />
+            <rect x="955" y="560" width="10" height="30" fill="var(--dim)" />
+          </g>
+          <path id="lock-shackle-3d" d="M995,520 Q995,440 955,440 Q915,440 915,520" fill="none" stroke="var(--lime)" stroke-width="3" stroke-linecap="round" opacity="0" />
+          <circle id="click-ring-3d" class="impact-ring" cx="960" cy="570" r="70" fill="none" stroke="var(--lime)" stroke-width="2" />
+
+          <circle id="payout-dot-3d" class="fee-dot" cx="0" cy="0" r="20" fill="var(--lime)" />
+          <circle id="avatar-circle-3d" cx="1620" cy="570" r="85" fill="rgba(204,255,0,0.05)" stroke="var(--lime)" stroke-width="2.5" opacity="0" />
+        </svg>
+
+        <div id="chip-proof-1" class="chip" style="left: 150px; top: 519px; width: 340px; height: 70px; font-size: 24px;">wallet signature</div>
+        <div id="chip-proof-2" class="chip" style="left: 150px; top: 635px; width: 340px; height: 70px; font-size: 24px;">github oauth</div>
+        <div id="chip-proof-3" class="chip" style="left: 150px; top: 751px; width: 340px; height: 70px; font-size: 24px;">x oracle proof</div>
+
+        <div id="payout-label-3d" class="label label-ink" style="left: 1220px; top: 430px; width: 260px; font-size: 22px; font-weight: 500;">0.0649 ETH</div>
+        <div id="avatar-initials-3d" class="label label-ink" style="left: 1520px; top: 548px; width: 200px; font-size: 44px; font-family: 'Archivo Black', sans-serif; text-transform: uppercase;">AD</div>
+        <div id="avatar-handle-3d" class="label label-dim" style="left: 1520px; top: 685px; width: 200px; font-size: 22px;">@arlo_dev</div>
+
+        <div id="caption-3d" class="caption" style="left: 478px; opacity: 0;">
+          <span>identity, proven &mdash; theirs alone to claim</span>
+        </div>
+
+        <div class="brandtag">robinshare.vercel.app</div>
+        <svg class="bowmark-corner" width="26" height="26" viewBox="0 0 24 24" fill="none">
+          <path d="M7 3 A 13 13 0 0 1 7 21" stroke="var(--ink)" stroke-width="1.7" stroke-linecap="round" />
+          <path d="M7 3 L7 21" stroke="var(--ink)" stroke-width="0.8" opacity="0.65" />
+          <path d="M3 12 L21 12" stroke="var(--ink)" stroke-width="1.5" stroke-linecap="round" />
+          <path d="M21 12 L16.8 9.9 M21 12 L16.8 14.1" stroke="var(--ink)" stroke-width="1.5" stroke-linecap="round" />
+          <path d="M3 12 L5.4 9.9 M3 12 L5.4 14.1" stroke="var(--ink)" stroke-width="1" opacity="0.7" stroke-linecap="round" />
+        </svg>
+        <div class="bracket bracket-tl"></div>
+        <div class="bracket bracket-tr"></div>
+        <div class="bracket bracket-bl"></div>
+        <div class="bracket bracket-br"></div>
+      </section>
+
+      <!-- ============================================================ -->
+      <!-- PERSISTENT VAULT — one element, 3B compact -> 3C/3D centered  -->
+      <!-- ============================================================ -->
+      <div id="vault-box" class="clip" data-start="3.5" data-duration="13.5" data-track-index="2">
+        <div id="vault-fill"></div>
+        <div class="vault-tick" id="tick-0" style="top: 20px;"></div>
+        <div class="vault-tick" id="tick-1" style="top: 65px;"></div>
+        <div class="vault-tick" id="tick-2" style="top: 110px;"></div>
+        <div class="vault-tick" id="tick-3" style="top: 155px;"></div>
+        <div class="vault-tick" id="tick-4" style="top: 200px;"></div>
+        <div class="vault-tick" id="tick-5" style="top: 245px;"></div>
+        <div class="vault-tick" id="tick-6" style="top: 290px;"></div>
+        <div class="vault-tick" id="tick-7" style="top: 335px;"></div>
+        <div class="vault-tick" id="tick-8" style="top: 380px;"></div>
+      </div>
+    </div>
+
+    <script>
+      gsap.registerPlugin(MotionPathPlugin);
+      window.__timelines = window.__timelines || {};
+      var tl = gsap.timeline({ paused: true });
+
+      /* ---------- helpers ---------- */
+      function drawSetup(sel) {
+        var els = gsap.utils.toArray(sel);
+        els.forEach(function (el) {
+          var len = el.getTotalLength();
+          el.style.strokeDasharray = len;
+          el.style.strokeDashoffset = len;
+        });
+        return els;
+      }
+      function pivotScale(el, cx, cy, s) {
+        el.setAttribute("transform", "translate(" + cx + " " + cy + ") scale(" + s + ") translate(" + -cx + " " + -cy + ")");
+      }
+
+      var connector3a = drawSetup("#connector-3a");
+      var arcs3b = drawSetup("#arc-top-3b, #arc-mid-3b, #arc-bottom-3b");
+      var arcsProof3d = drawSetup("#arc-proof-1, #arc-proof-2, #arc-proof-3");
+      var arcPayout3d = drawSetup("#arc-payout-3d");
+      var shackle3d = document.getElementById("lock-shackle-3d");
+      var shackleLen = shackle3d.getTotalLength();
+      shackle3d.style.strokeDasharray = shackleLen;
+      shackle3d.style.strokeDashoffset = shackleLen;
+
+      var lockBodyGroup = document.getElementById("lock-body-group-3d");
+      pivotScale(lockBodyGroup, 960, 570, 0.85);
+
+      /* ================================================================ */
+      /* 3A — NAME THEM (0 - 3.5)                                          */
+      /* ================================================================ */
+      tl.fromTo("#title-3a", { y: 40, opacity: 0 }, { y: 0, opacity: 1, duration: 0.6, ease: "power3.out" }, 0.15);
+
+      tl.fromTo("#coin-outer-3a", { scale: 0, opacity: 0 }, { scale: 1, opacity: 1, duration: 0.5, ease: "back.out(2.2)" }, 0.3);
+      tl.fromTo("#coin-inner-3a", { opacity: 0 }, { opacity: 0.8, duration: 0.3, ease: "power1.out" }, 0.55);
+      tl.fromTo("#coin-dot-3a", { opacity: 0 }, { opacity: 1, duration: 0.2, ease: "power1.out" }, 0.6);
+
+      tl.set("#mint-ring-3a", { opacity: 0 }, 0.3);
+      tl.fromTo("#mint-ring-3a", { attr: { r: 35 }, opacity: 0.7 }, { attr: { r: 95 }, opacity: 0, duration: 0.6, ease: "power2.out" }, 0.3);
+
+      tl.to(connector3a, { strokeDashoffset: 0, duration: 0.45, ease: "power2.out" }, 0.9);
+      tl.fromTo("#chip-arlo-3a", { scale: 0.85, opacity: 0 }, { scale: 1, opacity: 1, duration: 0.45, ease: "back.out(1.8)" }, 1.15);
+      tl.fromTo("#label-builder-3a", { y: 10, opacity: 0 }, { y: 0, opacity: 1, duration: 0.4, ease: "power2.out" }, 1.4);
+
+      /* continuous mid-scene activity: coin ring breathes (finite, alive) */
+      tl.to("#coin-inner-3a", { attr: { r: 58 }, duration: 0.55, ease: "sine.inOut", yoyo: true, repeat: 3 }, 1.7);
+
+      /* ================================================================ */
+      /* 3B — FEES ACCRUE (3.5 - 8.7)                                      */
+      /* ================================================================ */
+      tl.fromTo("#title-3b", { y: 40, opacity: 0 }, { y: 0, opacity: 1, duration: 0.6, ease: "power3.out" }, 3.65);
+      tl.fromTo(
+        ["#chip-trade-1", "#chip-trade-2", "#chip-trade-3"],
+        { x: -24, opacity: 0 },
+        { x: 0, opacity: 1, duration: 0.4, ease: "power3.out", stagger: 0.09 },
+        3.8,
+      );
+
+      /* vault mounts compact + off-center (right side, receiving position) */
+      tl.set("#vault-box", { x: 740, y: 61, scaleX: 0, scaleY: 0, opacity: 0, transformOrigin: "0% 0%" }, 3.5);
+      tl.to("#vault-box", { scaleX: 0.675, scaleY: 0.7619, opacity: 1, duration: 0.5, ease: "back.out(1.7)" }, 3.9);
+
+      tl.fromTo("#label-fee-3b", { opacity: 0 }, { opacity: 1, duration: 0.3, ease: "power1.out" }, 4.05);
+      tl.fromTo("#label-vault-3b", { opacity: 0 }, { opacity: 1, duration: 0.4, ease: "power1.out" }, 4.15);
+
+      tl.to(document.getElementById("arc-top-3b"), { strokeDashoffset: 0, opacity: 0.32, duration: 0.45, ease: "power2.out" }, 3.95);
+      tl.to(document.getElementById("arc-mid-3b"), { strokeDashoffset: 0, opacity: 1, duration: 0.45, ease: "power2.out" }, 4.05);
+      tl.to(document.getElementById("arc-bottom-3b"), { strokeDashoffset: 0, opacity: 0.32, duration: 0.45, ease: "power2.out" }, 4.15);
+
+      tl.fromTo("#caption-3b", { opacity: 0 }, { opacity: 1, duration: 0.4, ease: "power2.out" }, 4.3);
+
+      /* fee travel: 4 dot-trips staggered across 3 arcs — THE causal beat */
+      function fireFee(dotSel, chipSel, arcSel, t0) {
+        tl.to(chipSel, { scale: 1.06, duration: 0.12, ease: "power2.out", yoyo: true, repeat: 1 }, t0 - 0.02);
+        tl.fromTo(dotSel, { opacity: 0 }, { opacity: 1, duration: 0.12, ease: "power1.out" }, t0);
+        tl.to(dotSel, { motionPath: { path: arcSel, autoRotate: false }, duration: 0.9, ease: "power1.inOut" }, t0);
+        tl.to(dotSel, { opacity: 0, duration: 0.15, ease: "power1.in" }, t0 + 0.75);
+        // impact ring at arrival — reposition to this arc's landing point, then pulse
+        var landing = { "#arc-top-3b": 470, "#arc-mid-3b": 581, "#arc-bottom-3b": 692 }[arcSel];
+        tl.set("#impact-ring-3b", { attr: { cx: 1500, cy: landing, r: 20 }, opacity: 0.7 }, t0 + 0.85);
+        tl.to("#impact-ring-3b", { attr: { r: 46 }, opacity: 0, duration: 0.45, ease: "power2.out" }, t0 + 0.85);
+      }
+      fireFee("#dot-mid1-3b", "#chip-trade-2", "#arc-mid-3b", 4.5);
+      fireFee("#dot-top-3b", "#chip-trade-1", "#arc-top-3b", 5.3);
+      fireFee("#dot-mid2-3b", "#chip-trade-2", "#arc-mid-3b", 6.1);
+      fireFee("#dot-bottom-3b", "#chip-trade-3", "#arc-bottom-3b", 6.7);
+
+      /* fade out 3B-only chrome; vault zooms from compact -> full centered */
+      tl.to(
+        [
+          "#title-3b", "#chip-trade-1", "#chip-trade-2", "#chip-trade-3",
+          "#label-fee-3b", "#label-vault-3b", "#caption-3b",
+          "#arc-top-3b", "#arc-mid-3b", "#arc-bottom-3b",
+        ],
+        { opacity: 0, duration: 0.3, ease: "power1.in" },
+        7.85,
+      );
+      tl.to("#vault-box", { x: 0, y: 0, scaleX: 1, scaleY: 1, duration: 0.6, ease: "power2.inOut" }, 8.05);
+
+      /* ================================================================ */
+      /* 3C — THEIR VAULT FILLS (8.7 - 12.7)                               */
+      /* ================================================================ */
+      tl.fromTo("#title-3c", { y: 40, opacity: 0 }, { y: 0, opacity: 1, duration: 0.6, ease: "power3.out" }, 8.85);
+      tl.fromTo("#label-vault-3c", { y: 8, opacity: 0 }, { y: 0, opacity: 1, duration: 0.4, ease: "power2.out" }, 9.0);
+      tl.fromTo("#counter-3c", { opacity: 0 }, { opacity: 1, duration: 0.3, ease: "power1.out" }, 9.1);
+      tl.fromTo(
+        ["#tick-0", "#tick-1", "#tick-2", "#tick-3", "#tick-4", "#tick-5", "#tick-6", "#tick-7", "#tick-8"],
+        { opacity: 0 },
+        { opacity: 1, duration: 0.3, ease: "power1.out" },
+        9.0,
+      );
+
+      var vaultFillEl = document.getElementById("vault-fill");
+      var counterEl = document.getElementById("counter-3c");
+      var tickEls = [0, 1, 2, 3, 4, 5, 6, 7, 8].map(function (i) { return document.getElementById("tick-" + i); });
+      var counterState = { v: 0 };
+      var FINAL_ETH = 0.0649;
+      var FINAL_FILL_FRAC = 0.6;
+      tl.to(
+        counterState,
+        {
+          v: FINAL_ETH,
+          duration: 2.3,
+          ease: "power3.out",
+          onUpdate: function () {
+            counterEl.textContent = "+" + counterState.v.toFixed(4) + " ETH";
+            var frac = (counterState.v / FINAL_ETH) * FINAL_FILL_FRAC;
+            vaultFillEl.style.transform = "scaleY(" + frac + ")";
+            var boundary = 420 * (1 - frac);
+            tickEls.forEach(function (t) {
+              var y = parseFloat(t.style.top);
+              t.style.background = y >= boundary ? "var(--lime)" : "var(--hairline)";
+            });
+          },
+        },
+        9.15,
+      );
+
+      tl.fromTo("#caption-3c", { opacity: 0 }, { opacity: 1, duration: 0.4, ease: "power2.out" }, 11.5);
+      tl.fromTo("#and-counting-3c", { opacity: 0, y: 8 }, { opacity: 1, y: 0, duration: 0.4, ease: "power2.out" }, 11.6);
+      tl.to("#live-dot-3c", { opacity: 0.35, duration: 0.35, ease: "sine.inOut", yoyo: true, repeat: 5 }, 11.75);
+
+      /* ================================================================ */
+      /* 3D — ONLY THEY CAN CLAIM IT (12.7 - 17.0)                         */
+      /* ================================================================ */
+      tl.fromTo("#title-3d", { y: 40, opacity: 0 }, { y: 0, opacity: 1, duration: 0.6, ease: "power3.out" }, 12.85);
+
+      tl.fromTo(
+        ["#chip-proof-1", "#chip-proof-2", "#chip-proof-3"],
+        { x: -24, opacity: 0 },
+        { x: 0, opacity: 1, duration: 0.4, ease: "power3.out", stagger: 0.1 },
+        13.0,
+      );
+
+      tl.to(document.getElementById("arc-proof-1"), { strokeDashoffset: 0, opacity: 0.4, duration: 0.4, ease: "power2.out" }, 13.15);
+      tl.to(document.getElementById("arc-proof-2"), { strokeDashoffset: 0, opacity: 0.45, duration: 0.4, ease: "power2.out" }, 13.25);
+      tl.to(document.getElementById("arc-proof-3"), { strokeDashoffset: 0, opacity: 0.4, duration: 0.4, ease: "power2.out" }, 13.35);
+
+      var lockBodyState = { s: 0.85 };
+      tl.fromTo("#lock-body-group-3d", { opacity: 0 }, { opacity: 1, duration: 0.4, ease: "power2.out" }, 13.3);
+      tl.to(
+        lockBodyState,
+        {
+          s: 1,
+          duration: 0.4,
+          ease: "back.out(1.6)",
+          onUpdate: function () { pivotScale(lockBodyGroup, 960, 570, lockBodyState.s); },
+        },
+        13.3,
+      );
+      /* shackle is authored CLOSED (both legs into the body); it appears
+         already "drawn" (dashoffset 0) — the open reveal is pure rotation,
+         not a stroke-draw, so set both instantly alongside the body pop */
+      tl.set("#lock-shackle-3d", { strokeDashoffset: 0, opacity: 1 }, 13.3);
+
+      /* THE unlock — shackle rotates open around its right pivot (995,520).
+         +115deg swings the free (left) leg from pointing left (180deg) up
+         past vertical to ~295deg — clear above/right of the 100x100 body,
+         not dipping back across it. */
+      var shackleState = { deg: 0 };
+      tl.to(
+        shackleState,
+        {
+          deg: 115,
+          duration: 0.75,
+          ease: "back.out(1.25)",
+          onUpdate: function () { shackle3d.setAttribute("transform", "rotate(" + shackleState.deg + " 995 520)"); },
+        },
+        13.9,
+      );
+      tl.to(
+        lockBodyState,
+        {
+          s: 1.05,
+          duration: 0.14,
+          ease: "power2.out",
+          yoyo: true,
+          repeat: 1,
+          onUpdate: function () { pivotScale(lockBodyGroup, 960, 570, lockBodyState.s); },
+        },
+        13.9,
+      );
+      tl.set("#click-ring-3d", { attr: { cx: 960, cy: 570, r: 55 }, opacity: 0.6 }, 13.9);
+      tl.to("#click-ring-3d", { attr: { r: 130 }, opacity: 0, duration: 0.5, ease: "power2.out" }, 13.9);
+
+      /* payout — value travels vault -> avatar */
+      tl.fromTo("#avatar-circle-3d", { scale: 0.85, opacity: 0 }, { scale: 1, opacity: 1, duration: 0.4, ease: "back.out(1.6)" }, 13.5);
+      tl.fromTo("#avatar-initials-3d", { opacity: 0 }, { opacity: 1, duration: 0.35, ease: "power2.out" }, 13.75);
+      tl.fromTo("#avatar-handle-3d", { opacity: 0 }, { opacity: 1, duration: 0.35, ease: "power2.out" }, 13.85);
+
+      tl.to(document.getElementById("arc-payout-3d"), { strokeDashoffset: 0, opacity: 1, duration: 0.45, ease: "power2.out" }, 14.1);
+      tl.fromTo("#payout-label-3d", { opacity: 0, y: 8 }, { opacity: 1, y: 0, duration: 0.3, ease: "power2.out" }, 14.2);
+
+      tl.fromTo("#payout-dot-3d", { opacity: 0 }, { opacity: 1, duration: 0.1, ease: "power1.out" }, 14.35);
+      tl.to("#payout-dot-3d", { motionPath: { path: "#arc-payout-3d", autoRotate: false }, duration: 0.8, ease: "power1.inOut" }, 14.35);
+      tl.to("#payout-dot-3d", { opacity: 0, duration: 0.15, ease: "power1.in" }, 14.95);
+
+      tl.to("#avatar-circle-3d", { scale: 1.12, duration: 0.15, ease: "power2.out", yoyo: true, repeat: 1 }, 15.15);
+
+      tl.fromTo("#caption-3d", { opacity: 0 }, { opacity: 1, duration: 0.4, ease: "power2.out" }, 15.3);
+
+      window.__timelines["mechanism"] = tl;
+    </script>
+  </body>
+</html>
