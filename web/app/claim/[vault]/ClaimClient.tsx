@@ -63,6 +63,15 @@ export function ClaimClient({ vault }: { vault: Address }) {
   // payoff beat: while non-null, this ETH value overrides the displayed balance and
   // animates from the pending amount down to 0 (the "drain" — see handleClaimClick)
   const [demoDrainEth, setDemoDrainEth] = useState<number | null>(null);
+  // terminal beat: once the demo claim resolves, the vault has no real on-chain
+  // `bound` wallet to flip `isBound` true (this is a mock, nothing is written on
+  // chain), so without this flag `pending` returning to 0n + `voucher` returning
+  // to null makes the "Verify with GitHub" button's guard clause true again —
+  // the UI would loop back to inviting a second verification right after a
+  // successful claim. This flag is the demo-only terminal state: once true, the
+  // CTA area stays retired and only the "Done." + "View transaction" already
+  // rendered below the card speak for the outcome.
+  const [demoClaimed, setDemoClaimed] = useState(false);
 
   const [s, setS] = useState<State | null>(null);
   const [voucher, setVoucher] = useState<Voucher | null>(null);
@@ -219,6 +228,7 @@ export function ClaimClient({ vault }: { vault: Address }) {
       setMsg("Done.");
       setVoucher(null);
       setDemoPending(false);
+      setDemoClaimed(true);
       return;
     }
     await sendTx("claimAndBind", [voucher.payout, BigInt(voucher.deadline), voucher.signature]);
@@ -334,7 +344,7 @@ export function ClaimClient({ vault }: { vault: Address }) {
                     Claim to {voucher.payout.slice(0, 6)}…{voucher.payout.slice(-4)}
                   </button>
                 )}
-                {!isBound && s.identityType === 1 && !voucher && !demoVerified && (
+                {!isBound && s.identityType === 1 && !voucher && !demoVerified && !demoClaimed && (
                   <button onClick={handleVerifyGithubClick} disabled={effectivePending} className={ctaCls} style={ctaStyle}>
                     {demoVerifying ? (
                       <span className="inline-flex items-center gap-2.5">
@@ -363,6 +373,28 @@ export function ClaimClient({ vault }: { vault: Address }) {
                       />
                     </svg>
                     Verified via GitHub
+                  </div>
+                )}
+                {/* terminal state: claimed, nothing left to prove or click — the
+                    button area retires into a quiet confirmation instead of
+                    looping back to "Verify with GitHub" (demoClaimed above) */}
+                {isDemo && demoClaimed && (
+                  <div
+                    className="demo-verified-chip inline-flex w-fit items-center gap-2 rounded-full px-5 py-2.5 text-sm font-semibold"
+                    style={{ background: "rgba(204,255,0,0.14)", color: RS.INK }}
+                  >
+                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" aria-hidden>
+                      <path
+                        className="demo-check-path"
+                        d="M5 12.5l4 4 10-10"
+                        stroke="currentColor"
+                        strokeWidth="2.4"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        fill="none"
+                      />
+                    </svg>
+                    Claimed — fees released
                   </div>
                 )}
                 {!isBound && s.identityType === 2 && (

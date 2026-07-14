@@ -70,3 +70,48 @@ Captura nueva: `claim-raw.webm` 1920x1080, 25fps, **10.72s** (antes 10.24s).
 ### Concerns (v2)
 - El drenado real corre en tiempo real dentro del navegador (setInterval, no rAF) — es determinista en cuanto a la curva (ease-out-cubic sobre `Date.now()`), pero el momento exacto en que arranca dentro de la grabación puede variar unos ~50-100ms entre corridas de captura por jitter del sistema. Si se vuelve a capturar, conviene re-groundear los tiempos de `claimflow.html` con el mismo método de frames de ffmpeg en vez de reusar los de este pase.
 - Mismo comportamiento real ya documentado en v1: el botón vuelve a "Verify with GitHub" después del claim (pending vuelve a 0). Sigue fuera de cuadro del climax push.
+
+## v3 — finishing premium (feedback: "mucho mejor, pero mejorable")
+
+Pasada de acabado sobre el pase v2: audio (el salto más grande, estaba mudo), el fix del estado post-claim, la flecha a lima puro, y un tratamiento fílmico más rico con un hold real en el clímax.
+
+### 1. Fix — "Verify with GitHub" ya no reaparece tras el claim
+`web/app/claim/[vault]/ClaimClient.tsx` — el bug de v1/v2 era real: en modo demo `bound` nunca se setea (no hay escritura on-chain), así que cuando `pending` vuelve a `0n` y `voucher` vuelve a `null` tras el claim, el guard `!isBound && identityType===1 && !voucher && !demoVerified` volvía a ser `true` → el botón "Verify with GitHub" reaparecía.
+
+Fix: nuevo estado `demoClaimed` (terminal, solo demo), seteado a `true` al final de `handleClaimClick`. Gatea el botón de verify (`&& !demoClaimed`) y agrega un chip final reutilizando la clase `.demo-verified-chip` ya existente: **"Claimed — fees released"** con el mismo check dibujado a mano. El área de CTA queda en un estado terminal coherente — reclamaste → listo — en vez de invitar a verificar de nuevo. "Done." + "View transaction →" (ya existentes, fuera de la card) siguen apareciendo igual.
+
+Verificado en vivo (Playwright, `?demo=1`): a t=9.9s post-claim se lee "0 ETH" / "Claimed — fees released" / "Done." / "View transaction →" — sin rastro de "Verify with GitHub".
+
+### 2. Audio — de mudo a diseñado
+Capa completa nueva en `claimflow.html`, 12 `<audio>` como hijos directos de `#root` (contrato HyperFrames), tracks 30+:
+- **Bed continuo** (`bed-ambient.mp3`) 0-12.9s, fade-in 0.4s, **duck** a 0.16 justo antes del impacto del claim (evita que se sume al pico más fuerte y clippee), recupera, fade-out final 12.4-12.9s — es el único punto de silencio real, y es el cierre, no un hueco.
+- **Ticks** (`sfx-key-tick.mp3`) en los 3 hovers; **click/pop** (`sfx-whoosh-short.mp3`) en los 3 clicks + ripple; **chime** (`sfx-ping.mp3`) en "Verified via GitHub"; **impacto** (`sfx-impact-lockup.mp3`) en el momento real en que el balance empieza a drenar (no en el click del Claim — ver grounding abajo, quedan ~0.5s aparte); **whoosh** (`sfx-whoosh.mp3`) cuando el ETH vuela; **tono de confirmación** (`sfx-ping.mp3` de nuevo, motivo reutilizado a propósito) en "Done.". Todo bundled (media-use, sin credenciales) — mismo catálogo que ya usa `index.html`.
+- Volumen vía `data-volume` estático en los one-shots; el bed usa tweens de GSAP sobre `volume` (patrón documentado en `hyperframes-core` — `tl.to("#bed-ambient",{volume:...})`, no hay que fingir el fade con clips duplicados).
+- `sfx-impact-lockup.mp3` resultó estar masterizado muy caliente (max_volume nativo del archivo = **0.0 dB**) — a `data-volume=0.6` el render completo picaba a -1.0dB (al filo). Bajado a **0.48** → render final **max_volume -2.2dB**, mean -16.0dB (verificado con `ffprobe -af volumedetect`, sin clipping, bed audible incluso en la ventana silenciosa 10.6-12.4s).
+
+### 3. Flecha a lima puro
+`#arrow-grade` (blend `color`, ya existía) agrandado e intensificado (0.8→0.95 de opacidad), + `#arrow-grade-2` nuevo (blend `hue`, radio más ancho y suave) para llegar al remanente cyan del borde exterior del glow que quedaba en v1/v2 sin tocar el resto del cuadro (fondo, madera). Verificado por snapshot a t=1.2s: filo 100% lima, sin cyan.
+
+### 4. Tratamiento fílmico más rico + ritmo
+- Grano: 0.05→0.068 de opacidad, frecuencia más fina (0.85→0.95) — "un poco más presente pero fino".
+- `#grade-tint` nuevo: wash full-frame `soft-light`, sombras hacia paper-dark, highlights con un toque de lima — un grade coherente de toda la pieza, no dos clips con filtros sueltos.
+- Bloom (v3, nuevo): `#button-bloom` (bleed lima detrás del CTA, breathing finito — `repeat:11`, nunca `repeat:-1`, con hard-kill explícito) y `#balance-bloom` (glow que reacciona al payoff: construye en el impacto, sostiene en el hold, se apaga al final) + `filter: drop-shadow` en `.ripple` para que el anillo de click también "brille".
+- Hold en el clímax: con el re-grounding (ver abajo) el pull-back termina en comp 11.43 y la composición cierra en 12.9 → **~1.5s de hold estático real** con "Done." + "0 ETH" + "Claimed — fees released" + "View transaction" todos en cuadro, más un cierre limpio (squeeze final de viñeta 12.5-12.9, sin blackout duro).
+
+### 5. Re-grounding de tiempos — el hallazgo más importante de este pase
+El fix del punto 1 exigía recapturar el video (`_claimflow-capture.mjs`), y eso quiso decir re-groundear TODA la coreografía de cámara/audio de v2, no solo el tail. Tres métodos probados, en orden de confianza creciente:
+1. **Sumas nominales** de los `waitForTimeout` del script (método v1/v2): descartado — la deriva real puede superar 1s para cuando se llega al beat de identidad.
+2. **Instrumentación de reloj real** (`Date.now()` relativo a `t0` en `newPage()`): parecía autoritativo pero seguía desalineado 0.1-0.3s contra los píxeles reales del video — el pipeline de captura/encode de Chrome retrasa el tiempo real una cantidad variable bajo la carga concurrente de chrome+ffmpeg+dev-server de este entorno.
+3. **Detección automática de scene-change por ffmpeg**, recortado a la zona del botón/status (`ffmpeg -i claim-raw.webm -vf "crop=700:200:600:470,select='gt(scene,0.015)',showinfo" -f null -`) — la única que coincidió con el contenido real del archivo. Confirmado a mano contra extracción de frames en dos puntos independientes antes de confiarle el resto.
+
+`_claimflow-capture.mjs` quedó reescrito para medir con `Date.now()` real (mejor que v1/v2, aunque el punto 3 fue necesario igual) y documentar el método de grounding definitivo en el header, para la próxima vez que haga falta recapturar.
+
+### Verificación (v3)
+- `npx hyperframes check .` (copia aislada, mismo workaround de siempre) → **0 errores**, 1 warning (`composition_file_too_large`, 306 líneas — aceptable para una pieza única de 12.9s), 10 info (`pointer-events:none` esperable).
+- Snapshots dirigidos post-fix con re-grounding: hover+ripple sobre "Verify with GitHub" (4.6s), "Verified via GitHub" + chime (6.6s), hover sobre "Claim to 0x8f3a…091b" (8.6s), **flash + comet + balance a mitad de drenado (0.0376 ETH) simultáneos** (9.6s), climax con balance-bloom + "0 ETH" + chip + "Done." + link (10.4s), cierre con viñeta cerrada (12.75s). Todos leídos con Read — la sincronización se ve, no se asume.
+- Render: `renders/claimflow.mp4` — h264/aac, 1920x1080, **12.9s**, **6.5MB**, CON audio. `ffprobe`: stream de video + audio confirmados. `volumedetect`: mean -16.0dB, max -2.2dB (sin clipping), bed presente incluso en la ventana de hold silenciosa.
+
+### Concerns (v3)
+- El offset de grounding (t_comp = t_raw + 0.72, media-start=1.28) es específico de ESTA captura (`claim-raw.webm` actual, 12.24s). Si se vuelve a capturar, hay que re-derivar el offset — no asumir que el mismo número sirve, el pipeline de encode de este entorno tiene jitter variable run-a-run (documentado en el header de `_claimflow-capture.mjs`).
+- `sfx-whoosh.mp3` y `sfx-whoosh-short.mp3` son el mismo archivo (hash idéntico, ya documentado para `index.html`) — reusado a propósito en distintos volúmenes/momentos, no es un error.
+- El lint de `composition_file_too_large` (306 líneas) es solo sugerencia de estilo — no se dividió en sub-composiciones porque es una pieza única, no vale la pena la indirección para este entregable.
