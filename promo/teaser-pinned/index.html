@@ -223,14 +223,18 @@
         border-radius: 50%;
         display: inline-block;
       }
+      /* Traffic-lights de marca (FIX gate de arte) — nada de rojo/amarillo
+         estilo macOS: los dos primeros en tonos apagados de gris-verde
+         (distintos entre sí para que se lean como 3 puntos, no un blob), el
+         tercero ("activo") en verde señal de marca. */
       .b3-dot-red {
-        background: #ff5f56;
+        background: #3a4740;
       }
       .b3-dot-yellow {
-        background: #ffbd2e;
+        background: #55665c;
       }
       .b3-dot-green {
-        background: #27c93f;
+        background: var(--signal);
       }
       .b3-url {
         margin-left: 18px;
@@ -247,7 +251,10 @@
         will-change: transform, opacity;
       }
       /* Cursor de marca — triángulo SVG (vocabulario cursor-click-ripple),
-         reposa sobre el input del widget (coords de beat3-coords.json). */
+         reposa sobre el input del widget (coords de beat3-coords.json).
+         FIX gate de arte: relleno lima + halo estático (drop-shadow, sin
+         animación) para que lea como gesto de dirección de arte, no como
+         puntero de sistema. */
       #beat3-cursor {
         left: 1294px;
         top: 448px;
@@ -255,6 +262,7 @@
         height: 30px;
         pointer-events: none;
         will-change: transform, opacity;
+        filter: drop-shadow(0 0 3px rgba(204, 255, 0, 0.85)) drop-shadow(0 0 11px rgba(204, 255, 0, 0.5));
       }
       #beat3-ripple {
         left: 1255px;
@@ -266,6 +274,45 @@
         transform: scale(0);
         opacity: 0;
         pointer-events: none;
+      }
+      /* Foco durante el push/hold (9.6-15.58s): scrim radial que hunde los
+         fragmentos huérfanos del hero (titular cortado a la izquierda, botón
+         asomando arriba) como atmósfera intencional — spotlight en el panel
+         del widget, que llega centrado al canvas (960,540) apenas termina el
+         push (11.0s) y se mantiene ahí durante todo el hold Y el pull-back
+         del bezel (15.18-15.58) — el video sigue al scale del push hasta el
+         corte duro, así que la sombra no puede retirarse antes. Elipse
+         calibrada al footprint real del panel ya escalado 1.7x (medio-ancho
+         356px, medio-alto 320px desde beat3-coords.json): el centro
+         transparente cubre el panel entero con margen, oscurece recién fuera
+         de ese radio. */
+      #beat3-focus-vignette {
+        inset: 0;
+        width: 1920px;
+        height: 1080px;
+        pointer-events: none;
+      }
+      /* La animación vive en un div interno (no-clip): sin esto, un tween que
+         terminara justo en el límite de la ventana del propio clip
+         necesitaría un hard-kill explícito en vez de confiar en el propio
+         toggle de visibilidad del framework — el wrapper evita el caso por
+         completo (el foco no hace fade-out propio: desaparece con el corte
+         duro de la escena en 15.58, ver el tween en el <script>). */
+      #beat3-focus-vignette-inner {
+        position: absolute;
+        inset: 0;
+        width: 1920px;
+        height: 1080px;
+        background: radial-gradient(
+          ellipse 640px 560px at 960px 540px,
+          rgba(3, 6, 4, 0) 0%,
+          rgba(3, 6, 4, 0) 58%,
+          rgba(3, 6, 4, 0.9) 82%,
+          rgba(3, 6, 4, 0.9) 100%
+        );
+        opacity: 0;
+        pointer-events: none;
+        will-change: opacity;
       }
 
       /* ---------- beat 4 : promise ---------- */
@@ -422,8 +469,11 @@
       <div id="beat3-ripple" class="clip" data-start="9.2" data-duration="0.6" data-track-index="7"></div>
       <div id="beat3-cursor" class="clip" data-start="8.6" data-duration="6.98" data-track-index="6">
         <svg width="30" height="30" viewBox="0 0 24 24">
-          <path d="M5 3L19 12L12 13L9 20L5 3Z" fill="var(--ink)" stroke="var(--paper)" stroke-width="1.3" />
+          <path d="M5 3L19 12L12 13L9 20L5 3Z" fill="var(--lime)" stroke="var(--paper)" stroke-width="1.5" />
         </svg>
+      </div>
+      <div id="beat3-focus-vignette" class="clip" data-start="9.5" data-duration="6.08" data-track-index="8">
+        <div id="beat3-focus-vignette-inner"></div>
       </div>
 
       <!-- ============ BEAT 4 — PROMISE (24-29s) ============ -->
@@ -596,6 +646,21 @@
         { scale: B3_PUSH_SCALE, x: B3_PUSH_TX, y: B3_PUSH_TY, duration: 1.4, ease: "power3.inOut" },
         9.6,
       );
+
+      // Foco en el widget (FIX gate de arte): scrim radial que hunde los
+      // fragmentos huérfanos del hero (titular cortado, botón asomando en el
+      // borde) durante el push/hold. Fade-in arranca con el push mismo
+      // (9.6→10.4). IMPORTANTE: el pull-back de #beat3-frame (15.18→15.58,
+      // más abajo) sólo encoge el BEZEL — el video del widget se queda al
+      // scale del push (1.7x) hasta el corte duro de 15.58s, así que al
+      // encogerse el bezel se destapa progresivamente más del recorte que
+      // tapaba (el bug real detrás de "Check a balance"/"Launch a coin"
+      // asomando). Por eso el foco se SOSTIENE a opacidad plena hasta el
+      // corte mismo — sin fade-out propio — y desaparece con el resto de la
+      // escena vía el propio corte duro del clip (data-duration termina
+      // justo en 15.58), consistente con que el proyecto ya trata ese corte
+      // como hard cut sin crossfade.
+      tl.fromTo("#beat3-focus-vignette-inner", { opacity: 0 }, { opacity: 1, duration: 0.8, ease: "sine.out" }, 9.6);
 
       // Fase 5 — hold (11.0-15.08s): sin más cámara — el feed real llenándose
       // de @arlo_dev y el contador subiendo hacen el trabajo (sin micro-drift:
