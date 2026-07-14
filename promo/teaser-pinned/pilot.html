@@ -1,0 +1,491 @@
+<!doctype html>
+<html lang="en" data-resolution="landscape">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=1920, height=1080" />
+    <title>RobinShare — pilot: el recorrido de un fee</title>
+    <script src="https://cdn.jsdelivr.net/npm/gsap@3.14.2/dist/gsap.min.js"></script>
+    <style>
+      /* PILOTO / DRAFT — composición STANDALONE aparte del teaser (index.html),
+         para reaccionar sobre una dirección de producto: seguir UN fee de
+         punta a punta, la flecha de Robin Hood como vehículo del valor, y el
+         dato REAL compuesto en vivo en el momento del vault (ver fase 3).
+         No toca index.html ni sus timings. Reusa fonts/ del mismo directorio. */
+
+      /* ---------- fonts (locales, deterministas — solo mono: todo el
+         piloto vive en registro terminal, ninguna fase pide display type) ---------- */
+      @font-face {
+        font-family: "IBM Plex Mono";
+        src: url("fonts/ibm-plex-mono-400-latin.woff2") format("woff2");
+        font-weight: 400;
+        font-style: normal;
+        font-display: block;
+      }
+      @font-face {
+        font-family: "IBM Plex Mono";
+        src: url("fonts/ibm-plex-mono-500-latin.woff2") format("woff2");
+        font-weight: 500;
+        font-style: normal;
+        font-display: block;
+      }
+
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+      :root {
+        --paper: #0d120e;
+        --ink: #f2f3ee;
+        --lime: #ccff00;
+        --signal: #00c805;
+        --dim: rgba(242, 243, 238, 0.62);
+      }
+      html,
+      body {
+        width: 1920px;
+        height: 1080px;
+        background: var(--paper);
+        overflow: hidden;
+      }
+      body {
+        font-family: "IBM Plex Mono", monospace;
+        color: var(--ink);
+      }
+      #root {
+        position: relative;
+        width: 1920px;
+        height: 1080px;
+        overflow: hidden;
+        background: var(--paper);
+      }
+      .clip {
+        position: absolute;
+      }
+      .scene-fill {
+        inset: 0;
+        width: 1920px;
+        height: 1080px;
+        background: var(--paper);
+      }
+      .mono {
+        font-family: "IBM Plex Mono", monospace;
+      }
+
+      /* ============ FASE 1 — LAUNCH (0-3s) ============ */
+      .p1-term-row {
+        position: absolute;
+        left: 140px;
+        top: 452px;
+        display: flex;
+        align-items: center;
+      }
+      /* el mask que "tipea": clip-path (canal permitido) en vez de width —
+         el contenedor flex ya reserva el ancho FINAL del texto desde el
+         frame 0 (clip-path solo recorta el PAINT, no el layout), así el
+         caret cae en su lugar correcto sin medir nada a mano. */
+      .p1-term-clip {
+        clip-path: inset(0% 100% 0% 0%);
+      }
+      .p1-term-text {
+        font-size: 40px;
+        color: var(--ink);
+        white-space: nowrap;
+      }
+      .p1-handle {
+        color: var(--lime);
+        font-weight: 500;
+      }
+      .p1-caret {
+        display: inline-block;
+        width: 5px;
+        height: 40px;
+        background: var(--ink);
+        margin-left: 10px;
+        opacity: 0;
+      }
+      .p1-coin-wrap {
+        position: absolute;
+        left: 830px;
+        top: 560px;
+        width: 220px;
+        height: 220px;
+      }
+      .p1-mint-ring,
+      .p1-coin {
+        position: absolute;
+        inset: 0;
+        width: 220px;
+        height: 220px;
+      }
+      .p1-mint-ring {
+        opacity: 0;
+      }
+
+      /* ============ FASE 2 — LA FLECHA LLEVA EL FEE (3-7s) ============ */
+      .p2-row {
+        position: absolute;
+        left: 140px;
+        width: 440px;
+        height: 40px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        font-size: 27px;
+      }
+      #p2-row-1 {
+        top: 372px;
+      }
+      #p2-row-2 {
+        top: 462px;
+      }
+      #p2-row-3 {
+        top: 552px;
+      }
+      .p2-row .p2-label {
+        color: var(--dim);
+      }
+      .p2-row .p2-fee {
+        color: var(--lime);
+        font-weight: 500;
+      }
+      .p2-arrow {
+        position: absolute;
+        width: 140px;
+        height: 20px;
+        opacity: 0;
+      }
+      #p2-arrow-1 {
+        left: 600px;
+        top: 382px;
+      }
+      #p2-arrow-2 {
+        left: 600px;
+        top: 472px;
+      }
+      #p2-arrow-3 {
+        left: 600px;
+        top: 562px;
+      }
+
+      /* ============ FASE 3 — EL VAULT SE LLENA (7-11s) — dato REAL ============ */
+      .p3-panel-box {
+        position: absolute;
+        left: 1160px;
+        top: 380px;
+        width: 640px;
+        height: 260px;
+        border: 2px solid var(--lime);
+        background: #0b0f0c;
+      }
+      .p3-panel-head {
+        position: absolute;
+        left: 34px;
+        top: 26px;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+      }
+      .p3-dot {
+        width: 9px;
+        height: 9px;
+        border-radius: 50%;
+        background: var(--signal);
+      }
+      .p3-panel-head span {
+        font-size: 20px;
+        letter-spacing: 0.08em;
+        color: var(--dim);
+      }
+      /* la banda REAL recortada de beat3-widget.webm (SOLO la línea del
+         contador — ver pilot-counter.webm), escalada 1.3x desde su nativo
+         440x40 para que se lea a tamaño hero sin perder nitidez. */
+      #p3-counter-video {
+        left: 1194px;
+        top: 484px;
+        width: 572px;
+        height: 52px;
+        object-fit: contain;
+      }
+      .p3-note {
+        position: absolute;
+        left: 1194px;
+        top: 558px;
+        font-size: 20px;
+        letter-spacing: 0.08em;
+        color: var(--dim);
+      }
+      .p3-impact-ring {
+        position: absolute;
+        left: 1440px;
+        top: 470px;
+        width: 80px;
+        height: 80px;
+      }
+
+      /* ============ FASE 4 — LA PLUMA DIBUJA + CLAIM (11-14s) ============ */
+      #p4-bow {
+        position: absolute;
+        left: 460px;
+        top: 330px;
+        width: 340px;
+        height: 340px;
+      }
+      .p4-arrow {
+        position: absolute;
+        width: 140px;
+        height: 20px;
+        opacity: 0;
+        left: 580px;
+        top: 490px;
+      }
+      .p4-avatar {
+        position: absolute;
+        left: 1330px;
+        top: 470px;
+        width: 140px;
+        height: 140px;
+        opacity: 0;
+      }
+      .p4-avatar svg {
+        position: absolute;
+        inset: 0;
+        width: 140px;
+        height: 140px;
+      }
+      .p4-avatar-initials {
+        position: absolute;
+        inset: 0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 30px;
+        font-weight: 500;
+        letter-spacing: 0.04em;
+        color: var(--ink);
+      }
+      #p4-claim {
+        position: absolute;
+        left: 140px;
+        top: 880px;
+        font-size: 34px;
+        color: var(--ink);
+        opacity: 0;
+      }
+      #p4-claim .lime {
+        color: var(--lime);
+      }
+    </style>
+  </head>
+  <body>
+    <div
+      id="root"
+      data-composition-id="pilot"
+      data-start="0"
+      data-duration="14"
+      data-width="1920"
+      data-height="1080"
+    >
+      <!-- ============ FASE 1 — LAUNCH (0-3s) ============ -->
+      <section id="p1" class="clip scene-fill" data-start="0" data-duration="3" data-track-index="1">
+        <div class="p1-term-row">
+          <div class="p1-term-clip" id="p1-term-clip">
+            <span class="mono p1-term-text">&gt; launch a coin -&gt; <span class="p1-handle">@arlo_dev</span></span>
+          </div>
+          <span class="p1-caret" id="p1-caret"></span>
+        </div>
+        <div class="p1-coin-wrap">
+          <svg id="p1-mint-ring" class="p1-mint-ring" viewBox="0 0 100 100" aria-hidden="true">
+            <circle cx="50" cy="50" r="40" fill="none" stroke="var(--lime)" stroke-width="2" />
+          </svg>
+          <svg id="p1-coin" class="p1-coin" viewBox="0 0 100 100" aria-hidden="true">
+            <circle cx="50" cy="50" r="38" fill="var(--paper)" stroke="var(--lime)" stroke-width="3" />
+            <circle cx="50" cy="50" r="13" fill="var(--lime)" />
+          </svg>
+        </div>
+      </section>
+
+      <!-- ============ FASE 2 — LA FLECHA LLEVA EL FEE (3-7s) ============
+           3 trades pulsan; de cada uno se desprende una flecha (path del
+           BowMark, alargada) con su fee (punto lima en la punta), disparada
+           hacia el punto donde en la fase 3 aparecerá el vault (1480,510) —
+           mismas coordenadas, para que el aterrizaje lea como continuidad. -->
+      <section id="p2" class="clip scene-fill" data-start="3" data-duration="4" data-track-index="1">
+        <div class="p2-row mono" id="p2-row-1">
+          <span class="p2-label">trade — 1.62 ETH</span><span class="p2-fee">+0.0141</span>
+        </div>
+        <div class="p2-row mono" id="p2-row-2">
+          <span class="p2-label">trade — 2.05 ETH</span><span class="p2-fee">+0.0189</span>
+        </div>
+        <div class="p2-row mono" id="p2-row-3">
+          <span class="p2-label">trade — 0.94 ETH</span><span class="p2-fee">+0.0092</span>
+        </div>
+
+        <svg id="p2-arrow-1" class="p2-arrow" viewBox="0 0 140 20" aria-hidden="true">
+          <line x1="0" y1="10" x2="112" y2="10" stroke="var(--lime)" stroke-width="3" stroke-linecap="round" />
+          <path d="M112 10 L96 3 M112 10 L96 17" stroke="var(--lime)" stroke-width="3" stroke-linecap="round" fill="none" />
+          <path d="M0 10 L12 4 M0 10 L12 16" stroke="var(--lime)" stroke-width="1.6" opacity="0.7" stroke-linecap="round" fill="none" />
+          <circle cx="118" cy="10" r="4.5" fill="var(--lime)" />
+        </svg>
+        <svg id="p2-arrow-2" class="p2-arrow" viewBox="0 0 140 20" aria-hidden="true">
+          <line x1="0" y1="10" x2="112" y2="10" stroke="var(--lime)" stroke-width="3" stroke-linecap="round" />
+          <path d="M112 10 L96 3 M112 10 L96 17" stroke="var(--lime)" stroke-width="3" stroke-linecap="round" fill="none" />
+          <path d="M0 10 L12 4 M0 10 L12 16" stroke="var(--lime)" stroke-width="1.6" opacity="0.7" stroke-linecap="round" fill="none" />
+          <circle cx="118" cy="10" r="4.5" fill="var(--lime)" />
+        </svg>
+        <svg id="p2-arrow-3" class="p2-arrow" viewBox="0 0 140 20" aria-hidden="true">
+          <line x1="0" y1="10" x2="112" y2="10" stroke="var(--lime)" stroke-width="3" stroke-linecap="round" />
+          <path d="M112 10 L96 3 M112 10 L96 17" stroke="var(--lime)" stroke-width="3" stroke-linecap="round" fill="none" />
+          <path d="M0 10 L12 4 M0 10 L12 16" stroke="var(--lime)" stroke-width="1.6" opacity="0.7" stroke-linecap="round" fill="none" />
+          <circle cx="118" cy="10" r="4.5" fill="var(--lime)" />
+        </svg>
+      </section>
+
+      <!-- ============ FASE 3 — EL VAULT SE LLENA (7-11s) — DATO REAL ============
+           pilot-counter.webm: recorte ffmpeg de assets/beat3-widget.webm
+           (crop=440:40:1090:465, ventana fuente 10.0-14.0s) — SOLO la línea
+           "@arlo_dev's vault +X.XXXX ETH and counting", sin página, sin
+           ventana de navegador, sin feed. Ver pilot-report.md para el detalle
+           de cómo se midió la región (la línea DERIVA verticalmente en la
+           primera mitad del clip fuente a medida que el tape agrega filas;
+           10.0-14.0s es la ventana donde el layout ya está estable Y el
+           valor sigue subiendo en vivo: 0.0422 -> 0.0649 ETH). El video es
+           HIJO DIRECTO de #root (contrato HyperFrames), posicionado por CSS
+           para caer exactamente dentro del panel diseñado. -->
+      <section id="p3" class="clip scene-fill" data-start="7" data-duration="4" data-track-index="1">
+        <div class="p3-panel-box" id="p3-panel-box">
+          <div class="p3-panel-head" id="p3-panel-head">
+            <span class="p3-dot"></span>
+            <span class="mono">vault --watch</span>
+          </div>
+        </div>
+        <svg class="p3-impact-ring" id="p3-impact-ring" viewBox="0 0 80 80" aria-hidden="true">
+          <circle cx="40" cy="40" r="34" fill="none" stroke="var(--lime)" stroke-width="2" />
+        </svg>
+        <div class="p3-note mono" id="p3-note">on-chain — in their name</div>
+      </section>
+      <video
+        id="p3-counter-video"
+        class="clip"
+        src="assets/pilot-counter.webm"
+        data-start="7"
+        data-duration="4"
+        data-track-index="2"
+        muted
+        playsinline
+      ></video>
+
+      <!-- ============ FASE 4 — LA PLUMA DIBUJA + CLAIM (11-14s) ============ -->
+      <section id="p4" class="clip scene-fill" data-start="11" data-duration="3" data-track-index="1">
+        <svg id="p4-bow" viewBox="0 0 240 240" aria-hidden="true">
+          <path id="p4-arc-path" d="M70 30 A 130 130 0 0 1 70 210" fill="none" stroke="var(--lime)" stroke-width="6" stroke-linecap="round" />
+          <path id="p4-string-path" d="M70 30 L70 210" fill="none" stroke="var(--ink)" stroke-width="2" opacity="0.7" />
+        </svg>
+        <svg id="p4-arrow" class="p4-arrow" viewBox="0 0 140 20" aria-hidden="true">
+          <line x1="0" y1="10" x2="112" y2="10" stroke="var(--lime)" stroke-width="3" stroke-linecap="round" />
+          <path d="M112 10 L96 3 M112 10 L96 17" stroke="var(--lime)" stroke-width="3" stroke-linecap="round" fill="none" />
+          <path d="M0 10 L12 4 M0 10 L12 16" stroke="var(--lime)" stroke-width="1.6" opacity="0.7" stroke-linecap="round" fill="none" />
+          <circle cx="118" cy="10" r="4.5" fill="var(--lime)" />
+        </svg>
+        <div class="p4-avatar" id="p4-avatar">
+          <svg viewBox="0 0 140 140" aria-hidden="true">
+            <circle cx="70" cy="70" r="64" fill="var(--paper)" stroke="var(--lime)" stroke-width="3" />
+          </svg>
+          <span class="p4-avatar-initials mono">AD</span>
+        </div>
+        <div id="p4-claim" class="mono">only they <span class="lime">claim it</span></div>
+      </section>
+    </div>
+
+    <script>
+      window.__timelines = window.__timelines || {};
+      var tl = gsap.timeline({ paused: true });
+
+      /* ---------- setup síncrono: largo real de los paths del arco/cuerda
+         (geometría estática, no depende del tiempo de render — determinista) ---------- */
+      var arcPath = document.getElementById("p4-arc-path");
+      var arcLen = arcPath.getTotalLength();
+      gsap.set(arcPath, { strokeDasharray: arcLen, strokeDashoffset: arcLen });
+      var stringPath = document.getElementById("p4-string-path");
+      var stringLen = stringPath.getTotalLength();
+      gsap.set(stringPath, { strokeDasharray: stringLen, strokeDashoffset: stringLen });
+
+      /* ---------- FASE 1 : launch (0-3s) ---------- */
+      tl.fromTo(
+        "#p1-term-clip",
+        { clipPath: "inset(0% 100% 0% 0%)" },
+        { clipPath: "inset(0% 0% 0% 0%)", duration: 1.7, ease: "none" },
+        0.15,
+      );
+      tl.set("#p1-caret", { opacity: 1 }, 1.85);
+      tl.to("#p1-caret", { opacity: 0, duration: 0.16, ease: "none", yoyo: true, repeat: 5 }, 1.9);
+
+      tl.fromTo("#p1-coin", { scale: 0, opacity: 0 }, { scale: 1, opacity: 1, duration: 0.5, ease: "back.out(2.2)" }, 1.95);
+      // el anillo de "mint" vive dentro de la fase 1 (visible desde t=0, sin
+      // sección previa que la tape antes de su entrada) — un fromTo cuyo
+      // "from" no es un estado oculto (opacity 0.7) queda BLEEDING durante
+      // todo el tramo 0-1.95s (comportamiento normal de GSAP: antes del
+      // inicio de un tween, el target se pinta en su valor "from"). Fix:
+      // baseline oculta explícita + "pop" instantáneo via .set(), luego un
+      // .to() puro (sin from) para la expansión/fade — ningún tween con
+      // "from" visible queda expuesto antes de su propio disparo.
+      tl.set("#p1-mint-ring", { opacity: 0 }, 0);
+      tl.set("#p1-mint-ring", { scale: 0.5, opacity: 0.7 }, 1.95);
+      tl.to("#p1-mint-ring", { scale: 1.8, opacity: 0, duration: 0.6, ease: "power2.out" }, 1.95);
+
+      /* ---------- FASE 2 : la flecha lleva el fee (3-7s) ---------- */
+      tl.fromTo(
+        ["#p2-row-1", "#p2-row-2", "#p2-row-3"],
+        { x: -24, opacity: 0 },
+        { x: 0, opacity: 1, duration: 0.4, ease: "power3.out", stagger: 0.09 },
+        3.02,
+      );
+
+      // ángulo estático de cada flecha según su trayectoria (fila -> punto del vault, 1480,510)
+      tl.set("#p2-arrow-1", { rotation: 9.06 }, 0);
+      tl.set("#p2-arrow-2", { rotation: 2.17 }, 0);
+      tl.set("#p2-arrow-3", { rotation: -4.79 }, 0);
+
+      function fireArrow(id, rowId, t0, dx, dy) {
+        tl.to(rowId, { scale: 1.05, duration: 0.12, ease: "power2.out", yoyo: true, repeat: 1 }, t0);
+        tl.fromTo(id, { opacity: 0, scale: 0.9 }, { opacity: 1, scale: 1, duration: 0.12, ease: "power1.out" }, t0 + 0.08);
+        tl.to(id, { x: dx, y: dy, duration: 0.62, ease: "power2.in" }, t0 + 0.08);
+        tl.to(id, { opacity: 0, duration: 0.15, ease: "power1.in" }, t0 + 0.58);
+      }
+      fireArrow("#p2-arrow-1", "#p2-row-1", 3.65, 740, 118);
+      fireArrow("#p2-arrow-2", "#p2-row-2", 4.75, 740, 28);
+      fireArrow("#p2-arrow-3", "#p2-row-3", 5.85, 740, -62);
+
+      /* ---------- FASE 3 : el vault se llena — dato real (7-11s) ---------- */
+      tl.fromTo("#p3-panel-box", { scale: 0.92, opacity: 0 }, { scale: 1, opacity: 1, duration: 0.45, ease: "power3.out" }, 7.0);
+      tl.fromTo(
+        "#p3-impact-ring",
+        { scale: 0.3, opacity: 0.7 },
+        { scale: 2.2, opacity: 0, duration: 0.55, ease: "power2.out" },
+        7.0,
+      );
+      tl.fromTo("#p3-panel-head", { opacity: 0, y: -6 }, { opacity: 1, y: 0, duration: 0.3, ease: "power2.out" }, 7.25);
+      tl.fromTo("#p3-counter-video", { opacity: 0 }, { opacity: 1, duration: 0.35, ease: "sine.out" }, 7.15);
+      tl.fromTo("#p3-note", { opacity: 0, y: 8 }, { opacity: 1, y: 0, duration: 0.4, ease: "power2.out" }, 7.55);
+
+      /* ---------- FASE 4 : la pluma dibuja + claim (11-14s) ---------- */
+      tl.to(arcPath, { strokeDashoffset: 0, duration: 1.3, ease: "power1.inOut" }, 11.0);
+      tl.to(stringPath, { strokeDashoffset: 0, duration: 1.1, ease: "power1.inOut" }, 11.05);
+
+      tl.fromTo("#p4-avatar", { scale: 0.85, opacity: 0 }, { scale: 1, opacity: 1, duration: 0.4, ease: "power2.out" }, 11.3);
+
+      // "twang" — la cuerda flexa justo cuando el arco termina de dibujarse
+      tl.to(stringPath, { scaleX: 1.08, duration: 0.06, ease: "power2.out", yoyo: true, repeat: 1, transformOrigin: "50% 50%" }, 12.3);
+
+      tl.fromTo("#p4-arrow", { opacity: 0, scale: 0.9 }, { opacity: 1, scale: 1, duration: 0.1, ease: "power1.out" }, 12.35);
+      tl.to("#p4-arrow", { x: 680, y: 40, rotation: 3.37, duration: 0.6, ease: "power2.in" }, 12.35);
+      tl.to("#p4-arrow", { opacity: 0, duration: 0.15, ease: "power1.in" }, 12.85);
+
+      tl.to("#p4-avatar", { scale: 1.12, duration: 0.1, ease: "power2.out", yoyo: true, repeat: 1 }, 12.95);
+
+      tl.fromTo("#p4-claim", { opacity: 0, y: 10 }, { opacity: 1, y: 0, duration: 0.45, ease: "power3.out" }, 13.05);
+
+      window.__timelines["pilot"] = tl;
+    </script>
+  </body>
+</html>
