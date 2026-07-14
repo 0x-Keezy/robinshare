@@ -176,49 +176,66 @@
         will-change: transform;
       }
 
-      /* ---------- beat 3 : product ---------- */
-      #beat3-video,
-      #beat3-sec01,
-      #beat3-sec02,
-      #beat3-sec03 {
+      /* ---------- beat 3 : product — movimiento real (widget en vivo +
+         push de camara + scroll cinematografico) ---------- */
+      #beat3-widget-video,
+      #beat3-scroll-video {
         inset: 0;
         width: 1920px;
         height: 1080px;
         object-fit: cover;
         will-change: transform;
       }
-      /* El webm es la página entera (estática). Encuadramos ~1.6x anclado al
-         top para que el HERO (titular ROUTE FEES + panel robinshare://tape vivo)
-         llene el cuadro; la marquesina y el segundo titular quedan empujados al
-         fondo y ocultos por #beat3-video-matte. Sin escala, se vería a "screen
-         recording" con ~10 elementos compitiendo. */
-      #beat3-video {
-        transform-origin: 50% 0%;
-      }
-      /* Matte de papel al pie SOLO sobre el video: tapa la banda de marquesina
-         (que dice "EVERY TRADE PAYS THE BUILDER" y pre-eco al beat 4). Opaco
-         desde 86% para abajo — la marquesina reencuadrada cae siempre por debajo
-         de ~87%, así que nunca se filtra. Deja el input y las filas del tape
-         limpias arriba. */
-      #beat3-video-matte {
+      /* Matte de papel al pie: ancla el rótulo mono y da aire al corte con
+         beat 4, sobre ambos videos (ninguno trae ya marquesina que ocultar,
+         a diferencia del tape-hero viejo — esto es una viñeta suave). */
+      #beat3-foot-matte {
         inset: 0;
         width: 1920px;
         height: 1080px;
         background: linear-gradient(
           180deg,
-          rgba(13, 18, 14, 0) 70%,
-          rgba(13, 18, 14, 0.72) 81%,
-          rgb(13, 18, 14) 86%,
+          rgba(13, 18, 14, 0) 78%,
+          rgba(13, 18, 14, 0.6) 90%,
           rgb(13, 18, 14) 100%
         );
       }
-      /* Scrim liviano solo sobre las capturas de sección (ya son crops curados,
-         sin marquesina) — respalda el rótulo mono. */
-      #beat3-scrim {
-        inset: 0;
+      /* Bezel de ventana de navegador — plano, sin recorte de video (el
+         <video> no se puede envolver): una franja opaca al tope, 3
+         traffic-lights + URL mono. Persiste 7.0-23.6s, hermana del video y
+         el cursor en el push de cámara (mismo scale/x/y). */
+      #beat3-frame {
+        top: 0;
+        left: 0;
         width: 1920px;
-        height: 1080px;
-        background: linear-gradient(180deg, transparent 62%, rgba(13, 18, 14, 0.86) 100%);
+        height: 56px;
+        background: var(--paper);
+        border-bottom: 1px solid rgba(242, 243, 238, 0.1);
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 0 28px;
+        will-change: transform;
+      }
+      .b3-dot {
+        width: 11px;
+        height: 11px;
+        border-radius: 50%;
+        display: inline-block;
+      }
+      .b3-dot-red {
+        background: #ff5f56;
+      }
+      .b3-dot-yellow {
+        background: #ffbd2e;
+      }
+      .b3-dot-green {
+        background: #27c93f;
+      }
+      .b3-url {
+        margin-left: 18px;
+        font-size: 15px;
+        letter-spacing: 0.04em;
       }
       #beat3-label {
         left: 96px;
@@ -228,6 +245,27 @@
         letter-spacing: 0.14em;
         line-height: 1.5;
         will-change: transform, opacity;
+      }
+      /* Cursor de marca — triángulo SVG (vocabulario cursor-click-ripple),
+         reposa sobre el input del widget (coords de beat3-coords.json). */
+      #beat3-cursor {
+        left: 1294px;
+        top: 448px;
+        width: 30px;
+        height: 30px;
+        pointer-events: none;
+        will-change: transform, opacity;
+      }
+      #beat3-ripple {
+        left: 1255px;
+        top: 407px;
+        width: 90px;
+        height: 90px;
+        border-radius: 50%;
+        border: 2px solid var(--lime);
+        transform: scale(0);
+        opacity: 0;
+        pointer-events: none;
       }
 
       /* ---------- beat 4 : promise ---------- */
@@ -310,7 +348,7 @@
       id="root"
       data-composition-id="main"
       data-start="0"
-      data-duration="28"
+      data-duration="33"
       data-width="1920"
       data-height="1080"
     >
@@ -334,33 +372,62 @@
         <h1 id="beat2-text" class="display">We built that on-chain.</h1>
       </section>
 
-      <!-- ============ BEAT 3 — PRODUCT (7-19s) ============ -->
+      <!-- ============ BEAT 3 — PRODUCT (7-24s) — movimiento real ============
+           Sub-beats (ver .superpowers/sdd/web-f2-report.md):
+           7.0-8.2 establish · 7.0-16.6 widget en vivo · 8.6-9.2 cursor→input ·
+           9.2-9.6 click+ripple · 9.6-11.0 push de cámara al panel ·
+           11.0-16.2 hold (el feed real hace el trabajo) · 16.1-16.6 cursor
+           fade-out · 16.2-16.6 pull-back del marco · 16.6-23.6 scroll en vivo
+           con push continuo suave · 23.6-24.0 settle. -->
       <video
-        id="beat3-video"
+        id="beat3-widget-video"
         class="clip"
-        src="assets/tape-hero.webm"
+        src="assets/beat3-widget.webm"
         data-start="7"
-        data-duration="6"
-        data-media-start="2.5"
+        data-duration="8.58"
+        data-media-start="5.5"
         data-track-index="1"
         muted
         playsinline
       ></video>
-      <div id="beat3-video-matte" class="clip" data-start="7" data-duration="6" data-track-index="2"></div>
-      <!-- Slides con solape (~0.35s de crossfade): cada capa entra en pistas
-           alternas ANTES de que la anterior termine, para que nunca haya un
-           instante sin producto en cuadro (el hueco negro a 13.0s del review). -->
-      <img id="beat3-sec01" class="clip" src="assets/sec-01.png" data-start="12.6" data-duration="2.6" data-track-index="4" alt="" />
-      <img id="beat3-sec02" class="clip" src="assets/sec-02.png" data-start="14.8" data-duration="2.4" data-track-index="1" alt="" />
-      <img id="beat3-sec03" class="clip" src="assets/sec-03.png" data-start="16.8" data-duration="2.2" data-track-index="4" alt="" />
-      <div id="beat3-scrim" class="clip" data-start="13" data-duration="6" data-track-index="5"></div>
-      <div id="beat3-label" class="clip mono" data-start="7" data-duration="12" data-track-index="3">
+      <video
+        id="beat3-scroll-video"
+        class="clip"
+        src="assets/beat3-scroll.webm"
+        data-start="15.58"
+        data-duration="8.42"
+        data-media-start="0.4"
+        data-track-index="2"
+        muted
+        playsinline
+      ></video>
+      <div id="beat3-foot-matte" class="clip" data-start="7" data-duration="16.6" data-track-index="3"></div>
+      <div
+        id="beat3-frame"
+        class="clip"
+        data-start="7"
+        data-duration="16.6"
+        data-track-index="4"
+        data-layout-allow-overflow="true"
+      >
+        <span class="b3-dot b3-dot-red"></span>
+        <span class="b3-dot b3-dot-yellow"></span>
+        <span class="b3-dot b3-dot-green"></span>
+        <span class="b3-url mono mono-url">robinshare.vercel.app</span>
+      </div>
+      <div id="beat3-label" class="clip mono" data-start="7" data-duration="16.6" data-track-index="5">
         the real product <span class="mono-url">—</span> live at
         <span class="mono-url">robinshare.vercel.app</span>
       </div>
+      <div id="beat3-ripple" class="clip" data-start="9.2" data-duration="0.6" data-track-index="7"></div>
+      <div id="beat3-cursor" class="clip" data-start="8.6" data-duration="6.98" data-track-index="6">
+        <svg width="30" height="30" viewBox="0 0 24 24">
+          <path d="M5 3L19 12L12 13L9 20L5 3Z" fill="var(--ink)" stroke="var(--paper)" stroke-width="1.3" />
+        </svg>
+      </div>
 
-      <!-- ============ BEAT 4 — PROMISE (19-24s) ============ -->
-      <section id="beat4" class="clip scene-fill" data-start="19" data-duration="5" data-track-index="1" data-layout-allow-overflow="true">
+      <!-- ============ BEAT 4 — PROMISE (24-29s) ============ -->
+      <section id="beat4" class="clip scene-fill" data-start="24" data-duration="5" data-track-index="1" data-layout-allow-overflow="true">
         <div class="b4-stack">
           <div class="b4-line display" id="b4-l1">Every trade pays the builder.</div>
           <div class="b4-line display" id="b4-l2">0 admin keys.</div>
@@ -368,8 +435,8 @@
         </div>
       </section>
 
-      <!-- ============ BEAT 5 — REMATE (24-28s) ============ -->
-      <section id="beat5" class="clip scene-fill" data-start="24" data-duration="4" data-track-index="1">
+      <!-- ============ BEAT 5 — REMATE (29-33s) ============ -->
+      <section id="beat5" class="clip scene-fill" data-start="29" data-duration="4" data-track-index="1">
         <div class="bookend-bg" id="beat5-bg" style="background-image: url('assets/bookend-close.png')"></div>
         <div class="bookend-scrim b5-scrim"></div>
         <div id="beat5-content">
@@ -398,27 +465,30 @@
       <audio id="sfx-cut" src="assets/sfx-impact-cut.mp3"
         data-start="4" data-duration="2.116" data-track-index="10" data-volume="0.82"></audio>
 
-      <!-- beat 3 · transición hero→/01 (~12.6s, primer slide) → whoosh suave, editorial -->
+      <!-- beat 3 · corte hero→scroll (15.58s — retimeado desde el 17.0 previsto:
+           beat3-widget.webm solo tiene 8.58s reproducibles tras data-media-start
+           5.5s, así que el hero cierra a los 15.58s, no a los 16.6s; ver informe)
+           → whoosh suave, editorial -->
       <audio id="sfx-slide" src="assets/sfx-whoosh.mp3"
-        data-start="12.6" data-duration="0.575" data-track-index="11" data-volume="0.34"></audio>
+        data-start="15.58" data-duration="0.575" data-track-index="11" data-volume="0.34"></audio>
 
-      <!-- puente · riser de ~10s que crestea en el logo del beat 5 (24.0s = 14.0 + 10.03);
+      <!-- puente · riser de ~10s que crestea en el logo del beat 5 (29.03s = 19.0 + 10.03);
            bajo (0.42) para levantar tensión sin volverse épica de trailer -->
       <audio id="sfx-riser" src="assets/sfx-riser.mp3"
-        data-start="14" data-duration="10.032" data-track-index="12" data-volume="0.42"></audio>
+        data-start="19" data-duration="10.032" data-track-index="12" data-volume="0.42"></audio>
 
       <!-- beat 4 · un hit corto en la entrada de cada una de las 3 líneas -->
       <audio id="sfx-l1" src="assets/sfx-whoosh.mp3"
-        data-start="19" data-duration="0.575" data-track-index="13" data-volume="0.5"></audio>
+        data-start="24" data-duration="0.575" data-track-index="13" data-volume="0.5"></audio>
       <audio id="sfx-l2" src="assets/sfx-whoosh-short.mp3"
-        data-start="20.7" data-duration="0.575" data-track-index="14" data-volume="0.5"></audio>
+        data-start="25.7" data-duration="0.575" data-track-index="14" data-volume="0.5"></audio>
       <!-- L3 es la línea lima "100% of the fee → builder": ping nítido, el dato clave -->
       <audio id="sfx-l3" src="assets/sfx-ping.mp3"
-        data-start="22.3" data-duration="1.32" data-track-index="15" data-volume="0.56"></audio>
+        data-start="27.3" data-duration="1.32" data-track-index="15" data-volume="0.56"></audio>
 
-      <!-- beat 5 · impacto final en el lockup ROBINSHARE (24.3s), resuelve el riser -->
+      <!-- beat 5 · impacto final en el lockup ROBINSHARE (29.3s), resuelve el riser -->
       <audio id="sfx-lockup" src="assets/sfx-impact-lockup.mp3"
-        data-start="24.3" data-duration="2.592" data-track-index="16" data-volume="0.85"></audio>
+        data-start="29.3" data-duration="2.592" data-track-index="16" data-volume="0.85"></audio>
     </div>
 
     <script>
@@ -449,57 +519,144 @@
       // no opacity fade here. Only a fast scale-settle rides on top.
       tl.fromTo("#beat2-text", { scale: 1.05 }, { scale: 1.0, duration: 0.22, ease: "power2.out" }, 4);
 
-      /* ---------- BEAT 3 : product (7-19s) — media playback + reframe + Ken Burns ---------- */
-      // Reencuadre: zoom 1.6→1.66 anclado al top (transform-origin 50% 0%) para
-      // que hero + panel del tape llenen el cuadro; la marquesina queda al pie,
-      // tapada por el matte. El zoom lento se mantiene.
-      tl.fromTo("#beat3-video", { scale: 1.6 }, { scale: 1.66, duration: 6, ease: "none" }, 7);
+      /* ---------- BEAT 3 : product (7-24s) — widget en vivo + push de cámara
+         + scroll cinematográfico. El video no se puede envolver (contrato
+         HyperFrames), así que la "cámara" es un mismo tween aplicado como
+         HERMANOS a #beat3-widget-video + #beat3-frame + #beat3-cursor.
 
-      // Cada slide arranca su fade ANTES de que la capa previa termine (crossfade),
-      // así no hay frame sin producto. Fade 0.35s → full antes del corte anterior.
-      var slides = ["#beat3-sec01", "#beat3-sec02", "#beat3-sec03"];
-      var slideStarts = [12.6, 14.8, 16.8];
-      slides.forEach(function (sel, i) {
-        var t0 = slideStarts[i];
-        // Opacidad sube RÁPIDO (0.18s) para que la capa entrante quede opaca casi
-        // al instante — evita el fantasma de doble-exposición entre capturas de
-        // contenido parecido. El deslizamiento (x) sigue más largo: da el gesto
-        // "slide editorial" mientras la capa ya es opaca y cubre a la anterior.
-        tl.fromTo(sel, { opacity: 0 }, { opacity: 1, duration: 0.18, ease: "power1.out" }, t0);
-        tl.fromTo(sel, { x: 60 }, { x: 0, duration: 0.55, ease: "power3.out" }, t0);
-        tl.fromTo(sel, { scale: 1.0 }, { scale: 1.035, duration: 2, ease: "sine.out" }, t0);
-      });
+         Matemática (coordinate-target-zoom adaptada, sin wrapper): fijamos
+         transform-origin de cada hermano en el mismo punto ABSOLUTO — el
+         centro real del panel del widget (beat3-coords.json) — y sumamos un
+         translate CONSTANTE T = centroCanvas − centroPanel. Con origin en el
+         punto que debe quedar fijo bajo el scale, T no depende de la escala
+         (ver hyperframes-animation/rules/coordinate-target-zoom.md), así que
+         solo animamos `scale`; x/y arrancan en 0 y llegan a T tweeneados
+         junto con la escala (mismos duration/ease) para que el resultado sea
+         un pan+zoom continuo hacia el panel, no un salto. */
+      var B3_PANEL_CX = 1092.921875 + 419.0625 / 2; // 1302.453125
+      var B3_PANEL_CY = 128 + 376.5 / 2; //             316.25
+      var B3_PUSH_SCALE = 1.7; // headroom: panel a 1.7x ocupa ~37%x59% del canvas (cap 88%)
+      var B3_PUSH_TX = 960 - B3_PANEL_CX; // -342.453125
+      var B3_PUSH_TY = 540 - B3_PANEL_CY; //  223.75
+      var B3_CURSOR_LEFT = 1294,
+        B3_CURSOR_TOP = 448; // reposo del cursor sobre el input (coords.json)
+
+      // Fase 1 — establish: la ventana se asienta (7.0-8.2s). Origen 50% 50%
+      // (default) = centro de canvas para el video/marco full-bleed.
+      tl.fromTo(
+        ["#beat3-widget-video", "#beat3-frame"],
+        { scale: 0.94 },
+        { scale: 1.0, duration: 1.2, ease: "power3.out" },
+        7.0,
+      );
+
+      // Fase 2 — el cursor de marca entra y se desliza hacia el input (8.6-9.2s).
+      tl.fromTo(
+        "#beat3-cursor",
+        { x: -1034, y: 312, opacity: 0 },
+        { x: 0, y: 0, opacity: 1, duration: 0.6, ease: "power3.out" },
+        8.6,
+      );
+
+      // Fase 3 — click + ripple sobre el input (9.25s), resuelve a 9.6s justo
+      // antes del push (cursor-click-ripple: move → settle → click → ripple).
+      tl.to(
+        "#beat3-cursor",
+        { scale: 0.85, duration: 0.08, ease: "power2.in", yoyo: true, repeat: 1 },
+        9.25,
+      );
+      tl.set("#beat3-ripple", { opacity: 1 }, 9.25);
+      tl.fromTo(
+        "#beat3-ripple",
+        { scale: 0 },
+        { scale: 3.4, opacity: 0, duration: 0.35, ease: "power2.out", immediateRender: false },
+        9.25,
+      );
+
+      // A las 9.6s escala=1 y x/y=0 en los 3 hermanos → recentramos el origen
+      // en el centro REAL del panel sin ningún salto visual (cambiar
+      // transform-origin a scale=1/translate=0 es la identidad, sea cual sea
+      // el origen), justo antes de que arranque el push.
+      tl.set(
+        ["#beat3-widget-video", "#beat3-frame"],
+        { transformOrigin: B3_PANEL_CX + "px " + B3_PANEL_CY + "px" },
+        9.6,
+      );
+      tl.set(
+        "#beat3-cursor",
+        { transformOrigin: (B3_PANEL_CX - B3_CURSOR_LEFT) + "px " + (B3_PANEL_CY - B3_CURSOR_TOP) + "px" },
+        9.6,
+      );
+
+      // Fase 4 — push de cámara al panel del widget (9.6-11.0s). Un solo
+      // tween con target-array garantiza progreso IDÉNTICO en los 3 hermanos
+      // (nunca desincronizados entre sí).
+      tl.to(
+        ["#beat3-widget-video", "#beat3-frame", "#beat3-cursor"],
+        { scale: B3_PUSH_SCALE, x: B3_PUSH_TX, y: B3_PUSH_TY, duration: 1.4, ease: "power3.inOut" },
+        9.6,
+      );
+
+      // Fase 5 — hold (11.0-15.08s): sin más cámara — el feed real llenándose
+      // de @arlo_dev y el contador subiendo hacen el trabajo (sin micro-drift:
+      // con 2 hermanos ya en juego, un drift añadido no vale el riesgo de
+      // desincronía frente al contenido real, que ya aporta el movimiento).
+      // NOTA duración: beat3-widget.webm mide 14.08s; con data-media-start
+      // 5.5s quedan 8.58s reproducibles, así que el hero cierra a los 15.58s
+      // (7.0+8.58), no a los 16.6s del plan original — el resto de las fases
+      // de este beat se retimearon en consecuencia (ver informe).
+
+      // El cursor se apaga antes del corte (15.08-15.48s).
+      tl.to("#beat3-cursor", { opacity: 0, duration: 0.4, ease: "power2.in" }, 15.08);
+
+      // Pull-back del marco a neutro ANTES del corte (15.18-15.58s) — termina
+      // justo cuando entra beat3-scroll.webm, así el corte nunca muestra el
+      // marco todavía "empujado" contra un fondo que ya cambió.
+      tl.to("#beat3-frame", { scale: 1.0, x: 0, y: 0, duration: 0.4, ease: "power2.out" }, 15.18);
+      tl.set("#beat3-frame", { transformOrigin: "50% 50%" }, 15.58);
+
+      // Fase 6 — scroll cinematográfico (15.98-23.6s): push de cámara continuo
+      // y suave (multi-phase-camera, patrón "steady push"), centrado. Arranca
+      // 0.4s después del corte (15.58) para un respiro neutro post-corte, y
+      // usa el resto del beat (hasta 23.6, dejando 23.6-24.0 de settle).
+      tl.fromTo(
+        ["#beat3-scroll-video", "#beat3-frame"],
+        { scale: 1.0 },
+        { scale: 1.05, duration: 7.62, ease: "power2.inOut" },
+        15.98,
+      );
+      // 23.6-24.0 queda en settle (sin más tweens) antes del corte a beat 4.
 
       tl.fromTo("#beat3-label", { y: 14, opacity: 0 }, { y: 0, opacity: 1, duration: 0.4, ease: "power3.out" }, 7.15);
 
-      /* ---------- BEAT 4 : promise (19-24s) — kinetic stack, one line per beat ---------- */
+      /* ---------- BEAT 4 : promise (24-29s) — kinetic stack, one line per beat ---------- */
       // Distinct entrance per line (kinetic-beat-slam pattern): slam / side-snap / rise+rotate.
       tl.fromTo(
         "#b4-l1",
         { scale: 1.4, filter: "blur(14px)", opacity: 0 },
         { scale: 1, filter: "blur(0px)", opacity: 1, duration: 0.5, ease: "power4.out" },
-        19.0,
+        24.0,
       );
-      tl.fromTo("#b4-l2", { x: -260, opacity: 0 }, { x: 0, opacity: 1, duration: 0.45, ease: "expo.out" }, 20.7);
+      tl.fromTo("#b4-l2", { x: -260, opacity: 0 }, { x: 0, opacity: 1, duration: 0.45, ease: "expo.out" }, 25.7);
       tl.fromTo(
         "#b4-l3",
         { y: 90, rotation: 5, opacity: 0 },
         { y: 0, rotation: 0, opacity: 1, duration: 0.55, ease: "circ.out" },
-        22.3,
+        27.3,
       );
 
-      /* ---------- BEAT 5 : remate (24-28s) — logo sting, clean fade out ---------- */
+      /* ---------- BEAT 5 : remate (29-33s) — logo sting, clean fade out ---------- */
       if (bookends) {
-        tl.fromTo("#beat5-bg", { scale: 1.03 }, { scale: 1.0, duration: 4, ease: "sine.out" }, 24);
+        tl.fromTo("#beat5-bg", { scale: 1.03 }, { scale: 1.0, duration: 4, ease: "sine.out" }, 29);
       }
-      tl.fromTo("#bowmark", { scale: 0, opacity: 0 }, { scale: 1, opacity: 1, duration: 0.5, ease: "power3.out" }, 24.0);
-      tl.fromTo("#beat5-word", { y: 20, opacity: 0 }, { y: 0, opacity: 1, duration: 0.45, ease: "power3.out" }, 24.3);
-      tl.fromTo("#beat5-tag", { y: 14, opacity: 0 }, { y: 0, opacity: 1, duration: 0.4, ease: "power3.out" }, 24.6);
-      tl.fromTo("#beat5-url", { opacity: 0 }, { opacity: 1, duration: 0.4, ease: "power2.out" }, 24.85);
+      tl.fromTo("#bowmark", { scale: 0, opacity: 0 }, { scale: 1, opacity: 1, duration: 0.5, ease: "power3.out" }, 29.0);
+      tl.fromTo("#beat5-word", { y: 20, opacity: 0 }, { y: 0, opacity: 1, duration: 0.45, ease: "power3.out" }, 29.3);
+      tl.fromTo("#beat5-tag", { y: 14, opacity: 0 }, { y: 0, opacity: 1, duration: 0.4, ease: "power3.out" }, 29.6);
+      tl.fromTo("#beat5-url", { opacity: 0 }, { opacity: 1, duration: 0.4, ease: "power2.out" }, 29.85);
       // Clean fade to paper-black over the last 0.6s — a dedicated veil (not just
       // content opacity) so the ending reads as a true fade-out in both bookend
       // variants, whether the backdrop is the close photo or flat paper.
-      tl.fromTo("#beat5-veil", { opacity: 0 }, { opacity: 1, duration: 0.6, ease: "power2.in" }, 27.4);
+      tl.fromTo("#beat5-veil", { opacity: 0 }, { opacity: 1, duration: 0.6, ease: "power2.in" }, 32.4);
 
       // Capa de sonido: los SFX se disparan por su data-start/data-duration en el
       // motor de HyperFrames (playback determinista); su nivel es estático
