@@ -504,6 +504,15 @@
         <div id="beat5-veil"></div>
       </section>
 
+      <!-- ============ COLCHÓN DE AMBIENTE — bed continuo (33s) ============
+           Drone/pad generado localmente (MusicGen, facebook/musicgen-small vía media-use;
+           el bundle de SFX no tiene ambient/drone/pad — ver informe). Corre los 33s enteros
+           en volumen bajo (0.14) para que nunca haya silencio muerto entre golpes; fade-in
+           bakeado 0-2s y fade-out 30-33s (resuelve justo en el lockup). Pista 9, por debajo
+           de todos los SFX puntuales. -->
+      <audio id="bed-ambient" src="assets/bed-ambient.mp3"
+        data-start="0" data-duration="33" data-track-index="9" data-volume="0.14"></audio>
+
       <!-- ============ CAPA DE SONIDO — SFX diseñados (bundled, sin credenciales) ============
            Sin BGM continuo: una capa de sonido puntual que subraya los cortes secos del
            teaser brutalista. 6 archivos, 7 disparos, registro minimal/premium/tech. Cada
@@ -539,6 +548,46 @@
       <!-- beat 5 · impacto final en el lockup ROBINSHARE (29.3s), resuelve el riser -->
       <audio id="sfx-lockup" src="assets/sfx-impact-lockup.mp3"
         data-start="29.3" data-duration="2.592" data-track-index="16" data-volume="0.85"></audio>
+
+      <!-- ============ SOUND DESIGN — capa nueva (widget + scroll) ============
+           Llena los huecos que quedaban mudos entre los golpes existentes. Todo bundled
+           (media-use, sin credenciales). El bundle solo tiene una textura "whoosh" real
+           (whoosh.mp3 y whoosh-short.mp3 son el MISMO archivo — hash idéntico, ver informe),
+           así que las variantes de whoosh de abajo comparten fuente pero se dosifican en
+           volumen para no sonar a copia-pegada. -->
+
+      <!-- widget · swish MUY leve en la entrada del cursor (8.6s, mismo instante que el
+           tween de entrada del cursor) -->
+      <audio id="sfx-cursor-swish" src="assets/sfx-whoosh-short.mp3"
+        data-start="8.6" data-duration="0.575" data-track-index="17" data-volume="0.20"></audio>
+
+      <!-- widget · 3 ticks de tecla discretos entre el click sobre el input (9.25s) y el
+           arranque del push de cámara (9.6s) — flourish de "tipeo rápido" tras el foco,
+           no una transcripción literal del video (el widget real ya trae "@arlo_dev"
+           precargado en el feed, ver informe) -->
+      <audio id="sfx-key-tick-1" src="assets/sfx-key-tick.mp3"
+        data-start="9.32" data-duration="0.4" data-track-index="18" data-volume="0.30"></audio>
+      <audio id="sfx-key-tick-2" src="assets/sfx-key-tick.mp3"
+        data-start="9.44" data-duration="0.4" data-track-index="19" data-volume="0.28"></audio>
+      <audio id="sfx-key-tick-3" src="assets/sfx-key-tick.mp3"
+        data-start="9.56" data-duration="0.4" data-track-index="20" data-volume="0.30"></audio>
+
+      <!-- widget · sub-swell grave bajo el push de cámara (9.6-11.6s) — recorte del propio
+           whoosh-cinematic bundled (su build real 1.0-3.0s, ver informe), le da peso al
+           zoom sin ser un impacto nuevo -->
+      <audio id="sfx-push-swell" src="assets/sfx-push-swell.mp3"
+        data-start="9.6" data-duration="2.0" data-track-index="21" data-volume="0.55"></audio>
+
+      <!-- scroll · whoosh sutil en cada reveal de sección — timings verificados por frame
+           contra beat3-scroll.webm (no los ~17.5/19.5/21.5 de la primera estimación: para
+           17.5s /01 y /02 YA estaban ambos en cuadro, ver informe), no una textura de UI
+           adicional (el único "texture" bundled es un glitch digital, fuera de registro) -->
+      <audio id="sfx-reveal-01" src="assets/sfx-whoosh-short.mp3"
+        data-start="16.7" data-duration="0.575" data-track-index="22" data-volume="0.30"></audio>
+      <audio id="sfx-reveal-02" src="assets/sfx-whoosh-short.mp3"
+        data-start="17.3" data-duration="0.575" data-track-index="23" data-volume="0.32"></audio>
+      <audio id="sfx-reveal-03" src="assets/sfx-whoosh-short.mp3"
+        data-start="18.6" data-duration="0.575" data-track-index="24" data-volume="0.30"></audio>
     </div>
 
     <script>
@@ -723,10 +772,11 @@
       // variants, whether the backdrop is the close photo or flat paper.
       tl.fromTo("#beat5-veil", { opacity: 0 }, { opacity: 1, duration: 0.6, ease: "power2.in" }, 32.4);
 
-      // Capa de sonido: los SFX se disparan por su data-start/data-duration en el
-      // motor de HyperFrames (playback determinista); su nivel es estático
-      // (data-volume) y cada archivo ya trae su propia envolvente/decay, así que
-      // no hacen falta tweens de volumen en el timeline.
+      // Capa de sonido: los SFX (incluido el bed de ambiente y el sound design nuevo)
+      // se disparan por su data-start/data-duration en el motor de HyperFrames
+      // (playback determinista); su nivel es estático (data-volume) y cada archivo
+      // ya trae su propia envolvente/decay (el bed trae su propio fade-in/fade-out
+      // bakeado), así que no hacen falta tweens de volumen en el timeline.
 
       window.__timelines["main"] = tl;
     </script>
