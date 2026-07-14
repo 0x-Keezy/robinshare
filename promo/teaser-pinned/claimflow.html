@@ -1,0 +1,365 @@
+<!doctype html>
+<html lang="en" data-resolution="landscape">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=1920, height=1080" />
+    <title>RobinShare — claim flow (cinematic)</title>
+    <script src="https://cdn.jsdelivr.net/npm/gsap@3.14.2/dist/gsap.min.js"></script>
+    <style>
+      /* ---------- fonts (local, deterministic — same set as index.html) ---------- */
+      @font-face {
+        font-family: "Archivo Black";
+        src: url("fonts/archivo-black-400-latin.woff2") format("woff2");
+        font-weight: 400;
+        font-style: normal;
+        font-display: block;
+      }
+      @font-face {
+        font-family: "IBM Plex Mono";
+        src: url("fonts/ibm-plex-mono-400-latin.woff2") format("woff2");
+        font-weight: 400;
+        font-style: normal;
+        font-display: block;
+      }
+      @font-face {
+        font-family: "IBM Plex Mono";
+        src: url("fonts/ibm-plex-mono-500-latin.woff2") format("woff2");
+        font-weight: 500;
+        font-style: normal;
+        font-display: block;
+      }
+
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+      :root {
+        --paper: #0d120e;
+        --ink: #f2f3ee;
+        --lime: #ccff00;
+        --signal: #00c805;
+      }
+      html,
+      body {
+        width: 1920px;
+        height: 1080px;
+        background: var(--paper);
+        overflow: hidden;
+      }
+      body {
+        font-family: "IBM Plex Mono", monospace;
+        color: var(--ink);
+      }
+
+      #root {
+        position: relative;
+        width: 1920px;
+        height: 1080px;
+        overflow: hidden;
+        background: var(--paper);
+      }
+
+      .clip {
+        position: absolute;
+      }
+
+      /* shared background — not a clip, always visible (full-screen-motion pattern) */
+      #bg {
+        position: absolute;
+        inset: 0;
+        width: 1920px;
+        height: 1080px;
+        background: var(--paper);
+      }
+
+      /* ---------- scene 1 : arrow open (0-2.0s) ---------- */
+      #arrow-video {
+        top: 0;
+        left: 0;
+        width: 1920px;
+        height: 1080px;
+        object-fit: cover;
+        transform-origin: 50% 50%;
+        will-change: transform;
+        /* slightly moodier grade — same static-filter technique as beat5-bg in index.html */
+        filter: contrast(1.07) saturate(1.02) brightness(0.94);
+      }
+      /* localized cyan→lime nudge on the blade-tip glow: a positioned radial patch,
+         blend-mode "color" takes hue/saturation from this lime fill while keeping
+         the backdrop's own luminance — recolors just that glow, leaves the rest of
+         the frame (dark-green tabletop, wood shaft) untouched. Static box, no
+         per-frame randomness — position/size tuned against the captured frame. */
+      #arrow-grade {
+        left: 210px;
+        top: 600px;
+        width: 480px;
+        height: 320px;
+        pointer-events: none;
+        mix-blend-mode: color;
+        background: radial-gradient(ellipse 55% 55% at 42% 55%, rgba(204, 255, 0, 0.95) 0%, rgba(204, 255, 0, 0.5) 45%, rgba(204, 255, 0, 0) 75%);
+      }
+
+      /* ---------- transition flash (arrow → claim) ---------- */
+      #flash,
+      #flash2 {
+        inset: 0;
+        width: 1920px;
+        height: 1080px;
+        background: var(--lime);
+        pointer-events: none;
+        opacity: 0;
+      }
+
+      /* ---------- scene 2 : claim flow (2.0s - end) ---------- */
+      .scene-fill {
+        inset: 0;
+        width: 1920px;
+        height: 1080px;
+        background: var(--paper);
+      }
+      #claim-video {
+        top: 0;
+        left: 0;
+        width: 1920px;
+        height: 1080px;
+        object-fit: cover;
+        will-change: transform;
+        filter: contrast(1.05) saturate(1.04) brightness(0.98);
+      }
+      #caption-label {
+        left: 96px;
+        bottom: 84px;
+        max-width: 1200px;
+        font-size: 24px;
+        letter-spacing: 0.14em;
+        line-height: 1.5;
+        text-transform: uppercase;
+        color: var(--ink);
+        opacity: 0.88;
+      }
+      #vignette {
+        inset: 0;
+        width: 1920px;
+        height: 1080px;
+        pointer-events: none;
+      }
+      #vignette-inner {
+        position: absolute;
+        inset: 0;
+        width: 1920px;
+        height: 1080px;
+        background: radial-gradient(
+          ellipse 900px 620px at 960px 500px,
+          rgba(3, 6, 4, 0) 0%,
+          rgba(3, 6, 4, 0) 46%,
+          rgba(3, 6, 4, 0.88) 86%,
+          rgba(3, 6, 4, 0.88) 100%
+        );
+        opacity: 0;
+        will-change: opacity;
+      }
+      /* cursor of brand — same triangle-glow vocabulary as #beat3-cursor in
+         index.html, anchored at the button's real center (claim-coords.json) */
+      #cursor-cam {
+        left: 960px;
+        top: 508.8px;
+        width: 0;
+        height: 0;
+        overflow: visible;
+        will-change: transform;
+        pointer-events: none;
+      }
+      #cursor-icon {
+        position: absolute;
+        left: -15px;
+        top: -15px;
+        width: 30px;
+        height: 30px;
+        opacity: 0;
+        filter: drop-shadow(0 0 3px rgba(204, 255, 0, 0.85)) drop-shadow(0 0 11px rgba(204, 255, 0, 0.5));
+      }
+      #ripple-cam {
+        left: 960px;
+        top: 508.8px;
+        width: 0;
+        height: 0;
+        overflow: visible;
+        will-change: transform;
+        pointer-events: none;
+      }
+      .ripple {
+        position: absolute;
+        left: 0;
+        top: 0;
+        width: 90px;
+        height: 90px;
+        border-radius: 50%;
+        border: 2px solid var(--lime);
+        transform: translate(-50%, -50%) scale(0);
+        opacity: 0;
+      }
+
+      /* ---------- film treatment — always on top, whole composition ---------- */
+      #grain {
+        position: absolute;
+        inset: 0;
+        width: 1920px;
+        height: 1080px;
+        pointer-events: none;
+        opacity: 0.05;
+        mix-blend-mode: overlay;
+        background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='220' height='220'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' stitchTiles='stitch' seed='7'/></filter><rect width='100%25' height='100%25' filter='url(%23n)'/></svg>");
+        background-repeat: repeat;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="root" data-composition-id="claimflow" data-start="0" data-duration="11.9" data-width="1920" data-height="1080">
+      <div id="bg"></div>
+
+      <!-- ============ SCENE 1 — the arrow (0-2.0s) ============ -->
+      <video
+        id="arrow-video"
+        class="clip"
+        src="assets/arrow-cine.mp4"
+        data-start="0"
+        data-duration="2.0"
+        data-media-start="0.15"
+        data-track-index="1"
+        muted
+        playsinline
+      ></video>
+      <div id="arrow-grade" class="clip" data-start="0" data-duration="2.0" data-track-index="2"></div>
+
+      <!-- transition — the arrow "delivers" into the claim flow -->
+      <div id="flash" class="clip" data-start="1.8" data-duration="0.35" data-track-index="3"></div>
+
+      <!-- ============ SCENE 2 — the real claim flow (2.0s - 11.9s) ============ -->
+      <div id="claim-scene-bg" class="clip scene-fill" data-start="2.0" data-duration="9.9" data-track-index="1"></div>
+      <video
+        id="claim-video"
+        class="clip"
+        src="assets/claim-raw.webm"
+        data-start="2.0"
+        data-duration="9.9"
+        data-media-start="0.3"
+        data-track-index="2"
+        muted
+        playsinline
+      ></video>
+      <div id="caption-label" class="clip" data-start="2.6" data-duration="3.0" data-track-index="3">
+        the builder claims — proving it's them
+      </div>
+      <div id="vignette" class="clip" data-start="2.0" data-duration="9.9" data-track-index="4">
+        <div id="vignette-inner"></div>
+      </div>
+      <div id="ripple-cam" class="clip" data-start="2.0" data-duration="9.9" data-track-index="5">
+        <div class="ripple ripple-1"></div>
+        <div class="ripple ripple-2"></div>
+      </div>
+      <div id="cursor-cam" class="clip" data-start="2.0" data-duration="9.9" data-track-index="6">
+        <svg id="cursor-icon" width="30" height="30" viewBox="0 0 24 24">
+          <path d="M5 3L19 12L12 13L9 20L5 3Z" fill="var(--lime)" stroke="var(--paper)" stroke-width="1.5" />
+        </svg>
+      </div>
+      <div id="flash2" class="clip" data-start="8.7" data-duration="0.45" data-track-index="7"></div>
+
+      <!-- ---------- film treatment, always on top ---------- -->
+      <div id="grain"></div>
+    </div>
+
+    <script>
+      window.__timelines = window.__timelines || {};
+      var tl = gsap.timeline({ paused: true });
+
+      /* ================= SCENE 1 — arrow open (0-2.0s) ================= */
+      tl.fromTo("#arrow-video", { scale: 1.0 }, { scale: 1.07, duration: 2.0, ease: "sine.out" }, 0);
+      tl.fromTo("#arrow-grade", { opacity: 0 }, { opacity: 0.8, duration: 1.5, ease: "sine.out" }, 0.35);
+
+      // transition flash — the arrow "releases" into the claim flow
+      tl.set("#flash", { opacity: 0 }, 1.8);
+      tl.to("#flash", { opacity: 0.94, duration: 0.12, ease: "power2.out" }, 1.8);
+      tl.to("#flash", { opacity: 0, duration: 0.23, ease: "power2.in" }, 1.92);
+
+      /* ================= SCENE 2 — claim flow (2.0s - 11.9s) =================
+         Camera: coordinate-target-zoom (hyperframes-animation/rules), applied
+         directly to the media/cursor SIBLINGS (video can't be wrapped — see
+         hyperframes-core "Do not nest video inside a wrapper"). transform-origin
+         is fixed at the panel's real center for the WHOLE scene (measured,
+         claim-coords.json) — with origin = the point that must stay put, a
+         constant translate (canvasCenter - origin) recenters it regardless of
+         scale, so 3 push phases can share one origin with no jump between them. */
+      var PANEL_CX = 960, PANEL_CY = 444.4; // panel center (claim-coords.json boxConnect)
+      var CAM_TX = 960 - PANEL_CX; // 0
+      var CAM_TY = 540 - PANEL_CY; // 95.6
+      var CAM_ORIGIN = PANEL_CX + "px " + PANEL_CY + "px";
+
+      // cursor-cam / ripple-cam are anchored at the button's own center (960,
+      // 508.8) — NOT the panel center — so their transform-origin must be
+      // expressed in THEIR OWN local box (origin point minus their own left/top),
+      // same correction index.html applies to #beat3-cursor.
+      var BUTTON_CX = 960, BUTTON_CY = 508.8;
+      var CURSOR_ORIGIN = (PANEL_CX - BUTTON_CX) + "px " + (PANEL_CY - BUTTON_CY) + "px"; // "0px -64.4px"
+
+      tl.set(["#claim-video"], { transformOrigin: CAM_ORIGIN }, 2.0);
+      tl.set(["#cursor-cam", "#ripple-cam"], { transformOrigin: CURSOR_ORIGIN }, 2.0);
+
+      // Phase 1 — establish + push toward the balance/panel (2.3-3.6s)
+      tl.fromTo(
+        ["#claim-video", "#cursor-cam", "#ripple-cam"],
+        { scale: 1.0, x: 0, y: 0 },
+        { scale: 1.28, x: CAM_TX, y: CAM_TY, duration: 1.3, ease: "power3.out" },
+        2.3,
+      );
+
+      // Phase 2 — push toward the CTA (6.3-7.3s), settles well before the Claim click at 8.75
+      tl.to(
+        ["#claim-video", "#cursor-cam", "#ripple-cam"],
+        { scale: 1.5, x: CAM_TX, y: CAM_TY, duration: 1.0, ease: "power2.inOut" },
+        6.3,
+      );
+
+      // Phase 3 — climax push arriving on the "Done." confirmation (9.5-10.7s)
+      tl.to(
+        ["#claim-video", "#cursor-cam", "#ripple-cam"],
+        { scale: 1.85, x: CAM_TX, y: CAM_TY, duration: 1.2, ease: "power3.inOut" },
+        9.5,
+      );
+
+      // Vignette intensifies alongside the pushes
+      tl.fromTo("#vignette-inner", { opacity: 0.26 }, { opacity: 0.6, duration: 9.9, ease: "sine.inOut" }, 2.0);
+
+      // Caption — minimal mono label, in and out
+      tl.fromTo("#caption-label", { opacity: 0, y: 14 }, { opacity: 0.88, y: 0, duration: 0.6, ease: "power3.out" }, 2.6);
+      tl.to("#caption-label", { opacity: 0, duration: 0.5, ease: "power2.in" }, 5.1);
+
+      // Cursor entrance — arrives just before the first click
+      tl.fromTo("#cursor-icon", { opacity: 0 }, { opacity: 1, duration: 0.3, ease: "power2.out" }, 3.7);
+
+      // click-ripple burst, reused 3x (cursor-click-ripple rule) — Connect (4.1),
+      // Verify with GitHub (5.65), Claim (8.75). Real click timestamps from the
+      // Playwright capture (claim-coords.json), remapped into composition time.
+      [4.1, 5.65, 8.75].forEach(function (t) {
+        tl.set([".ripple-1", ".ripple-2"], { opacity: 1 }, t);
+        tl.fromTo(
+          [".ripple-1", ".ripple-2"],
+          { scale: 0 },
+          { scale: 3.2, opacity: 0, duration: 0.5, ease: "power2.out", stagger: 0.08, immediateRender: false },
+          t,
+        );
+        tl.to("#cursor-icon", { scale: 0.85, duration: 0.08, ease: "power2.in", yoyo: true, repeat: 1 }, t);
+      });
+
+      // sweep impact — small flash right as the Claim click sends the fees to 0
+      tl.set("#flash2", { opacity: 0 }, 8.7);
+      tl.to("#flash2", { opacity: 0.5, duration: 0.1, ease: "power2.out" }, 8.7);
+      tl.to("#flash2", { opacity: 0, duration: 0.35, ease: "power2.in" }, 8.8);
+
+      // Cursor exits before the climax push settles on "Done."
+      tl.to("#cursor-icon", { opacity: 0, duration: 0.4, ease: "power2.in" }, 9.3);
+
+      window.__timelines["claimflow"] = tl;
+    </script>
+  </body>
+</html>

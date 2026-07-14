@@ -11,6 +11,17 @@ import { RSShell, RS } from "@/components/RSShell";
 
 const ZERO = "0x0000000000000000000000000000000000000000";
 
+// ---------------------------------------------------------------------------
+// Demo mode (?demo=1) — illustrative claim flow for capture/promo purposes.
+// The product hasn't launched yet, so there's no real vault to read on-chain;
+// this seeds an illustrative state and lets the cursor drive Connect → Verify
+// → Claim without touching a wallet or the chain. Prod path (no query param)
+// is untouched below.
+// ---------------------------------------------------------------------------
+const DEMO_PAYOUT = "0x8f3ac1b0d4e29ff9a2c77b1d9e4a6f0b2c1e091b" as Address;
+const DEMO_TX_HASH = "0x7c3f9a1e2d4b8f605ac9e3d71f4b8a2c5e9d0f3a6b8c1d4e7f9a0b2c3d4e5f61" as Hex;
+const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+
 type Voucher = { signature: Hex; deadline: string; payout: Address };
 
 type State = {
@@ -31,6 +42,14 @@ export function ClaimClient({ vault }: { vault: Address }) {
   const { address, isConnected } = useAccount();
   const { connect } = useConnect();
   const { writeContractAsync, isPending } = useWriteContract();
+
+  // ?demo=1 — illustrative mode, see block above. Read synchronously from
+  // the URL: safe because the SSR/pre-hydration render always shows the
+  // "Loading vault…" branch regardless of isDemo (s is null either way), so
+  // there's nothing for this to mismatch against.
+  const isDemo = typeof window !== "undefined" && new URLSearchParams(window.location.search).get("demo") === "1";
+  const [demoConnected, setDemoConnected] = useState(false);
+  const [demoPending, setDemoPending] = useState(false);
 
   const [s, setS] = useState<State | null>(null);
   const [voucher, setVoucher] = useState<Voucher | null>(null);
@@ -71,8 +90,23 @@ export function ClaimClient({ vault }: { vault: Address }) {
   }, [address, vault]);
 
   useEffect(() => {
+    if (isDemo) return; // seeded below instead of read from chain
     refresh().catch((e) => setMsg(String(e)));
-  }, [refresh]);
+  }, [refresh, isDemo]);
+
+  // Demo seed — illustrative vault: a GitHub-identity vault with fees
+  // pending, not yet bound to a payout wallet.
+  useEffect(() => {
+    if (!isDemo) return;
+    setS({
+      identityType: 1,
+      identityValue: "arlo_dev",
+      pending: 64900000000000000n, // 0.0649 ETH
+      bound: ZERO as Address,
+      totalPaid: 0n,
+      description: "Fees for @arlo_dev — claimable via GitHub",
+    });
+  }, [isDemo]);
 
   // ruta X: al conectar en un vault twitter, cargar el texto exacto a tuitear
   useEffect(() => {
@@ -110,6 +144,44 @@ export function ClaimClient({ vault }: { vault: Address }) {
   function verifyGithub() {
     if (!address) return;
     window.location.href = `/api/attest/github/start?vault=${vault}&payout=${address}`;
+  }
+
+  // ---- demo-mode click handlers — same UI, mocked side effects ----
+  async function handleConnectClick() {
+    if (isDemo) {
+      setDemoConnected(true);
+      return;
+    }
+    connect({ connector: injected() });
+  }
+
+  async function handleVerifyGithubClick() {
+    if (isDemo) {
+      setDemoPending(true);
+      setMsg("Verifying with GitHub…");
+      await sleep(1100);
+      setMsg(null);
+      setDemoPending(false);
+      setVoucher({ signature: DEMO_TX_HASH, deadline: "9999999999", payout: DEMO_PAYOUT });
+      return;
+    }
+    verifyGithub();
+  }
+
+  async function handleClaimClick() {
+    if (!voucher) return;
+    if (isDemo) {
+      setDemoPending(true);
+      setMsg("Sent — waiting for confirmation…");
+      await sleep(1400);
+      setTxHash(DEMO_TX_HASH);
+      setMsg("Done.");
+      setVoucher(null);
+      setDemoPending(false);
+      setS((prev) => (prev ? { ...prev, pending: 0n, totalPaid: prev.pending } : prev));
+      return;
+    }
+    await sendTx("claimAndBind", [voucher.payout, BigInt(voucher.deadline), voucher.signature]);
   }
 
   async function proveAndClaimTwitter() {
@@ -151,6 +223,8 @@ export function ClaimClient({ vault }: { vault: Address }) {
 
   const isBound = s.bound !== ZERO;
   const label = s.identityType === 0 ? "wallet" : s.identityType === 1 ? `github:${s.identityValue}` : `x:${s.identityValue}`;
+  const effectiveConnected = isDemo ? demoConnected : isConnected;
+  const effectivePending = isDemo ? demoPending : isPending;
 
   return (
     <RSShell>
@@ -183,15 +257,15 @@ export function ClaimClient({ vault }: { vault: Address }) {
           </div>
 
           <div className="mt-7 flex flex-col gap-3">
-            {!isConnected ? (
-              <button onClick={() => connect({ connector: injected() })} className={ghostCls} style={ghostStyle}>
+            {!effectiveConnected ? (
+              <button onClick={handleConnectClick} className={ghostCls} style={ghostStyle}>
                 Connect wallet
               </button>
             ) : (
               <>
                 {/* Ya probada la identidad: cualquiera puede empujar los fees a la wallet bound */}
                 {isBound && (
-                  <button onClick={() => sendTx("sweep")} disabled={isPending || s.pending === 0n} className={ctaCls} style={ctaStyle}>
+                  <button onClick={() => sendTx("sweep")} disabled={effectivePending || s.pending === 0n} className={ctaCls} style={ctaStyle}>
                     Sweep to {s.bound.slice(0, 6)}…{s.bound.slice(-4)}
                   </button>
                 )}
@@ -199,8 +273,8 @@ export function ClaimClient({ vault }: { vault: Address }) {
                 {/* Social: hay voucher listo -> Claim; si no, verificar */}
                 {!isBound && s.identityType !== 0 && voucher && (
                   <button
-                    onClick={() => sendTx("claimAndBind", [voucher.payout, BigInt(voucher.deadline), voucher.signature])}
-                    disabled={isPending}
+                    onClick={handleClaimClick}
+                    disabled={effectivePending}
                     className={ctaCls}
                     style={ctaStyle}
                   >
@@ -208,7 +282,7 @@ export function ClaimClient({ vault }: { vault: Address }) {
                   </button>
                 )}
                 {!isBound && s.identityType === 1 && !voucher && (
-                  <button onClick={verifyGithub} className={ctaCls} style={ctaStyle}>
+                  <button onClick={handleVerifyGithubClick} disabled={effectivePending} className={ctaCls} style={ctaStyle}>
                     Verify with GitHub
                   </button>
                 )}
