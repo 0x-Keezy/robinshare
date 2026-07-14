@@ -443,7 +443,7 @@
         src="assets/beat3-scroll.webm"
         data-start="15.58"
         data-duration="8.42"
-        data-media-start="0.4"
+        data-media-start="2.2"
         data-track-index="2"
         muted
         playsinline
@@ -506,12 +506,18 @@
 
       <!-- ============ COLCHÓN DE AMBIENTE — bed continuo (33s) ============
            Drone/pad generado localmente (MusicGen, facebook/musicgen-small vía media-use;
-           el bundle de SFX no tiene ambient/drone/pad — ver informe). Corre los 33s enteros
-           en volumen bajo (0.14) para que nunca haya silencio muerto entre golpes; fade-in
-           bakeado 0-2s y fade-out 30-33s (resuelve justo en el lockup). Pista 9, por debajo
-           de todos los SFX puntuales. -->
+           el bundle de SFX no tiene ambient/drone/pad — ver informe). Corre a nivel PRESENTE
+           y parejo (0.5 — antes 0.14, casi mudo en el arranque) para que la atmósfera se
+           SIENTA en las ventanas quietas (hook 0-4s, widget establish, promesa) incluso en
+           un parlante de celular, y así nunca haya silencio muerto entre golpes. Como es un
+           pad constante, en las ventanas ruidosas los acentos lo enmascaran, así que este
+           nivel no las satura. El archivo trae la envolvente bakeada: fade-in 0.8s (el hook
+           levanta rápido sin click de arranque) y fade-out 27-29.3s → llega a SILENCIO justo
+           antes de que dispare el impacto del lockup (29.3s), para NO sumarse al pico más
+           fuerte del video (así el lockup no clippea aun con el bed más alto). Pista 9, por
+           debajo de todos los SFX puntuales. -->
       <audio id="bed-ambient" src="assets/bed-ambient.mp3"
-        data-start="0" data-duration="33" data-track-index="9" data-volume="0.14"></audio>
+        data-start="0" data-duration="33" data-track-index="9" data-volume="0.5"></audio>
 
       <!-- ============ CAPA DE SONIDO — SFX diseñados (bundled, sin credenciales) ============
            Sin BGM continuo: una capa de sonido puntual que subraya los cortes secos del
