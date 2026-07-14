@@ -179,6 +179,20 @@
         opacity: 0;
         filter: drop-shadow(0 0 3px rgba(204, 255, 0, 0.85)) drop-shadow(0 0 11px rgba(204, 255, 0, 0.5));
       }
+      /* hover-anticipation halo — sustained soft glow while the cursor holds over a
+         button (distinct from the sharp click-ripple burst below); lives inside
+         #cursor-cam so it inherits the same camera transform for free */
+      #hover-glow {
+        position: absolute;
+        left: -34px;
+        top: -34px;
+        width: 68px;
+        height: 68px;
+        border-radius: 50%;
+        background: radial-gradient(circle, rgba(204, 255, 0, 0.55) 0%, rgba(204, 255, 0, 0.2) 45%, rgba(204, 255, 0, 0) 72%);
+        opacity: 0;
+        filter: blur(1px);
+      }
       #ripple-cam {
         left: 960px;
         top: 508.8px;
@@ -199,6 +213,49 @@
         transform: translate(-50%, -50%) scale(0);
         opacity: 0;
       }
+      /* payoff comet — the ETH visibly leaving the balance toward the wallet;
+         anchored near the balance number (claim-coords.json boxBalance), shares the
+         camera group so it scales/pans with the zoom (coordinate-target-zoom rule) */
+      #comet-cam {
+        left: 960px;
+        top: 365px;
+        width: 0;
+        height: 0;
+        overflow: visible;
+        will-change: transform;
+        pointer-events: none;
+      }
+      .comet-dot {
+        position: absolute;
+        left: -8px;
+        top: -8px;
+        width: 16px;
+        height: 16px;
+        border-radius: 50%;
+        background: radial-gradient(circle, rgba(204, 255, 0, 0.95) 0%, rgba(204, 255, 0, 0.4) 55%, rgba(204, 255, 0, 0) 80%);
+        opacity: 0;
+        filter: drop-shadow(0 0 10px rgba(204, 255, 0, 0.7));
+      }
+      /* soft backing pulse behind "Done." — the real check + text pop is baked into
+         the captured video (ClaimClient demo mode); this just adds a touch of glow */
+      #done-glow {
+        left: 960px;
+        top: 596px;
+        width: 0;
+        height: 0;
+        overflow: visible;
+        pointer-events: none;
+      }
+      #done-glow-inner {
+        position: absolute;
+        left: -260px;
+        top: -90px;
+        width: 520px;
+        height: 180px;
+        border-radius: 50%;
+        background: radial-gradient(ellipse, rgba(204, 255, 0, 0.28) 0%, rgba(204, 255, 0, 0) 70%);
+        opacity: 0;
+      }
 
       /* ---------- film treatment — always on top, whole composition ---------- */
       #grain {
@@ -215,7 +272,7 @@
     </style>
   </head>
   <body>
-    <div id="root" data-composition-id="claimflow" data-start="0" data-duration="11.9" data-width="1920" data-height="1080">
+    <div id="root" data-composition-id="claimflow" data-start="0" data-duration="12.3" data-width="1920" data-height="1080">
       <div id="bg"></div>
 
       <!-- ============ SCENE 1 — the arrow (0-2.0s) ============ -->
@@ -235,14 +292,14 @@
       <!-- transition — the arrow "delivers" into the claim flow -->
       <div id="flash" class="clip" data-start="1.8" data-duration="0.35" data-track-index="3"></div>
 
-      <!-- ============ SCENE 2 — the real claim flow (2.0s - 11.9s) ============ -->
-      <div id="claim-scene-bg" class="clip scene-fill" data-start="2.0" data-duration="9.9" data-track-index="1"></div>
+      <!-- ============ SCENE 2 — the real claim flow (2.0s - 12.3s) ============ -->
+      <div id="claim-scene-bg" class="clip scene-fill" data-start="2.0" data-duration="10.3" data-track-index="1"></div>
       <video
         id="claim-video"
         class="clip"
         src="assets/claim-raw.webm"
         data-start="2.0"
-        data-duration="9.9"
+        data-duration="10.3"
         data-media-start="0.3"
         data-track-index="2"
         muted
@@ -251,19 +308,26 @@
       <div id="caption-label" class="clip" data-start="2.6" data-duration="3.0" data-track-index="3">
         the builder claims — proving it's them
       </div>
-      <div id="vignette" class="clip" data-start="2.0" data-duration="9.9" data-track-index="4">
+      <div id="vignette" class="clip" data-start="2.0" data-duration="10.3" data-track-index="4">
         <div id="vignette-inner"></div>
       </div>
-      <div id="ripple-cam" class="clip" data-start="2.0" data-duration="9.9" data-track-index="5">
+      <div id="ripple-cam" class="clip" data-start="2.0" data-duration="10.3" data-track-index="5">
         <div class="ripple ripple-1"></div>
         <div class="ripple ripple-2"></div>
       </div>
-      <div id="cursor-cam" class="clip" data-start="2.0" data-duration="9.9" data-track-index="6">
+      <div id="cursor-cam" class="clip" data-start="2.0" data-duration="10.3" data-track-index="6">
+        <div id="hover-glow"></div>
         <svg id="cursor-icon" width="30" height="30" viewBox="0 0 24 24">
           <path d="M5 3L19 12L12 13L9 20L5 3Z" fill="var(--lime)" stroke="var(--paper)" stroke-width="1.5" />
         </svg>
       </div>
-      <div id="flash2" class="clip" data-start="8.7" data-duration="0.45" data-track-index="7"></div>
+      <div id="comet-cam" class="clip" data-start="2.0" data-duration="10.3" data-track-index="8">
+        <div class="comet-dot"></div>
+      </div>
+      <div id="flash2" class="clip" data-start="9.15" data-duration="0.55" data-track-index="7"></div>
+      <div id="done-glow" class="clip" data-start="9.85" data-duration="1.1" data-track-index="9">
+        <div id="done-glow-inner"></div>
+      </div>
 
       <!-- ---------- film treatment, always on top ---------- -->
       <div id="grain"></div>
@@ -282,65 +346,103 @@
       tl.to("#flash", { opacity: 0.94, duration: 0.12, ease: "power2.out" }, 1.8);
       tl.to("#flash", { opacity: 0, duration: 0.23, ease: "power2.in" }, 1.92);
 
-      /* ================= SCENE 2 — claim flow (2.0s - 11.9s) =================
+      /* ================= SCENE 2 — claim flow (2.0s - 12.3s) =================
          Camera: coordinate-target-zoom (hyperframes-animation/rules), applied
-         directly to the media/cursor SIBLINGS (video can't be wrapped — see
-         hyperframes-core "Do not nest video inside a wrapper"). transform-origin
-         is fixed at the panel's real center for the WHOLE scene (measured,
+         directly to the media/cursor/comet SIBLINGS (video can't be wrapped —
+         see hyperframes-core "Do not nest video inside a wrapper"). transform-
+         origin is fixed at the panel's real center for the WHOLE scene (measured,
          claim-coords.json) — with origin = the point that must stay put, a
          constant translate (canvasCenter - origin) recenters it regardless of
-         scale, so 3 push phases can share one origin with no jump between them. */
+         scale, so every phase below shares one origin with no jump between them.
+
+         Reactive camera (v2 — enrichment pass): instead of 3 flat pushes, the
+         camera now answers each interaction beat — a small forward LEAN while
+         the cursor holds over a button (hover), a quick recoil/flinch exactly
+         on click (settle), a sustained travel push between beats, and a slight
+         PULL-BACK once the payoff lands, so it reads as someone driving the
+         shot rather than a fixed slow zoom. All times below are the real
+         Playwright capture timestamps (claim-coords.json hovers/clicks/payoff)
+         remapped with t_comp = t_raw + 1.7 (scene2 starts at 2.0, media-start
+         trims 0.3s off the source — see data-media-start on #claim-video). */
       var PANEL_CX = 960, PANEL_CY = 444.4; // panel center (claim-coords.json boxConnect)
       var CAM_TX = 960 - PANEL_CX; // 0
       var CAM_TY = 540 - PANEL_CY; // 95.6
       var CAM_ORIGIN = PANEL_CX + "px " + PANEL_CY + "px";
+      var CAM = ["#claim-video", "#cursor-cam", "#ripple-cam", "#comet-cam"];
 
-      // cursor-cam / ripple-cam are anchored at the button's own center (960,
-      // 508.8) — NOT the panel center — so their transform-origin must be
-      // expressed in THEIR OWN local box (origin point minus their own left/top),
-      // same correction index.html applies to #beat3-cursor.
+      // cursor-cam / ripple-cam / comet-cam are each anchored at their OWN point
+      // (button center for cursor/ripple, balance-number area for comet) — NOT
+      // the panel center — so each transform-origin is expressed in THAT
+      // element's own local box (origin point minus its own left/top), same
+      // correction index.html applies to #beat3-cursor.
       var BUTTON_CX = 960, BUTTON_CY = 508.8;
       var CURSOR_ORIGIN = (PANEL_CX - BUTTON_CX) + "px " + (PANEL_CY - BUTTON_CY) + "px"; // "0px -64.4px"
+      var COMET_CX = 960, COMET_CY = 365;
+      var COMET_ORIGIN = (PANEL_CX - COMET_CX) + "px " + (PANEL_CY - COMET_CY) + "px"; // "0px 79.4px"
 
       tl.set(["#claim-video"], { transformOrigin: CAM_ORIGIN }, 2.0);
       tl.set(["#cursor-cam", "#ripple-cam"], { transformOrigin: CURSOR_ORIGIN }, 2.0);
+      tl.set(["#comet-cam"], { transformOrigin: COMET_ORIGIN }, 2.0);
 
-      // Phase 1 — establish + push toward the balance/panel (2.3-3.6s)
-      tl.fromTo(
-        ["#claim-video", "#cursor-cam", "#ripple-cam"],
-        { scale: 1.0, x: 0, y: 0 },
-        { scale: 1.28, x: CAM_TX, y: CAM_TY, duration: 1.3, ease: "power3.out" },
-        2.3,
-      );
+      // Phase 1 — establish, then push in toward the panel (2.3-3.8)
+      tl.fromTo(CAM, { scale: 1.0, x: 0, y: 0 }, { scale: 1.24, x: CAM_TX, y: CAM_TY, duration: 1.5, ease: "power3.out" }, 2.3);
 
-      // Phase 2 — push toward the CTA (6.3-7.3s), settles well before the Claim click at 8.75
-      tl.to(
-        ["#claim-video", "#cursor-cam", "#ripple-cam"],
-        { scale: 1.5, x: CAM_TX, y: CAM_TY, duration: 1.0, ease: "power2.inOut" },
-        6.3,
-      );
+      // Hover lean #1 — Connect wallet (hover@4.0, click@4.45)
+      tl.to(CAM, { scale: 1.27, duration: 0.35, ease: "sine.out" }, 4.0);
+      tl.to(CAM, { scale: 1.245, duration: 0.08, ease: "power2.in", yoyo: true, repeat: 1 }, 4.45); // click settle/flinch
 
-      // Phase 3 — climax push arriving on the "Done." confirmation (9.5-10.7s)
-      tl.to(
-        ["#claim-video", "#cursor-cam", "#ripple-cam"],
-        { scale: 1.85, x: CAM_TX, y: CAM_TY, duration: 1.2, ease: "power3.inOut" },
-        9.5,
-      );
+      // Hover lean #2 — Verify with GitHub (hover@4.85, click@5.3)
+      tl.to(CAM, { scale: 1.30, duration: 0.35, ease: "sine.out" }, 4.85);
+      tl.to(CAM, { scale: 1.275, duration: 0.08, ease: "power2.in", yoyo: true, repeat: 1 }, 5.3); // click settle/flinch
+
+      // Phase 2 — travel push spanning the identity-proof beat (verifying ->
+      // verified takes longer in the real capture than the nominal component
+      // delays suggest — ffmpeg-grounded against claim-raw.webm, not hand
+      // math: spinner clears ~raw 5.2, the Claim button appears ~raw 6.0),
+      // arriving well before the Claim hover
+      tl.to(CAM, { scale: 1.52, duration: 2.4, ease: "power2.inOut" }, 5.5);
+
+      // Hover lean #3 — Claim (hover@8.25, click@8.7 — grounded against the
+      // real capture: the Claim button is only clicked around raw t=7.0)
+      tl.to(CAM, { scale: 1.56, duration: 0.35, ease: "sine.out" }, 8.25);
+      tl.to(CAM, { scale: 1.545, duration: 0.15, ease: "power2.in" }, 8.7); // click impact-snap (absorbs, then climax below)
+
+      // Climax push — arrives exactly as the balance finishes draining and
+      // "Done." appears (comp 10.1 — grounded: drain runs raw ~7.5-8.4)
+      tl.to(CAM, { scale: 1.9, duration: 1.25, ease: "power3.inOut" }, 8.85);
+
+      // Pull-back — the camera exhales after the payoff, settling to frame
+      // "Done." + the check + "View transaction →" comfortably
+      tl.to(CAM, { scale: 1.78, duration: 1.15, ease: "power2.out" }, 10.1);
 
       // Vignette intensifies alongside the pushes
-      tl.fromTo("#vignette-inner", { opacity: 0.26 }, { opacity: 0.6, duration: 9.9, ease: "sine.inOut" }, 2.0);
+      tl.fromTo("#vignette-inner", { opacity: 0.26 }, { opacity: 0.62, duration: 10.3, ease: "sine.inOut" }, 2.0);
 
       // Caption — minimal mono label, in and out
       tl.fromTo("#caption-label", { opacity: 0, y: 14 }, { opacity: 0.88, y: 0, duration: 0.6, ease: "power3.out" }, 2.6);
       tl.to("#caption-label", { opacity: 0, duration: 0.5, ease: "power2.in" }, 5.1);
 
-      // Cursor entrance — arrives just before the first click
-      tl.fromTo("#cursor-icon", { opacity: 0 }, { opacity: 1, duration: 0.3, ease: "power2.out" }, 3.7);
+      // Cursor entrance — arrives just before the first hover
+      tl.fromTo("#cursor-icon", { opacity: 0 }, { opacity: 1, duration: 0.3, ease: "power2.out" }, 3.6);
 
-      // click-ripple burst, reused 3x (cursor-click-ripple rule) — Connect (4.1),
-      // Verify with GitHub (5.65), Claim (8.75). Real click timestamps from the
-      // Playwright capture (claim-coords.json), remapped into composition time.
-      [4.1, 5.65, 8.75].forEach(function (t) {
+      // Hover-anticipation halo — sustained soft glow while the cursor holds
+      // over each button, distinct from the sharp click-ripple burst; sells
+      // "someone is about to click" before they do (micro-interaction rule).
+      [
+        [4.0, 4.4],
+        [4.85, 5.25],
+        [8.25, 8.65],
+      ].forEach(function (w) {
+        tl.fromTo("#hover-glow", { opacity: 0, scale: 0.7 }, { opacity: 0.85, scale: 1, duration: 0.3, ease: "sine.out" }, w[0]);
+        tl.to("#hover-glow", { opacity: 0, duration: 0.15, ease: "power2.in" }, w[1]);
+      });
+
+      // click-ripple burst, reused 3x (cursor-click-ripple rule) — Connect
+      // (4.45), Verify with GitHub (5.3), Claim (8.7). Click timestamps
+      // ffmpeg-grounded against claim-raw.webm (not hand math — the identity
+      // beat runs longer in the real capture than nominal component delays
+      // suggest), remapped into composition time (t_comp = t_raw + 1.7).
+      [4.45, 5.3, 8.7].forEach(function (t) {
         tl.set([".ripple-1", ".ripple-2"], { opacity: 1 }, t);
         tl.fromTo(
           [".ripple-1", ".ripple-2"],
@@ -350,14 +452,30 @@
         );
         tl.to("#cursor-icon", { scale: 0.85, duration: 0.08, ease: "power2.in", yoyo: true, repeat: 1 }, t);
       });
+      // hard kill after the last ripple's fade so a non-linear seek landing
+      // after 9.2s can't find stale opacity (gsap_exit_missing_hard_kill)
+      tl.set([".ripple-1", ".ripple-2"], { opacity: 0 }, 9.2);
 
-      // sweep impact — small flash right as the Claim click sends the fees to 0
-      tl.set("#flash2", { opacity: 0 }, 8.7);
-      tl.to("#flash2", { opacity: 0.5, duration: 0.1, ease: "power2.out" }, 8.7);
-      tl.to("#flash2", { opacity: 0, duration: 0.35, ease: "power2.in" }, 8.8);
+      // Cursor exits once the Claim ripple resolves, right as the payoff takes over
+      tl.to("#cursor-icon", { opacity: 0, duration: 0.35, ease: "power2.in" }, 9.2);
 
-      // Cursor exits before the climax push settles on "Done."
-      tl.to("#cursor-icon", { opacity: 0, duration: 0.4, ease: "power2.in" }, 9.3);
+      // sweep impact — small flash right as the balance starts draining to 0
+      // (grounded: the drain is visibly running by raw t=7.5 -> comp 9.2)
+      tl.set("#flash2", { opacity: 0 }, 9.2);
+      tl.to("#flash2", { opacity: 0.5, duration: 0.1, ease: "power2.out" }, 9.2);
+      tl.to("#flash2", { opacity: 0, duration: 0.35, ease: "power2.in" }, 9.3);
+
+      // payoff comet — the ETH visibly leaving the balance, arcing up and out
+      // of frame while the real number sweeps to 0 (comp 9.2-10.1)
+      tl.fromTo(".comet-dot", { opacity: 0, x: 0, y: 0, scale: 0.6 }, { opacity: 1, x: 150, y: -95, scale: 1.3, duration: 0.5, ease: "power2.out" }, 9.2);
+      tl.to(".comet-dot", { opacity: 0, x: 270, y: -175, scale: 0.35, duration: 0.4, ease: "power2.in" }, 9.7);
+
+      // soft backing glow behind "Done." — the real check-draw + text pop live
+      // in the captured video (ClaimClient demo mode); this just adds weight
+      // (grounded: "Done." starts fading in ~raw 8.4-8.6 -> comp 10.1-10.3)
+      tl.set("#done-glow-inner", { opacity: 0 }, 9.9);
+      tl.to("#done-glow-inner", { opacity: 1, duration: 0.35, ease: "power2.out" }, 10.0);
+      tl.to("#done-glow-inner", { opacity: 0, duration: 0.6, ease: "power2.in" }, 10.4);
 
       window.__timelines["claimflow"] = tl;
     </script>

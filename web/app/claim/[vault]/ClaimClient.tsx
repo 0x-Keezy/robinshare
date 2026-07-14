@@ -33,10 +33,17 @@ type State = {
   description: string;
 };
 
-const ctaCls = "rounded-full px-7 py-3 font-bold transition-colors disabled:cursor-not-allowed disabled:opacity-60";
+const ctaCls =
+  "rounded-full px-7 py-3 font-bold transition-all duration-150 will-change-transform disabled:cursor-not-allowed disabled:opacity-60 hover:scale-105 hover:brightness-110 active:scale-95 active:brightness-95";
 const ctaStyle = { background: RS.GREEN_CTA, color: RS.GREEN_CTA_TEXT } as const;
-const ghostCls = "rounded-full border-2 px-7 py-3 font-bold transition-colors";
+const ghostCls =
+  "rounded-full border-2 px-7 py-3 font-bold transition-all duration-150 will-change-transform hover:scale-105 hover:bg-white/5 active:scale-95";
 const ghostStyle = { background: "transparent", borderColor: RS.INK, color: RS.INK } as const;
+
+// easeOutCubic — used to animate the balance drain to zero on claim (demo only)
+function easeOutCubic(t: number) {
+  return 1 - Math.pow(1 - t, 3);
+}
 
 export function ClaimClient({ vault }: { vault: Address }) {
   const { address, isConnected } = useAccount();
@@ -50,6 +57,12 @@ export function ClaimClient({ vault }: { vault: Address }) {
   const isDemo = typeof window !== "undefined" && new URLSearchParams(window.location.search).get("demo") === "1";
   const [demoConnected, setDemoConnected] = useState(false);
   const [demoPending, setDemoPending] = useState(false);
+  // identity-proof beat: "Verifying…" (spinner) -> "Verified ✓" (chip, brief hold) -> Claim button
+  const [demoVerifying, setDemoVerifying] = useState(false);
+  const [demoVerified, setDemoVerified] = useState(false);
+  // payoff beat: while non-null, this ETH value overrides the displayed balance and
+  // animates from the pending amount down to 0 (the "drain" — see handleClaimClick)
+  const [demoDrainEth, setDemoDrainEth] = useState<number | null>(null);
 
   const [s, setS] = useState<State | null>(null);
   const [voucher, setVoucher] = useState<Voucher | null>(null);
@@ -158,27 +171,54 @@ export function ClaimClient({ vault }: { vault: Address }) {
   async function handleVerifyGithubClick() {
     if (isDemo) {
       setDemoPending(true);
-      setMsg("Verifying with GitHub…");
+      setDemoVerifying(true); // beat 1: "Verifying…" spinner on the button itself
       await sleep(1100);
-      setMsg(null);
-      setDemoPending(false);
+      setDemoVerifying(false);
+      setDemoVerified(true); // beat 2: "Verified via GitHub ✓" chip — the identity proof, made visible
+      await sleep(650);
       setVoucher({ signature: DEMO_TX_HASH, deadline: "9999999999", payout: DEMO_PAYOUT });
+      setDemoVerified(false);
+      setDemoPending(false);
       return;
     }
     verifyGithub();
   }
 
+  // Animates a float ETH amount from `fromEth` to 0 over `ms`, driving demoDrainEth.
+  // Uses setInterval keyed off wall-clock time rather than requestAnimationFrame:
+  // rAF is throttled/paused by the browser on backgrounded or non-composited tabs
+  // (which the Playwright capture page can be), which would hang this promise
+  // forever. setInterval keeps ticking regardless, and since each tick reads real
+  // elapsed time (not "one rAF frame"), the eased curve stays correct even if
+  // some ticks are dropped or delayed.
+  function animateDemoDrain(fromEth: number, ms: number) {
+    return new Promise<void>((resolve) => {
+      const start = Date.now();
+      const id = setInterval(() => {
+        const t = Math.min(1, (Date.now() - start) / ms);
+        setDemoDrainEth(fromEth * (1 - easeOutCubic(t)));
+        if (t >= 1) {
+          clearInterval(id);
+          resolve();
+        }
+      }, 30);
+    });
+  }
+
   async function handleClaimClick() {
     if (!voucher) return;
     if (isDemo) {
+      const fromEth = s ? Number(formatEther(s.pending)) : 0;
       setDemoPending(true);
       setMsg("Sent — waiting for confirmation…");
-      await sleep(1400);
+      await sleep(500);
+      await animateDemoDrain(fromEth, 900); // the payoff: balance visibly sweeps to 0
+      setDemoDrainEth(null);
       setTxHash(DEMO_TX_HASH);
+      setS((prev) => (prev ? { ...prev, pending: 0n, totalPaid: prev.pending } : prev));
       setMsg("Done.");
       setVoucher(null);
       setDemoPending(false);
-      setS((prev) => (prev ? { ...prev, pending: 0n, totalPaid: prev.pending } : prev));
       return;
     }
     await sendTx("claimAndBind", [voucher.payout, BigInt(voucher.deadline), voucher.signature]);
@@ -244,12 +284,25 @@ export function ClaimClient({ vault }: { vault: Address }) {
           </p>
         )}
 
-        <div className="mt-10 rounded-2xl border p-6 sm:p-8" style={{ borderColor: RS.HAIR }}>
-          <div
-            style={{ fontFamily: "var(--f-display)", fontVariantNumeric: "tabular-nums" }}
-            className="text-[clamp(2rem,6vw,3.2rem)] tracking-tight"
-          >
-            {formatEther(s.pending)} ETH
+        <div className="relative mt-10 rounded-2xl border p-6 sm:p-8" style={{ borderColor: RS.HAIR }}>
+          {isDemo && demoDrainEth !== null && (
+            <span className="demo-eth-fly" aria-hidden>
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
+                <path d="M12 2L4.5 13.5 12 17.5l7.5-4L12 2Z" fill={RS.GREEN_CTA} />
+                <path d="M12 17.5 4.5 13.5 12 22l7.5-8.5L12 17.5Z" fill={RS.GREEN_CTA} opacity="0.6" />
+              </svg>
+            </span>
+          )}
+          <div className="relative overflow-hidden">
+            {isDemo && demoDrainEth !== null && <span className="demo-balance-sweep" aria-hidden />}
+            <div
+              style={{ fontFamily: "var(--f-display)", fontVariantNumeric: "tabular-nums" }}
+              className={`text-[clamp(2rem,6vw,3.2rem)] tracking-tight ${
+                isDemo && demoDrainEth !== null ? "demo-balance-draining" : ""
+              }`}
+            >
+              {isDemo && demoDrainEth !== null ? demoDrainEth.toFixed(4) : formatEther(s.pending)} ETH
+            </div>
           </div>
           <div className="mt-2 text-xs uppercase tracking-[0.14em]" style={{ fontFamily: "var(--f-mono)", color: RS.FAINT }}>
             pending · {formatEther(s.totalPaid)} ETH paid out
@@ -281,10 +334,36 @@ export function ClaimClient({ vault }: { vault: Address }) {
                     Claim to {voucher.payout.slice(0, 6)}…{voucher.payout.slice(-4)}
                   </button>
                 )}
-                {!isBound && s.identityType === 1 && !voucher && (
+                {!isBound && s.identityType === 1 && !voucher && !demoVerified && (
                   <button onClick={handleVerifyGithubClick} disabled={effectivePending} className={ctaCls} style={ctaStyle}>
-                    Verify with GitHub
+                    {demoVerifying ? (
+                      <span className="inline-flex items-center gap-2.5">
+                        <span className="demo-spinner" aria-hidden />
+                        Verifying…
+                      </span>
+                    ) : (
+                      "Verify with GitHub"
+                    )}
                   </button>
+                )}
+                {isDemo && demoVerified && !voucher && (
+                  <div
+                    className="demo-verified-chip inline-flex w-fit items-center gap-2 rounded-full px-5 py-2.5 text-sm font-semibold"
+                    style={{ background: "rgba(0,200,5,0.14)", color: RS.GREEN_TEXT }}
+                  >
+                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" aria-hidden>
+                      <path
+                        className="demo-check-path"
+                        d="M5 12.5l4 4 10-10"
+                        stroke="currentColor"
+                        strokeWidth="2.4"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        fill="none"
+                      />
+                    </svg>
+                    Verified via GitHub
+                  </div>
                 )}
                 {!isBound && s.identityType === 2 && (
                   <div className="flex flex-col gap-3">
@@ -350,7 +429,24 @@ export function ClaimClient({ vault }: { vault: Address }) {
         </div>
 
         {msg && (
-          <p className="mt-5 text-sm" style={{ color: RS.DIM }}>
+          <p
+            className={`mt-5 flex items-center gap-2 text-sm ${msg === "Done." ? "demo-done-pop" : ""}`}
+            style={{ color: msg === "Done." ? RS.GREEN_TEXT : RS.DIM }}
+          >
+            {msg === "Done." && (
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden>
+                <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="1.6" opacity="0.35" />
+                <path
+                  className="demo-check-path"
+                  d="M7 12.5l3 3 7-7"
+                  stroke="currentColor"
+                  strokeWidth="2.2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  fill="none"
+                />
+              </svg>
+            )}
             {msg}
           </p>
         )}
@@ -359,7 +455,7 @@ export function ClaimClient({ vault }: { vault: Address }) {
             href={`https://robinhoodchain.blockscout.com/tx/${txHash}`}
             target="_blank"
             rel="noreferrer"
-            className="mt-2 block text-sm font-medium underline decoration-1 underline-offset-4 hover:opacity-70"
+            className="demo-tx-link-in mt-2 block text-sm font-medium underline decoration-1 underline-offset-4 hover:opacity-70"
             style={{ color: RS.INK }}
           >
             View transaction →
