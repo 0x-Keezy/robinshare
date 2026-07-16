@@ -85,7 +85,7 @@ contract ForkTest is Test {
         }
 
         address attester = vm.addr(ATTESTER_PK);
-        SocialFeeEscrowFactory factory = new SocialFeeEscrowFactory(RobinhoodAddresses.VAULT_PORTAL, attester);
+        SocialFeeEscrowFactory factory = new SocialFeeEscrowFactory(attester);
         bytes memory vaultData = abi.encode("github", "0x-keezy", address(0), uint256(0));
         address creator = makeAddr("pilot-creator");
         vm.deal(creator, 1 ether);

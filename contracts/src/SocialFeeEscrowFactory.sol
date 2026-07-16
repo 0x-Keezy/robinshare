@@ -11,13 +11,15 @@ import {SocialFeeEscrow} from "./SocialFeeEscrow.sol";
 ///         SocialFeeEscrow por token, normaliza la identidad on-chain y mantiene
 ///         el registro identidad -> vaults. Sin funciones privilegiadas.
 contract SocialFeeEscrowFactory is VaultFactoryBaseV2 {
-    address public immutable vaultPortal;
-    /// @notice El attester CANONICO de esta factory. Se fija al desplegar la factory y
-    ///         se inyecta en TODO escrow social que crea — el creator NO puede elegirlo.
-    ///         Esto cierra el rug: un creator malicioso no puede nombrar su propia key,
-    ///         auto-firmarse un voucher y bindear su wallet salteando la verificacion real.
-    ///         Quien quiera otro oraculo despliega su propia factory.
-    address public immutable attester;
+    /// @notice El attester CANONICO de esta factory: lo inyecta en TODO escrow social que
+    ///         crea — el creator NO puede elegirlo. Esto cierra el rug: un creator malicioso
+    ///         no puede nombrar su propia key, auto-firmarse un voucher y bindear su wallet
+    ///         salteando la verificacion real. Quien quiera otro oraculo despliega su factory.
+    /// @dev Preaudit Flap (High): ya no es immutable — el attester VIGENTE puede designar un
+    ///      sucesor (rotateAttester, self-gated: ni admin ni Guardian). Los vaults leen esta
+    ///      variable EN VIVO, asi que rotar invalida los vouchers de la key vieja en todos los
+    ///      vaults, pasados y futuros.
+    address public attester;
 
     mapping(bytes32 => address[]) internal _vaultsByIdentity;
     address[] public allVaults;
@@ -32,12 +34,28 @@ contract SocialFeeEscrowFactory is VaultFactoryBaseV2 {
         address attester,
         uint64 recoveryAfter
     );
+    event AttesterRotated(address indexed oldAttester, address indexed newAttester);
 
-    constructor(address vaultPortal_, address attester_) {
-        require(vaultPortal_ != address(0), unicode"zero portal / portal 地址为空");
+    constructor(address attester_) {
         require(attester_ != address(0), unicode"zero attester / 认证者地址为空");
-        vaultPortal = vaultPortal_;
         attester = attester_;
+    }
+
+    /// @notice El attester vigente designa a su sucesor (rotacion de key: higiene o compromiso
+    ///         parcial). Self-gated a proposito: ningun admin/Guardian puede reasignarlo.
+    function rotateAttester(address newAttester) external {
+        require(msg.sender == attester, unicode"only attester / 仅限认证者");
+        require(newAttester != address(0), unicode"zero attester / 认证者地址为空");
+        emit AttesterRotated(attester, newAttester);
+        attester = newAttester;
+    }
+
+    /// @notice El VaultPortal oficial de esta chain — el UNICO caller valido de newVault.
+    /// @dev Preaudit Flap (High, obligatorio): el gate ya no es un constructor param que un
+    ///      deploy equivocado podria apuntar a cualquier lado; sale de _getVaultPortal()
+    ///      (hardcodeado per-chain en VaultFactoryBaseV2, patron de flap-sh/FlapVaultExample).
+    function vaultPortal() external view returns (address) {
+        return _getVaultPortal();
     }
 
     /// @dev taxToken es una direccion PREDICHA: el token NO existe todavia. Solo almacenar.
@@ -45,7 +63,7 @@ contract SocialFeeEscrowFactory is VaultFactoryBaseV2 {
         external
         returns (address vault)
     {
-        require(msg.sender == vaultPortal, unicode"only vault portal / 仅限 VaultPortal");
+        require(msg.sender == _getVaultPortal(), unicode"only vault portal / 仅限 VaultPortal");
         require(quoteToken == address(0), unicode"native quote only / 仅支持原生代币");
 
         (string memory typeStr, string memory rawValue, address identityWallet, uint256 recoveryDays) =
@@ -57,8 +75,9 @@ contract SocialFeeEscrowFactory is VaultFactoryBaseV2 {
 
         bytes32 identityHash;
         string memory normalized = "";
-        // github → attester canónico de la factory; twitter → XGeneralVerifier oficial de Flap; wallet → ninguno.
-        address vaultAttester = t == 1 ? attester : address(0);
+        // github → la FACTORY como fuente viva del attester (rotable); twitter → XGeneralVerifier
+        // oficial de Flap; wallet → ninguno.
+        address vaultAttesterSource = t == 1 ? address(this) : address(0);
         address vaultXVerifier = t == 2 ? _getXVerifier() : address(0);
         if (t == 0) {
             require(bytes(rawValue).length == 0, unicode"value must be empty for wallet / wallet 类型不需要句柄");
@@ -68,15 +87,23 @@ contract SocialFeeEscrowFactory is VaultFactoryBaseV2 {
             normalized = _normalize(t, rawValue);
             identityHash = keccak256(abi.encode(t, normalized));
         }
+        // Preaudit Flap (High): un vault twitter creado sin XGeneralVerifier en esta chain
+        // quedaria brickeado para siempre (xVerifier es immutable en el vault y claimByProof
+        // revertiria eternamente). Rechazar la creacion hasta que Flap lo despliegue.
+        if (t == 2) {
+            require(vaultXVerifier != address(0), unicode"x verifier not deployed on this chain / 本链暂无 X 验证器");
+        }
 
         vault = address(
             new SocialFeeEscrow(
-                taxToken, creator, t, normalized, identityWallet, vaultAttester, vaultXVerifier, recoveryAfter
+                taxToken, creator, t, normalized, identityWallet, vaultAttesterSource, vaultXVerifier, recoveryAfter
             )
         );
         _vaultsByIdentity[identityHash].push(vault);
         allVaults.push(vault);
-        emit VaultCreated(identityHash, t, normalized, vault, taxToken, creator, vaultAttester, recoveryAfter);
+        emit VaultCreated(
+            identityHash, t, normalized, vault, taxToken, creator, t == 1 ? attester : address(0), recoveryAfter
+        );
     }
 
     function getVaults(bytes32 identityHash) external view returns (address[] memory) {

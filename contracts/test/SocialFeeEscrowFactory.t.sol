@@ -10,13 +10,16 @@ import {IPortalTypes} from "../src/flap/IPortal.sol";
 
 contract SocialFeeEscrowFactoryTest is Test {
     SocialFeeEscrowFactory factory;
-    address portal = makeAddr("vaultPortal");
+    // Gate hardcodeado (fix preaudit): los tests corren en 4663 y prankean el portal REAL.
+    address constant portal = 0xe9F7AB7DE8FB8756acbB6a1cd13316a43308197B; // VaultPortal Robinhood
+    address constant BSC_PORTAL = 0x90497450f2a706f1951b5bdda52B4E5d16f34C06; // VaultPortal BSC
     address creator = makeAddr("creator");
     address attester = makeAddr("attester");
     address predictedToken = address(0x7777);
 
     function setUp() public {
-        factory = new SocialFeeEscrowFactory(portal, attester);
+        vm.chainId(4663);
+        factory = new SocialFeeEscrowFactory(attester);
     }
 
     function _data(string memory t, string memory v, address w, uint256 days_) internal pure returns (bytes memory) {
@@ -25,7 +28,7 @@ contract SocialFeeEscrowFactoryTest is Test {
 
     function test_constructor_zeroAttester_reverts() public {
         vm.expectRevert(bytes(unicode"zero attester / 认证者地址为空"));
-        new SocialFeeEscrowFactory(portal, address(0));
+        new SocialFeeEscrowFactory(address(0));
     }
 
     function test_attester_esCanonico_noElegibleporCreator() public {
@@ -67,11 +70,14 @@ contract SocialFeeEscrowFactoryTest is Test {
     }
 
     function test_creaEscrowTwitter_y_wallet() public {
-        vm.startPrank(portal);
+        // twitter exige el XGeneralVerifier vivo → BSC (56) con SU portal; wallet en 4663.
+        vm.chainId(56);
+        vm.prank(BSC_PORTAL);
         address v1 = factory.newVault(predictedToken, address(0), creator, _data("twitter", "@0xKeezy", address(0), 30));
+        vm.chainId(4663);
+        vm.prank(portal);
         address v2 =
             factory.newVault(predictedToken, address(0), creator, _data("wallet", "", makeAddr("person"), 0));
-        vm.stopPrank();
         assertEq(SocialFeeEscrow(payable(v1)).identityValue(), "0xkeezy");
         assertGt(SocialFeeEscrow(payable(v1)).recoveryAfter(), 0);
         assertEq(SocialFeeEscrow(payable(v2)).identityType(), 0);
@@ -119,7 +125,8 @@ contract SocialFeeEscrowFactoryTest is Test {
     function testFuzz_normalizacionIdempotente(string memory raw) public {
         // Propiedad: si un handle pasa la validacion, el hash del crudo == hash del normalizado.
         vm.assume(bytes(raw).length > 0 && bytes(raw).length <= 15);
-        vm.prank(portal);
+        vm.chainId(56); // twitter exige verifier vivo; sin esto la propiedad seria vacua
+        vm.prank(BSC_PORTAL);
         try factory.newVault(predictedToken, address(0), creator, _data("twitter", raw, address(0), 0)) returns (
             address vault
         ) {

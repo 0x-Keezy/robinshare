@@ -69,7 +69,7 @@ contract LaunchPilot is Script {
         vm.startBroadcast();
 
         if (factory == address(0)) {
-            factory = address(new SocialFeeEscrowFactory(RobinhoodAddresses.VAULT_PORTAL, attester));
+            factory = address(new SocialFeeEscrowFactory(attester));
             console2.log("Factory deployed:", factory);
         } else {
             console2.log("Reusing factory:", factory);

@@ -8,6 +8,11 @@ import {VaultBaseV2} from "./flap/VaultBaseV2.sol";
 import {VaultUISchema, VaultMethodSchema, FieldDescriptor, ApproveAction} from "./flap/IVaultSchemasV1.sol";
 import {IXGeneralVerifier} from "./flap/IXGeneralVerifier.sol";
 
+/// @notice Fuente viva del attester vigente (la factory). Rotable via rotateAttester.
+interface IAttesterSource {
+    function attester() external view returns (address);
+}
+
 /// @title SocialFeeEscrow (FLEDGE)
 /// @notice Acumula el tax (ETH nativo) de un token de Flap para UNA identidad
 ///         (wallet / github / twitter) y solo lo entrega a la wallet que la probó.
@@ -23,8 +28,14 @@ contract SocialFeeEscrow is VaultBaseV2, EIP712 {
     address public immutable taxToken; // direccion PREDICHA del token; puede no tener codigo aun
     address public immutable creator;
     uint8 public immutable identityType;
-    address public immutable attester; // firma vouchers de la ruta GITHUB (EIP-712)
+    /// @notice Fuente VIVA del attester (la factory) — ruta GITHUB. Preaudit Flap (High):
+    ///         antes el attester era immutable por vault (key comprometida = vouchers forjables
+    ///         para siempre, sin rotacion); ahora el vault lee el vigente de la factory.
+    address public immutable attesterSource;
     address public immutable xVerifier; // XGeneralVerifier oficial de Flap, ruta TWITTER
+    /// @notice La wallet-identidad original (solo TYPE_WALLET; 0x0 para github/twitter).
+    ///         NO muta con rebinds: es quien puede rotar la wallet de cobro.
+    address public immutable identityWallet;
     uint64 public immutable recoveryAfter; // 0 = nunca
     string public identityValue; // normalizada por la factory; vacia para TYPE_WALLET
 
@@ -36,6 +47,7 @@ contract SocialFeeEscrow is VaultBaseV2, EIP712 {
     event Bound(address indexed payoutWallet, uint256 nonce);
     event Swept(address indexed to, uint256 amount);
     event Recovered(address indexed to, uint256 amount);
+    event EmergencyWithdrawNative(address indexed to, uint256 amount);
 
     constructor(
         address taxToken_,
@@ -43,7 +55,7 @@ contract SocialFeeEscrow is VaultBaseV2, EIP712 {
         uint8 identityType_,
         string memory identityValue_,
         address identityWallet_,
-        address attester_,
+        address attesterSource_,
         address xVerifier_,
         uint64 recoveryAfter_
     ) EIP712("SocialFeeEscrow", "1") {
@@ -52,15 +64,21 @@ contract SocialFeeEscrow is VaultBaseV2, EIP712 {
         creator = creator_;
         identityType = identityType_;
         identityValue = identityValue_;
-        attester = attester_;
+        attesterSource = attesterSource_;
         xVerifier = xVerifier_;
         recoveryAfter = recoveryAfter_;
+        identityWallet = identityType_ == TYPE_WALLET ? identityWallet_ : address(0);
         if (identityType_ == TYPE_WALLET) {
             require(identityWallet_ != address(0), unicode"wallet required / 需要钱包地址");
             boundWallet = identityWallet_;
             emit Bound(identityWallet_, 0);
         } else if (identityType_ == TYPE_GITHUB) {
-            require(attester_ != address(0), unicode"attester required / 需要认证者地址");
+            require(attesterSource_ != address(0), unicode"attester required / 需要认证者地址");
+            // sanity al deploy: la fuente debe resolver a un attester real (caza EOAs/basura)
+            require(
+                IAttesterSource(attesterSource_).attester() != address(0),
+                unicode"attester required / 需要认证者地址"
+            );
         }
         // TYPE_TWITTER: usa el XGeneralVerifier de Flap (chain-based, via factory). Si aun no esta
         // desplegado en esta chain, xVerifier_ = 0 y claimByProof revierte hasta que exista.
@@ -74,6 +92,12 @@ contract SocialFeeEscrow is VaultBaseV2, EIP712 {
 
     function pendingAmount() public view returns (uint256) {
         return address(this).balance;
+    }
+
+    /// @notice El attester VIGENTE (leido en vivo de la factory; rotable). Mismo ABI de lectura
+    ///         que el viejo immutable — dApp y attester server no cambian.
+    function attester() public view returns (address) {
+        return identityType == TYPE_GITHUB ? IAttesterSource(attesterSource).attester() : address(0);
     }
 
     /// @notice Digest EIP-712 que el attester debe firmar para autorizar el bind actual.
@@ -91,7 +115,7 @@ contract SocialFeeEscrow is VaultBaseV2, EIP712 {
         require(payoutWallet != address(0), unicode"zero payout / 收款地址为空");
         require(block.timestamp <= deadline, unicode"voucher expired / 凭证已过期");
         address signer = ECDSA.recover(bindDigest(payoutWallet, deadline), signature);
-        require(signer == attester, unicode"bad attester signature / 认证签名无效");
+        require(signer == attester(), unicode"bad attester signature / 认证签名无效");
 
         emit Bound(payoutWallet, bindNonce);
         boundWallet = payoutWallet;
@@ -164,6 +188,22 @@ contract SocialFeeEscrow is VaultBaseV2, EIP712 {
         }
     }
 
+    /// @notice Ruta WALLET: la identidad original puede rotar su wallet de cobro.
+    /// @dev Fix del preaudit de Flap (Critical): si identityWallet es un contrato que no puede
+    ///      recibir ETH (multisig mal configurado), sweep() revertiria para siempre sin recurso.
+    ///      Como la identidad ES esa wallet, dejarla redirigir el payout preserva el modelo de
+    ///      confianza ("solo la identidad probada dirige los fondos") y la rescata sola.
+    function rebindWallet(address newPayout) external {
+        require(identityType == TYPE_WALLET, unicode"wallet identity only / 仅限 wallet 身份");
+        require(msg.sender == identityWallet, unicode"only identity wallet / 仅限身份钱包");
+        require(newPayout != address(0), unicode"zero payout / 收款地址为空");
+        emit Bound(newPayout, bindNonce);
+        boundWallet = newPayout;
+        unchecked {
+            bindNonce++;
+        }
+    }
+
     /// @notice Envia todo el balance a la wallet ya probada. Permissionless a proposito:
     ///         cualquiera puede pagar el gas para empujar los fees a su dueno.
     function sweep() external {
@@ -177,17 +217,39 @@ contract SocialFeeEscrow is VaultBaseV2, EIP712 {
     }
 
     /// @notice Si la persona nunca aparecio y el creator fijo un plazo al launch,
-    ///         devuelve el balance al creator. Nunca disponible despues de un bind.
-    function recoverUnclaimed() external {
+    ///         devuelve el balance a una wallet que el creator elige. Nunca despues de un bind.
+    /// @dev Fix del preaudit de Flap (High): el push fijo a `creator` podia trabar los fondos si
+    ///      esa address era un contrato incapaz de recibir ETH. Con destino elegible la funcion
+    ///      deja de ser permissionless: solo el creator decide adonde va SU recovery.
+    function recoverUnclaimed(address to) external {
+        require(msg.sender == creator, unicode"only creator / 仅限创建者");
+        require(to != address(0), unicode"zero recipient / 接收地址为空");
         require(recoveryAfter != 0, unicode"recovery disabled / 回收未启用");
         require(boundWallet == address(0), unicode"already bound / 已绑定");
         require(block.timestamp >= recoveryAfter, unicode"too early / 未到回收时间");
         uint256 amount = address(this).balance;
         require(amount > 0, unicode"nothing to recover / 无可回收余额");
         totalPaid += amount;
-        emit Recovered(creator, amount);
-        (bool ok,) = creator.call{value: amount}("");
+        emit Recovered(to, amount);
+        (bool ok,) = to.call{value: amount}("");
         require(ok, unicode"payout failed / 支付失败");
+    }
+
+    /// @notice Escape hatch de ultima instancia, gated al Guardian OFICIAL de Flap (per-chain,
+    ///         heredado de VaultBase — no es una key nuestra ni del creator).
+    /// @dev Adoptado del preaudit de Flap (Option A, patron de flap-sh/FlapVaultExample, Rule 009):
+    ///      cubre los escenarios donde todo lo demas fallo (wallet-identidad muerta que tampoco
+    ///      puede llamar rebindWallet, attester perdido sin sucesor, etc.). Decision de producto
+    ///      explicita: se cede el claim "cero funciones privilegiadas" a cambio de que ningun
+    ///      fondo pueda quedar trabado para siempre. CEI; sin totalPaid (no es payout de identidad).
+    function emergencyWithdrawNative(address to) external onlyGuardian {
+        require(to != address(0), unicode"zero recipient / 接收地址为空");
+        uint256 amount = address(this).balance;
+        if (amount > 0) {
+            emit EmergencyWithdrawNative(to, amount);
+            (bool ok,) = to.call{value: amount}("");
+            require(ok, unicode"payout failed / 支付失败");
+        }
     }
 
     function description() public view override returns (string memory) {

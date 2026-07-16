@@ -13,7 +13,7 @@ contract Deploy is Script {
         address attester = vm.envAddress("ATTESTER_ADDRESS");
         require(attester != address(0), "set ATTESTER_ADDRESS");
         vm.startBroadcast();
-        SocialFeeEscrowFactory factory = new SocialFeeEscrowFactory(RobinhoodAddresses.VAULT_PORTAL, attester);
+        SocialFeeEscrowFactory factory = new SocialFeeEscrowFactory(attester);
         vm.stopBroadcast();
         console2.log("SocialFeeEscrowFactory:", address(factory));
         console2.log("VaultPortal:", factory.vaultPortal());

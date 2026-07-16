@@ -16,16 +16,21 @@ contract StipendSender {
 contract SocialFeeEscrowTest is Test {
     // anvil key #0 — attester de los tests
     uint256 constant ATTESTER_PK = 0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80;
-    address attester;
+    address attesterAddr;
     address taxToken = address(0x7A11); // dirección predicha, sin código (a propósito)
     address creator = address(0xC0FFEE);
 
     function setUp() public {
-        attester = vm.addr(ATTESTER_PK);
+        attesterAddr = vm.addr(ATTESTER_PK);
+    }
+
+    /// El test contract hace de fuente-de-attester (rol de la factory en produccion).
+    function attester() external view returns (address) {
+        return attesterAddr;
     }
 
     function _newGithub(uint64 recoveryAfter) internal returns (SocialFeeEscrow) {
-        return new SocialFeeEscrow(taxToken, creator, 1, "torvalds", address(0), attester, address(0), recoveryAfter);
+        return new SocialFeeEscrow(taxToken, creator, 1, "torvalds", address(0), address(this), address(0), recoveryAfter);
     }
 
     function _sign(SocialFeeEscrow e, address payout, uint256 deadline) internal view returns (bytes memory) {
@@ -41,7 +46,7 @@ contract SocialFeeEscrowTest is Test {
         assertEq(e.creator(), creator);
         assertEq(e.identityType(), 1);
         assertEq(e.identityValue(), "torvalds");
-        assertEq(e.attester(), attester);
+        assertEq(e.attester(), attesterAddr);
         assertEq(e.recoveryAfter(), 0);
         assertEq(e.boundWallet(), address(0));
         assertEq(e.bindNonce(), 0);
@@ -67,7 +72,7 @@ contract SocialFeeEscrowTest is Test {
 
     function test_constructor_badType_reverts() public {
         vm.expectRevert();
-        new SocialFeeEscrow(taxToken, creator, 3, "x", address(0), attester, address(0), 0);
+        new SocialFeeEscrow(taxToken, creator, 3, "x", address(0), address(this), address(0), 0);
     }
 
     /// INVARIANTE DURA: receive() nunca revierte, ni con stipend 2300.
@@ -250,14 +255,16 @@ contract SocialFeeEscrowTest is Test {
 
     function test_recover_deshabilitado_reverts() public {
         SocialFeeEscrow e = _newGithub(0); // recoveryAfter = 0
+        vm.prank(creator);
         vm.expectRevert(bytes(unicode"recovery disabled / 回收未启用"));
-        e.recoverUnclaimed();
+        e.recoverUnclaimed(creator);
     }
 
     function test_recover_antesDeTiempo_reverts() public {
         SocialFeeEscrow e = _newGithub(uint64(block.timestamp + 30 days));
+        vm.prank(creator);
         vm.expectRevert(bytes(unicode"too early / 未到回收时间"));
-        e.recoverUnclaimed();
+        e.recoverUnclaimed(creator);
     }
 
     function test_recover_despuesDeBind_reverts() public {
@@ -266,8 +273,9 @@ contract SocialFeeEscrowTest is Test {
         uint256 deadline = block.timestamp + 15 minutes;
         e.claimAndBind(payout, deadline, _sign(e, payout, deadline));
         vm.warp(block.timestamp + 31 days);
+        vm.prank(creator);
         vm.expectRevert(bytes(unicode"already bound / 已绑定"));
-        e.recoverUnclaimed(); // una vez bound, JAMAS recuperable por el creator
+        e.recoverUnclaimed(creator); // una vez bound, JAMAS recuperable por el creator
     }
 
     function test_recover_happyPath() public {
@@ -275,7 +283,8 @@ contract SocialFeeEscrowTest is Test {
         (bool ok,) = address(e).call{value: 1 ether}("");
         assertTrue(ok);
         vm.warp(block.timestamp + 30 days);
-        e.recoverUnclaimed(); // permissionless; paga al creator
+        vm.prank(creator);
+        e.recoverUnclaimed(creator); // creator-gated con destino elegible (fix preaudit)
         assertEq(creator.balance, 1 ether);
         assertEq(e.totalPaid(), 1 ether);
     }
