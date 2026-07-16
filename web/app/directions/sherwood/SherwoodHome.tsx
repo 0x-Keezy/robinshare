@@ -343,8 +343,8 @@ export function SherwoodHome() {
                 style={{ fontFamily: "var(--f-mono)", color: "rgba(242,239,230,0.5)", ...inStyle(660) }}
               >
                 <span>Immutable</span>
-                <span>0 admin keys</span>
-                <span>51 tests green</span>
+                <span>0 owner keys</span>
+                <span>71 tests green</span>
                 <span>Chain 4663</span>
               </div>
             </div>
@@ -415,9 +415,9 @@ export function SherwoodHome() {
 
               <div className="mt-20 grid grid-cols-2 gap-x-8 gap-y-12 border-t pt-14 sm:grid-cols-4" style={{ borderImage: `${hairline()} 1` }}>
                 <Stat value={100} suffix="ms" label="Block time · 4663" accent={CREAM} dim="rgba(242,239,230,0.5)" />
-                <Stat value={0} label="Admin keys · immutable" accent={SIGNAL} dim="rgba(242,239,230,0.5)" />
+                <Stat value={0} label="Owner keys · immutable" accent={SIGNAL} dim="rgba(242,239,230,0.5)" />
                 <Stat value={3} label="Ways to prove a name" accent={CREAM} dim="rgba(242,239,230,0.5)" />
-                <Stat value={51} label="Tests green · fork E2E" accent={GOLD} dim="rgba(242,239,230,0.5)" />
+                <Stat value={71} label="Tests green · fork E2E" accent={GOLD} dim="rgba(242,239,230,0.5)" />
               </div>
             </div>
           </div>

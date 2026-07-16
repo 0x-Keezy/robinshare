@@ -363,7 +363,7 @@ export function LegendHome() {
           {/* hechos en negro gigante — user-meaningful, verificables */}
           <div className="grid grid-cols-2 gap-x-8 gap-y-10 border-t pt-14 sm:grid-cols-4" style={{ borderColor: HAIR }}>
             <Stat value={100} suffix="ms" label="Block time" accent={INK} dim={FAINT} />
-            <Stat value={0} label="Admin keys" accent={INK} dim={FAINT} />
+            <Stat value={0} label="Owner keys" accent={INK} dim={FAINT} />
             <Stat value={3} label="Ways to claim" accent={INK} dim={FAINT} />
             <Stat value={100} suffix="%" label="Of the fee → builder" accent={GREEN_TEXT} dim={FAINT} />
           </div>
@@ -393,8 +393,9 @@ export function LegendHome() {
             <Reveal delay={120}>
               <div>
                 <p className="max-w-md text-lg leading-relaxed" style={{ color: DIM }}>
-                  The vault is fixed at launch. There are no admin keys and no way to redirect
-                  it, not even for us. The money only moves to the wallet that proves the name.
+                  The vault is fixed at launch — no owner, no upgrades, and we hold no keys.
+                  The money only moves to the wallet that proves the name. The one emergency
+                  hatch belongs to Flap&apos;s public Guardian multisig, never to us.
                 </p>
                 <div className="mt-6 flex flex-wrap gap-2.5" style={{ fontFamily: "var(--f-mono)" }}>
                   {["wallet signature", "github oauth", "x oracle proof"].map((m) => (

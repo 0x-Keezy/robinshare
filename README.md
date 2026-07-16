@@ -20,9 +20,13 @@ earned it.
    `XGeneralVerifier` oracle, or a wallet signature) and sweep the ETH.
 
 **Core invariant:** escrowed ETH can only ever move to the wallet that proved the identity (or
-back to the creator via `recoverUnclaimed`, only if the vault was *never* bound and the
-creator-chosen recovery window elapsed). No owner. No pause. No upgrade path. No privileged
-functions. `receive()` stays empty — always.
+back to the creator via `recoverUnclaimed(address to)`, only if the vault was *never* bound and
+the creator-chosen recovery window elapsed). No owner. No pause. No upgrade path. One privileged
+function only: `emergencyWithdrawNative`, an emergency-only hatch gated to Flap's public
+per-chain Guardian multisig (never us) — adopted in the Flap preaudit as the recovery of last
+resort. Payout rotation (`rebindWallet`) and attester rotation (`rotateAttester`) are self-gated:
+the proven identity and the attester key rotate themselves, no admin in either path. `receive()`
+stays empty — always.
 
 ## Repo layout
 

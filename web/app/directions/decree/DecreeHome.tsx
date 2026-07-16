@@ -212,10 +212,10 @@ export function DecreeHome() {
             <div className="mt-14 flex justify-center gap-10 text-center" style={{ fontFamily: "var(--f-mono)", color: INK_FAINT }}>
               <div>
                 <div className="text-3xl" style={{ color: INK }}>0</div>
-                <div className="mt-1 text-[10px] uppercase tracking-[0.2em]">admin keys</div>
+                <div className="mt-1 text-[10px] uppercase tracking-[0.2em]">owner keys</div>
               </div>
               <div>
-                <div className="text-3xl" style={{ color: INK }}>51</div>
+                <div className="text-3xl" style={{ color: INK }}>71</div>
                 <div className="mt-1 text-[10px] uppercase tracking-[0.2em]">tests green</div>
               </div>
               <div>
