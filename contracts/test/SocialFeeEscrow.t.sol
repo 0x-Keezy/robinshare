@@ -368,7 +368,7 @@ contract SocialFeeEscrowTest is Test {
         assertEq(e.boundWallet(), payout);
         assertEq(payout.balance, 2 ether);
         assertEq(e.pendingAmount(), 0);
-        assertEq(e.lastTweetId(payout), 100);
+        assertEq(e.lastTweetId(), 100);
     }
 
     function test_claimByProof_wrongHandle_reverts() public {

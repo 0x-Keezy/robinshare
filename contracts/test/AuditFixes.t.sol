@@ -250,10 +250,15 @@ contract AuditFixesTest is Test {
         assertEq(payout.balance, 1 ether);
     }
 
+    /// Audit v3 (High, finding 5): rotateAttester ya no es self-gated — ahora tambien acepta al
+    /// Guardian (ver AuditFixesV3Test.test_F5_*). Un caller random (ni attester ni Guardian) sigue
+    /// revirtiendo, con el mensaje actualizado. Necesita chain soportada porque _getGuardian() se
+    /// evalua como parte del OR, igual que en emergencyWithdrawNative.
     function test_rotateAttester_soloElVigente() public {
         SocialFeeEscrowFactory f = _freshFactory();
+        vm.chainId(4663);
         vm.prank(makeAddr("attacker"));
-        vm.expectRevert(bytes(unicode"only attester / 仅限认证者"));
+        vm.expectRevert(bytes(unicode"only attester or guardian / 仅限认证者或 Guardian"));
         f.rotateAttester(makeAddr("attacker"));
     }
 

@@ -16,9 +16,11 @@ contract SocialFeeEscrowFactory is VaultFactoryBaseV2 {
     ///         no puede nombrar su propia key, auto-firmarse un voucher y bindear su wallet
     ///         salteando la verificacion real. Quien quiera otro oraculo despliega su factory.
     /// @dev Preaudit Flap (High): ya no es immutable — el attester VIGENTE puede designar un
-    ///      sucesor (rotateAttester, self-gated: ni admin ni Guardian). Los vaults leen esta
-    ///      variable EN VIVO, asi que rotar invalida los vouchers de la key vieja en todos los
-    ///      vaults, pasados y futuros.
+    ///      sucesor (rotateAttester). Los vaults leen esta variable EN VIVO, asi que rotar
+    ///      invalida los vouchers de la key vieja en todos los vaults, pasados y futuros.
+    /// @dev Audit v3 (High, finding 5): rotateAttester ya NO es self-gated — el Guardian
+    ///      oficial de Flap (_getGuardian()) tambien puede rotar, como backup si la key del
+    ///      attester se pierde o se compromete y nadie mas puede invocar la rotacion.
     address public attester;
 
     mapping(bytes32 => address[]) internal _vaultsByIdentity;
@@ -42,9 +44,15 @@ contract SocialFeeEscrowFactory is VaultFactoryBaseV2 {
     }
 
     /// @notice El attester vigente designa a su sucesor (rotacion de key: higiene o compromiso
-    ///         parcial). Self-gated a proposito: ningun admin/Guardian puede reasignarlo.
+    ///         parcial). El Guardian oficial de Flap tambien puede rotar (Audit v3 finding 5):
+    ///         si la key del attester se pierde o se compromete del todo, el attester mismo ya
+    ///         no puede llamar esta funcion — el Guardian es el backup que evita que TODOS los
+    ///         vaults github queden bloqueados para siempre.
     function rotateAttester(address newAttester) external {
-        require(msg.sender == attester, unicode"only attester / 仅限认证者");
+        require(
+            msg.sender == attester || msg.sender == _getGuardian(),
+            unicode"only attester or guardian / 仅限认证者或 Guardian"
+        );
         require(newAttester != address(0), unicode"zero attester / 认证者地址为空");
         emit AttesterRotated(attester, newAttester);
         attester = newAttester;
@@ -70,6 +78,10 @@ contract SocialFeeEscrowFactory is VaultFactoryBaseV2 {
             abi.decode(vaultData, (string, string, address, uint256));
 
         uint8 t = _parseType(typeStr);
+        // Audit v3 (High, finding 3): piso de 30 dias — sin minimo, un recoveryDays chico
+        // permitia al creator recuperar (seizure) el balance social ANTES de que la identidad
+        // real tuviera chance razonable de reclamarlo. 0 sigue significando "nunca".
+        require(recoveryDays == 0 || recoveryDays >= 30, unicode"recovery window too short / 回收期过短");
         require(recoveryDays <= 3650, unicode"recovery too long / 回收期过长");
         uint64 recoveryAfter = recoveryDays == 0 ? 0 : uint64(block.timestamp + recoveryDays * 1 days);
 
@@ -151,7 +163,10 @@ contract SocialFeeEscrowFactory is VaultFactoryBaseV2 {
         if (h == keccak256("wallet")) return 0;
         if (h == keccak256("github")) return 1;
         if (h == keccak256("twitter")) return 2;
-        revert(unicode"identity type must be wallet|github|twitter / 身份类型无效");
+        // Audit v3 (High, finding 1, SYS-REQ-LITERAL-ERRORS): require() en vez de un
+        // revert(unicode"...") suelto — misma condicion, mismo mensaje, forma mandatada.
+        require(false, unicode"identity type must be wallet|github|twitter / 身份类型无效");
+        return 0; // inalcanzable: el require de arriba siempre revierte aca
     }
 
     /// @dev strip '@' inicial + lowercase ASCII + charset estricto por tipo.
@@ -175,19 +190,22 @@ contract SocialFeeEscrowFactory is VaultFactoryBaseV2 {
     }
 
     function vaultDataSchema() public pure override returns (VaultDataSchema memory schema) {
-        schema.description =
-            "Escrows 100% of the vault share of trading fees for ONE identity. "
-            "identityType is 'wallet', 'github' or 'twitter'. For wallet: set identityWallet and leave identityValue empty. "
-            "For github/twitter: set identityValue to the handle (no @ needed) - the FLEDGE factory's canonical attester "
-            "verifies ownership, the creator cannot choose it. "
-            "recoveryDays: 0 = funds wait forever; N = creator can recover if unclaimed after N days.";
+        // Audit v3 (High, finding 2, SYS-REQ-MULTILANG): las views user-facing tambien son
+        // bilingues, igual que los require/revert. Traducciones deliberadamente concisas: cada
+        // string chino agrega bytecode a la factory y el runtime debe seguir bajo EIP-170.
+        schema.description = unicode"Escrows fees for ONE identity; only the proven identity can claim. "
+            unicode"github/twitter use FLEDGE's canonical attester. recoveryDays: 0=never, else 30-3650."
+            unicode" / 为单一身份托管手续费，只有已证明身份可领取。"
+            unicode"github/twitter 由 FLEDGE 官方认证者验证。recoveryDays：0=永不，否则 30-3650。";
         schema.fields = new FieldDescriptor[](4);
-        schema.fields[0] = FieldDescriptor("identityType", "string", "wallet | github | twitter", 0);
-        schema.fields[1] = FieldDescriptor("identityValue", "string", "Handle for github/twitter (empty for wallet)", 0);
+        schema.fields[0] = FieldDescriptor("identityType", "string", unicode"wallet | github | twitter / 身份类型", 0);
+        schema.fields[1] =
+            FieldDescriptor("identityValue", "string", unicode"Handle for github/twitter / github/twitter 句柄", 0);
         schema.fields[2] =
-            FieldDescriptor("identityWallet", "address", "Recipient wallet (only for identityType=wallet, else 0x0)", 0);
-        schema.fields[3] =
-            FieldDescriptor("recoveryDays", "uint256", "Days until creator may recover unclaimed funds (0 = never)", 0);
+            FieldDescriptor("identityWallet", "address", unicode"Recipient wallet (wallet type) / 收款钱包（wallet 类型）", 0);
+        schema.fields[3] = FieldDescriptor(
+            "recoveryDays", "uint256", unicode"Recover wait days (0=never, else 30-3650) / 回收等待天数（0=永不，否则 30-3650）", 0
+        );
         schema.isArray = false;
     }
 
@@ -201,17 +219,18 @@ contract SocialFeeEscrowFactory is VaultFactoryBaseV2 {
             return (false, unicode"quote token must be native / 仅支持原生代币");
         }
         if (data.vaultBps == 0) {
-            return (false, unicode"vault share (mktBps) must be > 0 or the escrow never receives fees / 金库份额必须大于 0");
+            return (false, unicode"vault share (mktBps) must be > 0 / 金库份额必须大于 0");
         }
         return (true, "");
     }
 
     function tokenCreationPolicies() public pure override returns (FactoryPolicy[] memory policies) {
         policies = new FactoryPolicy[](2);
-        policies[0] =
-            FactoryPolicy("quoteToken", "eq", abi.encode(address(0)), "Quote token must be the native token (ETH).");
+        policies[0] = FactoryPolicy(
+            "quoteToken", "eq", abi.encode(address(0)), unicode"Quote token must be native (ETH). / 报价代币须为原生代币"
+        );
         policies[1] = FactoryPolicy(
-            "mktBps", "gte", abi.encode(uint256(1)), "Vault share of the tax must be greater than zero."
+            "mktBps", "gte", abi.encode(uint256(1)), unicode"Vault share of tax must be > 0. / 金库份额须大于零"
         );
     }
 }

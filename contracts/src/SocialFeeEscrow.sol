@@ -16,7 +16,10 @@ interface IAttesterSource {
 /// @title SocialFeeEscrow (FLEDGE)
 /// @notice Acumula el tax (ETH nativo) de un token de Flap para UNA identidad
 ///         (wallet / github / twitter) y solo lo entrega a la wallet que la probó.
-///         Inmutable. Sin owner, sin pause, sin upgrade, sin funciones privilegiadas.
+///         Inmutable. Sin owner, sin pause, sin upgrade. Sin admin keys nuestras: las UNICAS
+///         funciones gateadas (emergencyWithdrawNative, setRescueForward) las controla el
+///         Guardian OFICIAL de Flap (publico, per-chain, heredado de VaultBase) — nunca una
+///         key de FLEDGE/del creator. Ver AUDIT-NOTES.md v3 (Audit v3, finding 4).
 contract SocialFeeEscrow is VaultBaseV2, EIP712 {
     uint8 public constant TYPE_WALLET = 0;
     uint8 public constant TYPE_GITHUB = 1;
@@ -42,12 +45,24 @@ contract SocialFeeEscrow is VaultBaseV2, EIP712 {
     address public boundWallet; // 0x0 hasta probar identidad; TYPE_WALLET la fija el constructor
     uint256 public bindNonce;
     uint256 public totalPaid;
-    mapping(address => uint128) public lastTweetId; // replay guard de la ruta X (Snowflake crece)
+    /// @notice Replay guard GLOBAL de la ruta X (Snowflake crece). Audit v3 (Low, finding 6):
+    ///         antes era `mapping(address => uint128)` (por-claimer) — una wallet vieja nombrada
+    ///         en un tweet desactualizado pero aun oracle-valido podia rebindear y desviar fondos
+    ///         despues de que el handle real ya hubiera probado una wallet mas nueva. Ahora, igual
+    ///         que el bindNonce de github, CUALQUIER claim exitoso invalida los tweetIds menores
+    ///         para TODOS los candidatos, no solo para si misma.
+    uint128 public lastTweetId;
+    /// @notice Guardian-only kill-switch: si esta prendido, receive() reenvia el ETH entrante a
+    ///         `rescueTo` en vez de acumularlo. Audit v3 (High, finding 4, SYS-REQ-RESCUE-MECHANISM).
+    bool public rescueForward;
+    address public rescueTo;
 
     event Bound(address indexed payoutWallet, uint256 nonce);
     event Swept(address indexed to, uint256 amount);
     event Recovered(address indexed to, uint256 amount);
     event EmergencyWithdrawNative(address indexed to, uint256 amount);
+    event RescueForwardSet(bool on, address to);
+    event Forwarded(address indexed to, uint256 amount);
 
     constructor(
         address taxToken_,
@@ -84,11 +99,30 @@ contract SocialFeeEscrow is VaultBaseV2, EIP712 {
         // desplegado en esta chain, xVerifier_ = 0 y claimByProof revierte hasta que exista.
     }
 
+    /// @notice El Guardian oficial de Flap puede prender/apagar el forward de receive() hacia una
+    ///         address de rescate. Audit v3 (High, finding 4): este vault es inmutable y solo tenia
+    ///         emergencyWithdrawNative (after-the-fact); durante un incidente, sin este switch, el
+    ///         tax que sigue entrando no se puede redirigir en el momento de la recepcion.
+    function setRescueForward(bool on, address to) external {
+        require(msg.sender == _getGuardian(), unicode"only guardian / 仅限 Guardian");
+        require(!on || to != address(0), unicode"zero rescue target / 救援地址为空");
+        rescueForward = on;
+        rescueTo = to;
+        emit RescueForwardSet(on, to);
+    }
+
     /// @notice Recibe el tax del TaxProcessor de Flap.
-    /// @dev CUERPO VACIO — invariante dura. Sin SSTORE, sin eventos, sin require:
-    ///      si esto revierte (p.ej. con stipend de 2300 gas), esa porcion del tax
-    ///      va al fee receiver de Flap PARA SIEMPRE, sin retry.
-    receive() external payable {}
+    /// @dev INVARIANTE DURA: NUNCA revertir. Flap entrega el tax con `.call` (Rule 005, <1M gas,
+    ///      no stipend de 2300) — ver test/Fork.t.sol. Si `rescueForward` esta prendido (Guardian,
+    ///      Audit v3 finding 4), reenvia el msg.value a `rescueTo` best-effort: si el forward falla,
+    ///      el ETH se queda ACA (rescatable via emergencyWithdrawNative), jamas revierte la recepcion.
+    ///      Sin ese switch, se comporta exactamente como antes: acumula en el balance del vault.
+    receive() external payable {
+        if (rescueForward && rescueTo != address(0)) {
+            (bool ok,) = rescueTo.call{value: msg.value}("");
+            if (ok) emit Forwarded(rescueTo, msg.value);
+        }
+    }
 
     function pendingAmount() public view returns (uint256) {
         return address(this).balance;
@@ -170,9 +204,14 @@ contract SocialFeeEscrow is VaultBaseV2, EIP712 {
         );
         // (3) firma del oráculo de Flap.
         require(IXGeneralVerifier(xVerifier).verify(proof, signature), unicode"invalid proof / 证明无效");
-        // (4) replay: los Snowflake IDs crecen; exigimos estrictamente mayor por claimer.
-        require(proof.tweetId > lastTweetId[msg.sender], unicode"outdated proof / 证明已过期");
-        lastTweetId[msg.sender] = proof.tweetId;
+        // (4) replay GLOBAL: los Snowflake IDs crecen; exigimos estrictamente mayor que el ULTIMO
+        // claim exitoso de CUALQUIER candidato (Audit v3, Low, finding 6). Antes era por-claimer
+        // (lastTweetId[msg.sender]): una wallet vieja nombrada en un tweet desactualizado pero aun
+        // oracle-valido podia reclamar despues de que el handle ya hubiera probado una wallet mas
+        // nueva, desviando el balance acumulado para esta ultima. Un tweet mas nuevo invalida a
+        // TODOS los anteriores, igual que el bindNonce de github invalida vouchers viejos.
+        require(proof.tweetId > lastTweetId, unicode"outdated proof / 证明已过期");
+        lastTweetId = proof.tweetId;
 
         emit Bound(msg.sender, bindNonce);
         boundWallet = msg.sender;
@@ -252,29 +291,51 @@ contract SocialFeeEscrow is VaultBaseV2, EIP712 {
         }
     }
 
+    /// @dev Audit v3 (High, finding 2, SYS-REQ-MULTILANG): esta view es user-facing (status banner
+    ///      de la UI) igual que los require/revert, asi que ahora es bilingue — sentencia en ingles
+    ///      completa, separador " / ", y su espejo en chino completo (no fragmentos mezclados, para
+    ///      que ambos idiomas queden gramaticalmente coherentes).
     function description() public view override returns (string memory) {
         string memory id = identityType == TYPE_WALLET
             ? Strings.toHexString(boundWallet)
             : string.concat(identityType == TYPE_GITHUB ? "github:" : "x:", identityValue);
-        string memory state;
+        string memory stateEn;
+        string memory stateZh;
         if (boundWallet != address(0)) {
-            state = string.concat("bound to ", Strings.toHexString(boundWallet));
+            stateEn = string.concat("bound to ", Strings.toHexString(boundWallet));
+            stateZh = string.concat(unicode"已绑定至 ", Strings.toHexString(boundWallet));
         } else if (recoveryAfter != 0 && block.timestamp >= recoveryAfter) {
-            state = "unclaimed (recoverable by creator)";
+            stateEn = "unclaimed (recoverable by creator)";
+            stateZh = unicode"未领取（创建者可回收）";
         } else {
-            state = "waiting for its person";
+            stateEn = "waiting for its person";
+            stateZh = unicode"等待其主人认领";
         }
-        return string.concat(
+        string memory pendingEth = _fmtEth(address(this).balance);
+        string memory paidEth = _fmtEth(totalPaid);
+        string memory descEn = string.concat(
             "FLEDGE fee escrow for ",
             id,
             ": ",
-            _fmtEth(address(this).balance),
+            pendingEth,
             " ETH pending, ",
-            _fmtEth(totalPaid),
+            paidEth,
             " ETH paid out. Status: ",
-            state,
+            stateEn,
             "."
         );
+        string memory descZh = string.concat(
+            unicode"FLEDGE 手续费托管，对象：",
+            id,
+            unicode"：待领取 ",
+            pendingEth,
+            unicode" ETH，已支付 ",
+            paidEth,
+            unicode" ETH。状态：",
+            stateZh,
+            unicode"。"
+        );
+        return string.concat(descEn, " / ", descZh);
     }
 
     function _fmtEth(uint256 weiAmount) internal pure returns (string memory) {
@@ -285,19 +346,27 @@ contract SocialFeeEscrow is VaultBaseV2, EIP712 {
         return string.concat(Strings.toString(milli / 1000), ".", frac);
     }
 
+    /// @dev Audit v3 (High, finding 2, SYS-REQ-MULTILANG): todo string user-facing de este schema
+    ///      (description de cada metodo y de cada campo) ahora es bilingue "English / 中文".
     function vaultUISchema() public pure override returns (VaultUISchema memory schema) {
         schema.vaultType = "SocialFeeEscrow";
-        schema.description =
-            "Trading-fee escrow for one identity (wallet, GitHub or X). Funds can only ever go to the wallet that proved the identity.";
+        schema.description = unicode"Trading-fee escrow for one identity (wallet, GitHub or X). Funds can only ever "
+            unicode"go to the wallet that proved the identity. / 单一身份（钱包、GitHub 或 X）的交易手续费托管。"
+            unicode"资金只能发送给已证明该身份的钱包。";
         schema.methods = new VaultMethodSchema[](4);
 
         FieldDescriptor[] memory claimIn = new FieldDescriptor[](3);
-        claimIn[0] = FieldDescriptor("payoutWallet", "address", "Wallet that will receive the fees", 0);
-        claimIn[1] = FieldDescriptor("deadline", "time", "Voucher expiry (unix seconds)", 0);
-        claimIn[2] = FieldDescriptor("signature", "bytes", "Attester voucher signature", 0);
+        claimIn[0] = FieldDescriptor(
+            "payoutWallet", "address", unicode"Wallet that will receive the fees / 将收取手续费的钱包", 0
+        );
+        claimIn[1] =
+            FieldDescriptor("deadline", "time", unicode"Voucher expiry (unix seconds) / 凭证到期时间（unix 秒）", 0);
+        claimIn[2] =
+            FieldDescriptor("signature", "bytes", unicode"Attester voucher signature / 认证者凭证签名", 0);
         schema.methods[0] = VaultMethodSchema(
             "claimAndBind",
-            "Prove the identity with an attester voucher, bind the payout wallet and claim all pending ETH.",
+            unicode"Prove the identity with an attester voucher, bind the payout wallet and claim all pending ETH. "
+                unicode"/ 用认证者签发的凭证证明身份，绑定收款钱包并领取所有待领 ETH。",
             claimIn,
             new FieldDescriptor[](0),
             new ApproveAction[](0),
@@ -308,7 +377,8 @@ contract SocialFeeEscrow is VaultBaseV2, EIP712 {
 
         schema.methods[1] = VaultMethodSchema(
             "sweep",
-            "Push all pending ETH to the already-bound wallet. Anyone may pay the gas.",
+            unicode"Push all pending ETH to the already-bound wallet. Anyone may pay the gas. "
+                unicode"/ 将所有待领 ETH 发送到已绑定的钱包。任何人都可以支付 gas。",
             new FieldDescriptor[](0),
             new FieldDescriptor[](0),
             new ApproveAction[](0),
@@ -318,10 +388,11 @@ contract SocialFeeEscrow is VaultBaseV2, EIP712 {
         );
 
         FieldDescriptor[] memory pendingOut = new FieldDescriptor[](1);
-        pendingOut[0] = FieldDescriptor("pending", "uint256", "ETH currently claimable", 18);
+        pendingOut[0] =
+            FieldDescriptor("pending", "uint256", unicode"ETH currently claimable / 当前可领取的 ETH", 18);
         schema.methods[2] = VaultMethodSchema(
             "pendingAmount",
-            "ETH accumulated and not yet paid out.",
+            unicode"ETH accumulated and not yet paid out. / 已累积但尚未支付的 ETH。",
             new FieldDescriptor[](0),
             pendingOut,
             new ApproveAction[](0),
@@ -331,10 +402,15 @@ contract SocialFeeEscrow is VaultBaseV2, EIP712 {
         );
 
         FieldDescriptor[] memory boundOut = new FieldDescriptor[](1);
-        boundOut[0] = FieldDescriptor("wallet", "address", "Wallet bound to the identity (zero until proven)", 0);
+        boundOut[0] = FieldDescriptor(
+            "wallet",
+            "address",
+            unicode"Wallet bound to the identity (zero until proven) / 绑定到该身份的钱包（未证明前为零地址）",
+            0
+        );
         schema.methods[3] = VaultMethodSchema(
             "boundWallet",
-            "The wallet that proved ownership of the identity.",
+            unicode"The wallet that proved ownership of the identity. / 已证明拥有该身份的钱包。",
             new FieldDescriptor[](0),
             boundOut,
             new ApproveAction[](0),
