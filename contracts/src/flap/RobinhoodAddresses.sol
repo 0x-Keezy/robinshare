@@ -15,7 +15,10 @@ library RobinhoodAddresses {
     address internal constant FEED_ETH_USD = 0x78F3556b67E17Df817D51Ef5a990cDaF09E8d3A9;
     /// @dev Guardian OFICIAL de Robinhood Chain, del commit 3b7689d8 de flap-sh/FlapVaultExample
     ///      ("add support for Robinhood Chain"). Resuelve el placeholder histórico.
-    ///      FLEDGE no tiene funciones privilegiadas, así que no lo usa; queda por referencia/correctitud.
+    ///      SI lo usamos — hoy co-gatea/gatea 3 funciones: `SocialFeeEscrow.emergencyWithdrawNative`,
+    ///      `SocialFeeEscrow.setRescueForward` (ambas onlyGuardian) y
+    ///      `SocialFeeEscrowFactory.rotateAttester` (co-gateada junto al attester vigente,
+    ///      Audit v3 finding 5) — todas via `_getGuardian()`, heredado de VaultBase.
     address internal constant GUARDIAN = 0x0000b48720d3B4ED6BC5031768B07F2b59270000;
     // XGeneralVerifier oficial de Flap en Robinhood (docs.flap.sh, verificado on-chain 2026-07-16)
     address internal constant X_VERIFIER = 0xccDaB0d5Bc6E0aCb8B157cffFA062688Aa849c17;

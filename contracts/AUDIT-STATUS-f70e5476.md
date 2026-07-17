@@ -108,12 +108,34 @@ High
 
 ## Verification we ran before sending (v3)
 
-- **92/92 unit tests green** (`forge test`): 71 tests from the v2 (preaudit) round + 21 new tests
+*Figures below are at the v3 cut (2026-07-16, before the post-v3 X_VERIFIER wiring and before our
+own pre-audit pass). Kept as a historical record of what we verified at the time; see the note
+right after this section for the current, re-measured numbers.*
+
+- **92 of 92 unit tests green** (`forge test`): 71 tests from the v2 (preaudit) round + 21 new tests
   born red against the pre-v3 code, in `test/AuditFixesV3.t.sol`.
 - **Fork E2E green against live Robinhood Chain** (`forge test --match-contract ForkTest --fork-url
   robinhood -vv`): real launch through the real VaultPortal → tax → GitHub claim → sweep, re-run
   after the v3 changes.
 - **`forge build --sizes`**: `SocialFeeEscrow` runtime 14,122 B (margin 10,454 B vs the 24,576 B
-  EIP-170 cap). `SocialFeeEscrowFactory` runtime 24,083 B (margin **493 B** — tight; Findings 2 and
+  EIP-170 cap). `SocialFeeEscrowFactory` runtime 24083 B (a 493-byte margin — tight; Findings 2 and
   4 add bytecode and the factory briefly exceeded the cap before we trimmed the added Chinese/English
   copy for size).
+
+### Current numbers (re-measured after the post-v3 X_VERIFIER wiring and our own pre-audit pass)
+
+The two figures above are now stale on two counts: the post-v3 commit wired Robinhood's
+`X_VERIFIER` (+3 tests, unrelated size delta), and this pre-audit pass added `claimByProof` +
+`recoverUnclaimed` to `SocialFeeEscrow.vaultUISchema()` (closing the doc-vs-code mandate gap our
+own adversarial pre-audit found) — which, because the factory embeds the vault's entire initcode
+via `new SocialFeeEscrow(...)` in `newVault`, pushed `SocialFeeEscrowFactory` **over** the EIP-170
+cap until we trimmed schema/string verbosity (shared `_fd`/`_method`/`_arr1`/`_arr3` helpers +
+leaner bilingual copy on both contracts) to claw the margin back. Verified with `forge test` /
+`forge build --sizes` in this same pass:
+
+- **95/95 unit tests green** (94 run + 1 honestly `vm.skip`-ped without `--fork-url`): 71 v2 +
+  21 v3 + 3 post-v3 (`X_VERIFIER` wiring). Fork E2E green against live Robinhood Chain
+  (`forge test --match-contract Fork --fork-url robinhood -vv`).
+- **`forge build --sizes`**: `SocialFeeEscrow` runtime 14,449 B (margin 10,127 B). `SocialFeeEscrowFactory`
+  runtime 24,440 B (margin **136 B** — thinner than the v3 cut; see `AUDIT-NOTES.md` for the full
+  breakdown and the recommendation to move to a lookup-table pattern if more room is needed later).

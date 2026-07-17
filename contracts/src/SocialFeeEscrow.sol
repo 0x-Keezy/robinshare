@@ -95,8 +95,11 @@ contract SocialFeeEscrow is VaultBaseV2, EIP712 {
                 unicode"attester required / 需要认证者地址"
             );
         }
-        // TYPE_TWITTER: usa el XGeneralVerifier de Flap (chain-based, via factory). Si aun no esta
-        // desplegado en esta chain, xVerifier_ = 0 y claimByProof revierte hasta que exista.
+        // TYPE_TWITTER: usa el XGeneralVerifier de Flap (chain-based, via factory). La factory
+        // (newVault) RECHAZA crear un vault twitter si el verifier aun no esta desplegado en la
+        // chain (preaudit High #2) -- por el flujo canonico, xVerifier_ nunca deberia llegar en 0
+        // para este tipo. Si igual se deploya este vault directo (fuera de la factory) con
+        // xVerifier_ = 0, claimByProof revierte hasta que exista.
     }
 
     /// @notice El Guardian oficial de Flap puede prender/apagar el forward de receive() hacia una
@@ -112,11 +115,15 @@ contract SocialFeeEscrow is VaultBaseV2, EIP712 {
     }
 
     /// @notice Recibe el tax del TaxProcessor de Flap.
-    /// @dev INVARIANTE DURA: NUNCA revertir. Flap entrega el tax con `.call` (Rule 005, <1M gas,
-    ///      no stipend de 2300) — ver test/Fork.t.sol. Si `rescueForward` esta prendido (Guardian,
-    ///      Audit v3 finding 4), reenvia el msg.value a `rescueTo` best-effort: si el forward falla,
-    ///      el ETH se queda ACA (rescatable via emergencyWithdrawNative), jamas revierte la recepcion.
-    ///      Sin ese switch, se comporta exactamente como antes: acumula en el balance del vault.
+    /// @dev Nunca revierte por logica propia: no hay ningun require/revert en el body. Si
+    ///      `rescueForward` esta prendido (Guardian, Audit v3 finding 4), reenvia el msg.value a
+    ///      `rescueTo` best-effort — si el forward falla, el ETH se queda ACA (rescatable via
+    ///      emergencyWithdrawNative) y la recepcion igual no revierte. Sin ese switch, acumula en
+    ///      el balance del vault exactamente como antes.
+    ///      CONDICION DE GAS: con el forward prendido, el SLOAD + el `.call` externo superan el
+    ///      stipend de 2300 gas de `transfer`/`send` — un caller que solo entregue ese stipend
+    ///      puede revertir por out-of-gas aca. Flap entrega el tax con `.call` bajo Rule 005 (<1M
+    ///      gas, sin stipend de 2300) — ver test/Fork.t.sol — asi que en el flujo real no aplica.
     receive() external payable {
         if (rescueForward && rescueTo != address(0)) {
             (bool ok,) = rescueTo.call{value: msg.value}("");
@@ -126,6 +133,14 @@ contract SocialFeeEscrow is VaultBaseV2, EIP712 {
 
     function pendingAmount() public view returns (uint256) {
         return address(this).balance;
+    }
+
+    /// @dev Bytecode: mismo require repetido 5 veces en payouts distintos (claimAndBind,
+    ///      claimByProof, sweep, recoverUnclaimed, emergencyWithdrawNative) — compartir el
+    ///      string y la logica de revert en una sola funcion evita 5 copias del literal
+    ///      bilingue. Este contrato se embebe entero en el initcode de SocialFeeEscrowFactory.
+    function _requirePayout(bool ok) private pure {
+        require(ok, unicode"payout failed / 支付失败");
     }
 
     /// @notice El attester VIGENTE (leido en vivo de la factory; rotable). Mismo ABI de lectura
@@ -162,7 +177,7 @@ contract SocialFeeEscrow is VaultBaseV2, EIP712 {
             totalPaid += amount; // efectos antes de la interaccion (CEI)
             emit Swept(payoutWallet, amount);
             (bool ok,) = payoutWallet.call{value: amount}("");
-            require(ok, unicode"payout failed / 支付失败");
+            _requirePayout(ok);
         }
     }
 
@@ -223,7 +238,7 @@ contract SocialFeeEscrow is VaultBaseV2, EIP712 {
             totalPaid += amount;
             emit Swept(msg.sender, amount);
             (bool ok,) = msg.sender.call{value: amount}("");
-            require(ok, unicode"payout failed / 支付失败");
+            _requirePayout(ok);
         }
     }
 
@@ -252,7 +267,7 @@ contract SocialFeeEscrow is VaultBaseV2, EIP712 {
         totalPaid += amount;
         emit Swept(boundWallet, amount);
         (bool ok,) = boundWallet.call{value: amount}("");
-        require(ok, unicode"payout failed / 支付失败");
+        _requirePayout(ok);
     }
 
     /// @notice Si la persona nunca aparecio y el creator fijo un plazo al launch,
@@ -271,7 +286,7 @@ contract SocialFeeEscrow is VaultBaseV2, EIP712 {
         totalPaid += amount;
         emit Recovered(to, amount);
         (bool ok,) = to.call{value: amount}("");
-        require(ok, unicode"payout failed / 支付失败");
+        _requirePayout(ok);
     }
 
     /// @notice Escape hatch de ultima instancia, gated al Guardian OFICIAL de Flap (per-chain,
@@ -287,7 +302,7 @@ contract SocialFeeEscrow is VaultBaseV2, EIP712 {
         if (amount > 0) {
             emit EmergencyWithdrawNative(to, amount);
             (bool ok,) = to.call{value: amount}("");
-            require(ok, unicode"payout failed / 支付失败");
+            _requirePayout(ok);
         }
     }
 
@@ -346,77 +361,127 @@ contract SocialFeeEscrow is VaultBaseV2, EIP712 {
         return string.concat(Strings.toString(milli / 1000), ".", frac);
     }
 
+    /// @dev Helpers de bytecode para vaultUISchema(): construir cada FieldDescriptor/array/metodo
+    ///      inline (una vez por cada uno de los 7 metodos) duplica el codigo de asignacion de
+    ///      struct en cada call site bajo via_ir. Centralizarlo en funciones internas hace que el
+    ///      compilador comparta UN cuerpo via JUMP en vez de inlinearlo 7 veces — este contrato se
+    ///      embebe entero en el initcode de SocialFeeEscrowFactory (`new SocialFeeEscrow(...)` en
+    ///      `newVault`), asi que cada byte cuenta doble. Ver AUDIT-NOTES.md.
+    function _fd(string memory name_, string memory type_, string memory desc_, uint8 dec_)
+        private
+        pure
+        returns (FieldDescriptor memory)
+    {
+        return FieldDescriptor(name_, type_, desc_, dec_);
+    }
+
+    function _arr1(FieldDescriptor memory a) private pure returns (FieldDescriptor[] memory out) {
+        out = new FieldDescriptor[](1);
+        out[0] = a;
+    }
+
+    function _method(
+        string memory name_,
+        string memory desc_,
+        FieldDescriptor[] memory ins_,
+        FieldDescriptor[] memory outs_,
+        bool isWrite_
+    ) private pure returns (VaultMethodSchema memory) {
+        return VaultMethodSchema(name_, desc_, ins_, outs_, new ApproveAction[](0), false, false, isWrite_);
+    }
+
     /// @dev Audit v3 (High, finding 2, SYS-REQ-MULTILANG): todo string user-facing de este schema
     ///      (description de cada metodo y de cada campo) ahora es bilingue "English / 中文".
+    /// @dev Pre-audit propio (doc-vs-code): el schema ahora enumera las 7 funciones user-facing del
+    ///      vault (antes omitia claimByProof y recoverUnclaimed, dejando los vaults twitter y la
+    ///      recovery de creator sin ruta de claim documentada), cumpliendo el mandate de
+    ///      VaultBaseV2 de describir cada metodo que la UI deba poder renderizar. `expectedTweet`
+    ///      queda fuera del schema (no es una accion de claim en si) por presupuesto de bytecode:
+    ///      este contrato se embebe entero en el initcode de SocialFeeEscrowFactory via
+    ///      `new SocialFeeEscrow(...)`, que ya viene justo bajo EIP-170 — ver AUDIT-NOTES.md.
+    ///      Traducciones deliberadamente concisas (mismo motivo).
     function vaultUISchema() public pure override returns (VaultUISchema memory schema) {
+        FieldDescriptor[] memory noFields = new FieldDescriptor[](0);
         schema.vaultType = "SocialFeeEscrow";
-        schema.description = unicode"Trading-fee escrow for one identity (wallet, GitHub or X). Funds can only ever "
-            unicode"go to the wallet that proved the identity. / 单一身份（钱包、GitHub 或 X）的交易手续费托管。"
-            unicode"资金只能发送给已证明该身份的钱包。";
-        schema.methods = new VaultMethodSchema[](4);
+        schema.description = unicode"Escrow for one identity (wallet, GitHub or X); claims pay the proven wallet, "
+            unicode"unclaimed funds may go to creator after deadline, Guardian can emergency-withdraw or "
+            unicode"rescue-forward. / 单一身份手续费托管（钱包/GitHub/X）：认领付给已证明钱包，截止后未认领可归创建者，"
+            unicode"Guardian 可紧急提取或救援转发。";
+        schema.methods = new VaultMethodSchema[](7);
 
-        FieldDescriptor[] memory claimIn = new FieldDescriptor[](3);
-        claimIn[0] = FieldDescriptor(
-            "payoutWallet", "address", unicode"Wallet that will receive the fees / 将收取手续费的钱包", 0
-        );
-        claimIn[1] =
-            FieldDescriptor("deadline", "time", unicode"Voucher expiry (unix seconds) / 凭证到期时间（unix 秒）", 0);
-        claimIn[2] =
-            FieldDescriptor("signature", "bytes", unicode"Attester voucher signature / 认证者凭证签名", 0);
-        schema.methods[0] = VaultMethodSchema(
+        schema.methods[0] = _method(
             "claimAndBind",
-            unicode"Prove the identity with an attester voucher, bind the payout wallet and claim all pending ETH. "
-                unicode"/ 用认证者签发的凭证证明身份，绑定收款钱包并领取所有待领 ETH。",
-            claimIn,
-            new FieldDescriptor[](0),
-            new ApproveAction[](0),
-            false,
-            false,
+            unicode"GitHub: attester voucher binds wallet, claims ETH. "
+                unicode"/ GitHub：认证者凭证绑定钱包并领取 ETH。",
+            _arr3(
+                _fd("payoutWallet", "address", unicode"Payout wallet / 收款钱包", 0),
+                _fd("deadline", "time", unicode"Voucher expiry / 到期时间", 0),
+                _fd("signature", "bytes", unicode"Voucher signature / 凭证签名", 0)
+            ),
+            noFields,
             true
         );
 
-        schema.methods[1] = VaultMethodSchema(
+        schema.methods[1] = _method(
+            "claimByProof",
+            unicode"X: XGeneralVerifier proof binds msg.sender, claims ETH. "
+                unicode"/ X：XGeneralVerifier 证明绑定 msg.sender 并领取 ETH。",
+            noFields,
+            noFields,
+            true
+        );
+
+        schema.methods[2] = _method(
+            "rebindWallet",
+            unicode"Wallet: identity wallet rotates payout wallet. / 钱包：身份钱包可轮换收款钱包。",
+            _arr1(_fd("newPayout", "address", unicode"New wallet / 新钱包", 0)),
+            noFields,
+            true
+        );
+
+        schema.methods[3] = _method(
             "sweep",
-            unicode"Push all pending ETH to the already-bound wallet. Anyone may pay the gas. "
-                unicode"/ 将所有待领 ETH 发送到已绑定的钱包。任何人都可以支付 gas。",
-            new FieldDescriptor[](0),
-            new FieldDescriptor[](0),
-            new ApproveAction[](0),
-            false,
-            false,
+            unicode"Pushes pending ETH to bound wallet; anyone may pay gas. "
+                unicode"/ 将待领 ETH 发送到绑定钱包，任何人可付 gas。",
+            noFields,
+            noFields,
             true
         );
 
-        FieldDescriptor[] memory pendingOut = new FieldDescriptor[](1);
-        pendingOut[0] =
-            FieldDescriptor("pending", "uint256", unicode"ETH currently claimable / 当前可领取的 ETH", 18);
-        schema.methods[2] = VaultMethodSchema(
+        schema.methods[4] = _method(
+            "recoverUnclaimed",
+            unicode"Creator-only: after deadline, if unbound, sends balance to chosen address. "
+                unicode"/ 仅创建者：截止后若未绑定，发送余额至指定地址。",
+            noFields,
+            noFields,
+            true
+        );
+
+        schema.methods[5] = _method(
             "pendingAmount",
-            unicode"ETH accumulated and not yet paid out. / 已累积但尚未支付的 ETH。",
-            new FieldDescriptor[](0),
-            pendingOut,
-            new ApproveAction[](0),
-            false,
-            false,
+            unicode"Unpaid accumulated ETH. / 未支付的累积 ETH。",
+            noFields,
+            _arr1(_fd("pending", "uint256", unicode"Claimable ETH / 可领取 ETH", 18)),
             false
         );
 
-        FieldDescriptor[] memory boundOut = new FieldDescriptor[](1);
-        boundOut[0] = FieldDescriptor(
-            "wallet",
-            "address",
-            unicode"Wallet bound to the identity (zero until proven) / 绑定到该身份的钱包（未证明前为零地址）",
-            0
-        );
-        schema.methods[3] = VaultMethodSchema(
+        schema.methods[6] = _method(
             "boundWallet",
-            unicode"The wallet that proved ownership of the identity. / 已证明拥有该身份的钱包。",
-            new FieldDescriptor[](0),
-            boundOut,
-            new ApproveAction[](0),
-            false,
-            false,
+            unicode"Wallet that proved identity. / 已证明身份的钱包。",
+            noFields,
+            _arr1(_fd("wallet", "address", unicode"Zero until proven / 未证明前为零", 0)),
             false
         );
+    }
+
+    function _arr3(FieldDescriptor memory a, FieldDescriptor memory b, FieldDescriptor memory c)
+        private
+        pure
+        returns (FieldDescriptor[] memory out)
+    {
+        out = new FieldDescriptor[](3);
+        out[0] = a;
+        out[1] = b;
+        out[2] = c;
     }
 }

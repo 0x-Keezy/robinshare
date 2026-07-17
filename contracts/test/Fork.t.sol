@@ -79,10 +79,10 @@ contract ForkTest is Test {
     }
 
     function test_fork_launchEndToEnd() public {
-        if (block.chainid != 4663) {
-            console2.log("SKIP: correr con --fork-url robinhood");
-            return;
-        }
+        // Pre-audit propio (higiene de tests): antes esto era un early-return que forge reportaba
+        // como [PASS] sin ejecutar nada (falso verde). vm.skip(true) lo reporta como "skipped",
+        // honesto. Repro real: forge test --match-contract ForkTest --fork-url robinhood -vv
+        vm.skip(block.chainid != 4663);
 
         address attester = vm.addr(ATTESTER_PK);
         SocialFeeEscrowFactory factory = new SocialFeeEscrowFactory(attester);
@@ -124,7 +124,7 @@ contract ForkTest is Test {
         assertGt(bytes(descBefore).length, 0, "description no vacia");
         VaultUISchema memory schema = escrow.vaultUISchema();
         assertEq(schema.vaultType, "SocialFeeEscrow");
-        assertEq(schema.methods.length, 4, "4 metodos en el schema");
+        assertEq(schema.methods.length, 7, "7 metodos en el schema");
 
         // receive() bajo 1M de gas (Rule 005), en el estado real de RH
         vm.deal(address(this), 1 ether);

@@ -301,18 +301,26 @@ contract SocialFeeEscrowTest is Test {
         assertTrue(_contains(e.description(), "1.000")); // 1 ether formateado
     }
 
+    /// Pre-audit propio (doc-vs-code): el schema paso de 4 a 7 metodos (agrega claimByProof y
+    /// recoverUnclaimed, que antes violaban el mandate de VaultBaseV2 por quedar sin documentar).
     function test_vaultUISchema_tieneMetodos() public {
         SocialFeeEscrow e = _newGithub(0);
         VaultUISchema memory s = e.vaultUISchema();
         assertEq(s.vaultType, "SocialFeeEscrow");
-        assertEq(s.methods.length, 4);
+        assertEq(s.methods.length, 7);
         assertEq(s.methods[0].name, "claimAndBind");
         assertTrue(s.methods[0].isWriteMethod);
         assertEq(s.methods[0].inputs.length, 3);
-        assertEq(s.methods[1].name, "sweep");
-        assertEq(s.methods[2].name, "pendingAmount");
-        assertEq(s.methods[2].outputs[0].decimals, 18);
-        assertEq(s.methods[3].name, "boundWallet");
+        assertEq(s.methods[1].name, "claimByProof");
+        assertTrue(s.methods[1].isWriteMethod);
+        assertEq(s.methods[2].name, "rebindWallet");
+        assertEq(s.methods[3].name, "sweep");
+        assertEq(s.methods[4].name, "recoverUnclaimed");
+        assertTrue(s.methods[4].isWriteMethod);
+        assertEq(s.methods[5].name, "pendingAmount");
+        assertEq(s.methods[5].outputs[0].decimals, 18);
+        assertEq(s.methods[6].name, "boundWallet");
+        assertFalse(s.methods[6].isWriteMethod);
     }
 
     function _contains(string memory haystack, string memory needle) internal pure returns (bool) {

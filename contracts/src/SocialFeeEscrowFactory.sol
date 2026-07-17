@@ -10,7 +10,9 @@ import {RobinhoodAddresses} from "./flap/RobinhoodAddresses.sol";
 /// @title SocialFeeEscrowFactory (FLEDGE)
 /// @notice Factory permissionless para VaultPortal.newTokenV6WithVault: crea un
 ///         SocialFeeEscrow por token, normaliza la identidad on-chain y mantiene
-///         el registro identidad -> vaults. Sin funciones privilegiadas.
+///         el registro identidad -> vaults. Sin owner/pause/upgrade ni keys nuestras.
+///         Unica funcion gateada: rotateAttester (el attester vigente o el Guardian
+///         oficial de Flap; Audit v3, finding 5). Ver AUDIT-NOTES.md.
 contract SocialFeeEscrowFactory is VaultFactoryBaseV2 {
     /// @notice El attester CANONICO de esta factory: lo inyecta en TODO escrow social que
     ///         crea — el creator NO puede elegirlo. Esto cierra el rug: un creator malicioso
@@ -149,8 +151,9 @@ contract SocialFeeEscrowFactory is VaultFactoryBaseV2 {
     /// @notice El XGeneralVerifier oficial de Flap para esta chain (ruta twitter).
     /// @dev BSC mainnet confirmado por Flap. Robinhood (4663): desplegado y verificado on-chain
     ///      por Jose (2026-07-16, docs.flap.sh) — ver RobinhoodAddresses.X_VERIFIER. Otras chains
-    ///      sin entrada aca devuelven 0 y claimByProof revertiria (los vaults twitter se pueden
-    ///      crear igual, salvo el gate de "verifier availability" en newVault).
+    ///      sin entrada aca devuelven 0 — y `newVault` RECHAZA crear vaults twitter en esas chains
+    ///      (preaudit High #2, ver el gate mas abajo en `newVault`), asi que no quedan brickeados
+    ///      esperando un `claimByProof` que revertiria para siempre.
     function _getXVerifier() internal view returns (address) {
         if (block.chainid == 56) return 0xcA8DBE6CAC4BFDc41226b0BaF2359fd99989b3E4; // BSC mainnet
         if (block.chainid == 4663) return RobinhoodAddresses.X_VERIFIER; // Robinhood Chain
@@ -193,23 +196,27 @@ contract SocialFeeEscrowFactory is VaultFactoryBaseV2 {
         return string(out);
     }
 
+    /// @dev Bytecode: FieldDescriptor via helper en vez de inline x4 — mismo motivo que en
+    ///      SocialFeeEscrow.vaultUISchema (via_ir comparte UN cuerpo via JUMP). Cada byte de la
+    ///      factory cuenta directo contra el margen de EIP-170 — ver AUDIT-NOTES.md.
+    function _fd(string memory name_, string memory type_, string memory desc_) private pure returns (FieldDescriptor memory) {
+        return FieldDescriptor(name_, type_, desc_, 0);
+    }
+
     function vaultDataSchema() public pure override returns (VaultDataSchema memory schema) {
         // Audit v3 (High, finding 2, SYS-REQ-MULTILANG): las views user-facing tambien son
         // bilingues, igual que los require/revert. Traducciones deliberadamente concisas: cada
         // string chino agrega bytecode a la factory y el runtime debe seguir bajo EIP-170.
-        schema.description = unicode"Escrows fees for ONE identity; only the proven identity can claim. "
-            unicode"github/twitter use FLEDGE's canonical attester. recoveryDays: 0=never, else 30-3650."
-            unicode" / 为单一身份托管手续费，只有已证明身份可领取。"
-            unicode"github/twitter 由 FLEDGE 官方认证者验证。recoveryDays：0=永不，否则 30-3650。";
+        schema.description = unicode"Escrows fees for ONE identity; only it can claim. "
+            unicode"github: FLEDGE attester. twitter: Flap's XGeneralVerifier (not ours). recoveryDays: 0=never, else 30-3650."
+            unicode" / 为单一身份托管手续费，仅其可领取。"
+            unicode"github 用 FLEDGE 认证者；twitter 用 Flap 的 XGeneralVerifier（非我方）。recoveryDays：0=永不，否则 30-3650。";
         schema.fields = new FieldDescriptor[](4);
-        schema.fields[0] = FieldDescriptor("identityType", "string", unicode"wallet | github | twitter / 身份类型", 0);
-        schema.fields[1] =
-            FieldDescriptor("identityValue", "string", unicode"Handle for github/twitter / github/twitter 句柄", 0);
-        schema.fields[2] =
-            FieldDescriptor("identityWallet", "address", unicode"Recipient wallet (wallet type) / 收款钱包（wallet 类型）", 0);
-        schema.fields[3] = FieldDescriptor(
-            "recoveryDays", "uint256", unicode"Recover wait days (0=never, else 30-3650) / 回收等待天数（0=永不，否则 30-3650）", 0
-        );
+        schema.fields[0] = _fd("identityType", "string", unicode"wallet | github | twitter / 身份类型");
+        schema.fields[1] = _fd("identityValue", "string", unicode"Handle for github/twitter / github/twitter 句柄");
+        schema.fields[2] = _fd("identityWallet", "address", unicode"Recipient wallet (wallet type) / 收款钱包（wallet 类型）");
+        schema.fields[3] =
+            _fd("recoveryDays", "uint256", unicode"Recover wait days (0=never, else 30-3650) / 回收等待天数（0=永不，否则 30-3650）");
         schema.isArray = false;
     }
 
@@ -220,10 +227,10 @@ contract SocialFeeEscrowFactory is VaultFactoryBaseV2 {
         returns (bool success, string memory reason)
     {
         if (data.quoteToken != address(0)) {
-            return (false, unicode"quote token must be native / 仅支持原生代币");
+            return (false, unicode"quote token must be native / 须为原生代币");
         }
         if (data.vaultBps == 0) {
-            return (false, unicode"vault share (mktBps) must be > 0 / 金库份额必须大于 0");
+            return (false, unicode"vault share must be > 0 / 金库份额须大于 0");
         }
         return (true, "");
     }
