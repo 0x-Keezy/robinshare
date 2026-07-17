@@ -89,8 +89,12 @@ red against the pre-fix code, now green). The preexisting `test_twitter_sinVerif
 
 `forge test`: 95 of 95 green (92 pre-existing + 3 new). Fork E2E green against live Robinhood RPC.
 `SocialFeeEscrowFactory` runtime size: 24116 B, margin 460B under the 24576 B EIP-170 cap
-(measured with `forge build --sizes`) — still tight but not regressed materially from the
-pre-existing margin at the v3 cut (see the v3 section below for that figure).
+(measured with `forge build --sizes`).
+
+> **Historical figures — this section records the state at the X_VERIFIER cut.** The schema
+> completeness work that followed (see the EIP-170 section at the top) changed both numbers.
+> **Current, shipped figures: 95 tests (94 run + 1 skipped without `--fork-url`); factory
+> 24,440 B / 136 B margin.** Always trust the header, not this section.
 
 ## v3 — response to GT's formal audit report (f70e5476, 2026-07-16)
 
