@@ -7,7 +7,6 @@ process.env.ATTESTER_PK = "0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae7
 process.env.GITHUB_CLIENT_ID = "gh_id";
 process.env.GITHUB_CLIENT_SECRET = "gh_secret";
 process.env.APP_BASE_URL = "https://fledge.test";
-process.env.RECLAIM_PROVIDER_ID_TWITTER = "prov_x";
 
 const VAULT = "0x1111111111111111111111111111111111111111";
 const PAYOUT = "0x2222222222222222222222222222222222222222";
@@ -39,7 +38,8 @@ beforeEach(() => {
     "fetch",
     vi.fn(async (url: string) => {
       if (String(url).includes("access_token")) return { json: async () => ({ access_token: "tok" }) };
-      if (String(url).includes("api.github.com/user")) return { json: async () => ({ login: globalThis.__ghLogin }) };
+      if (String(url).includes("api.github.com/user"))
+        return { json: async () => ({ login: (globalThis as Record<string, unknown>).__ghLogin }) };
       throw new Error("unexpected fetch " + url);
     }),
   );

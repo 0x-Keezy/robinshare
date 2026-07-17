@@ -20,20 +20,20 @@ anvil --fork-url https://rpc.mainnet.chain.robinhood.com
 # 2) .env.local (copiar de .env.example) — al menos:
 #    NEXT_PUBLIC_RPC_URL=http://127.0.0.1:8545
 #    NEXT_PUBLIC_FACTORY_ADDRESS=<factory deployada en el fork>
-#    ATTESTER_PK / ATTESTER_STATE_SECRET / GITHUB_* / RECLAIM_*
+#    ATTESTER_PK / ATTESTER_STATE_SECRET / GITHUB_*
 npm run dev
-npx vitest run        # 10 tests: state HMAC, firma bindDigest, gates de identidad de las rutas
+npx vitest run        # 15 tests: state HMAC, firma bindDigest, gates de identidad de las rutas
 npm run build
 ```
 
 ## Deploy (Vercel)
 
 - Proyecto nuevo bajo la cuenta `0xkeezy-3892`, root dir `web/`.
-- Envs de `.env.example`. **Secretos server-only** (nunca `NEXT_PUBLIC_`): `ATTESTER_PK`, `ATTESTER_STATE_SECRET`, `GITHUB_CLIENT_SECRET`, `RECLAIM_APP_SECRET`.
+- Envs de `.env.example`. **Secretos server-only** (nunca `NEXT_PUBLIC_`): `ATTESTER_PK`, `ATTESTER_STATE_SECRET`, `GITHUB_CLIENT_SECRET`.
 - `APP_BASE_URL` = el dominio de prod (para el redirect del OAuth de GitHub).
 
 ## El attester y su modelo de confianza
 
 - `ATTESTER_PK` es una **wallet dedicada NUEVA, sin fondos**, que solo firma vouchers. Su address se pasa al desplegar la **factory** como attester canónico (los escrows no lo dejan elegir al creator — ver review en `contracts/README.md`).
-- Riesgo aceptado v1: si la key del attester se compromete, un atacante puede re-bindear los vaults de esa factory. Mitigación: key en env de Vercel (no reusar), montos de piloto. v2: threshold/multi-attester o verifier de Reclaim on-chain.
+- Riesgo aceptado v1: si la key del attester se compromete, un atacante puede re-bindear los vaults de esa factory. Mitigación: key en env de Vercel (no reusar), montos de piloto. v2: threshold/multi-attester (la ruta X ya no depende de esto — usa el `XGeneralVerifier` on-chain de Flap, no una key propia).
 - `scripts/attest-manual.mjs`: escape hatch de la ruta github si el OAuth se cae (verificación humana fuera de banda, misma key). Documentado como centralizado.

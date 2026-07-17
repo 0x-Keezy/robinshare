@@ -1,7 +1,7 @@
 // web/scripts/attest-manual.mjs — USO EXCEPCIONAL (piloto): atestacion MANUAL.
 // La verificacion de identidad la hace UN HUMANO fuera de banda (mira el GitHub/X del
 // receptor y confirma que es quien dice). Centralizado a proposito — solo para cuando
-// GitHub/Reclaim esten caidos. Firma con la MISMA key del attester canonico.
+// GitHub/X esten caidos. Firma con la MISMA key del attester canonico.
 //
 // Uso:  ATTESTER_PK=0x.. [RPC_URL=..] node scripts/attest-manual.mjs <vault> <payout>
 // Salida (JSON): {vault, payout, deadline, signature}  -> pegar en claimAndBind.
