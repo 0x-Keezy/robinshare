@@ -7,7 +7,7 @@ Probado end-to-end contra un fork de mainnet (script + claim). Acá corrés lo m
 
 Wallet **A** (tu deployer) crea un token en Flap cuyas fees van a una **identidad** (tu **GitHub**, tu **X**, o una **wallet**). Después, wallet **B** **reclama** probando esa identidad y recibe el ETH.
 
-- Para GitHub/X **sin montar GitHub-OAuth ni Reclaim todavía**: usás el **attester manual** (vos atestás a mano y firmás el voucher con la key del attester). El mecanismo on-chain es idéntico al de producción.
+- Para GitHub **sin montar GitHub-OAuth todavía**: usás el **attester manual** (vos atestás a mano y firmás el voucher con la key del attester). El mecanismo on-chain es idéntico al de producción.
 - Para **wallet**: aún más simple — la wallet queda bindeada al crear y solo hace `sweep`.
 
 ## Prerrequisitos
@@ -102,8 +102,8 @@ Y en el explorer: `https://robinhoodchain.blockscout.com/address/<TOKEN>` y `/ad
 ## Después del test (para el flujo automático real)
 
 El único cambio hacia producción es reemplazar el **attester manual** por el **attester server** (verifica GitHub/X solo y firma):
-1. Deploy `web/` a Vercel con envs (`ATTESTER_PK` = la key del paso 0, `GITHUB_*`, `RECLAIM_*`, `NEXT_PUBLIC_FACTORY_ADDRESS` = tu FACTORY).
-2. GitHub OAuth app (callback `https://<dominio>/api/attest/github/callback`) y/o app de Reclaim (provider Twitter).
+1. Deploy `web/` a Vercel con envs (`ATTESTER_PK` = la key del paso 0, `GITHUB_*`, `NEXT_PUBLIC_FACTORY_ADDRESS` = tu FACTORY) — checklist completo en `docs/DEPLOY-WEB.md`.
+2. GitHub OAuth app (callback `https://<dominio>/api/attest/github/callback`). X/Twitter no necesita app: usa el `XGeneralVerifier` de Flap, ya vivo en Robinhood.
 3. La gente crea tokens en `/create` y reclama en `/claim/<escrow>` sin que vos firmes nada.
 
 **Nota de confianza:** la factory queda atada a ESA address de attester (inmutable). Usá la misma del paso 0 para el server real, así los tokens del test y los de producción comparten oráculo. Si perdés/rotás la key del attester, redesplegás factory.
