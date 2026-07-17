@@ -4,7 +4,7 @@ pragma solidity ^0.8.26;
 import {VaultFactoryBaseV2} from "./flap/VaultFactoryBaseV2.sol";
 import {IVaultFactoryValidationV2} from "./flap/IVaultFactory.sol";
 import {VaultDataSchema, FieldDescriptor, FactoryPolicy} from "./flap/IVaultSchemasV1.sol";
-import {SocialFeeEscrow} from "./SocialFeeEscrow.sol";
+import {SocialFeeEscrowDeployer} from "./SocialFeeEscrowDeployer.sol";
 import {RobinhoodAddresses} from "./flap/RobinhoodAddresses.sol";
 
 /// @title SocialFeeEscrowFactory (FLEDGE)
@@ -13,6 +13,9 @@ import {RobinhoodAddresses} from "./flap/RobinhoodAddresses.sol";
 ///         el registro identidad -> vaults. Sin owner/pause/upgrade ni keys nuestras.
 ///         Unica funcion gateada: rotateAttester (el attester vigente o el Guardian
 ///         oficial de Flap; Audit v3, finding 5). Ver AUDIT-NOTES.md.
+/// @dev Audit v4 (774664f8): el `new SocialFeeEscrow(...)` ya NO vive aca -- se movio a
+///      `SocialFeeEscrowDeployer.deploy` (deployado una vez, aca abajo, en el constructor) para
+///      sacar el initcode del vault del RUNTIME de esta factory. Ver AUDIT-NOTES.md.
 contract SocialFeeEscrowFactory is VaultFactoryBaseV2 {
     /// @notice El attester CANONICO de esta factory: lo inyecta en TODO escrow social que
     ///         crea — el creator NO puede elegirlo. Esto cierra el rug: un creator malicioso
@@ -25,6 +28,12 @@ contract SocialFeeEscrowFactory is VaultFactoryBaseV2 {
     ///      oficial de Flap (_getGuardian()) tambien puede rotar, como backup si la key del
     ///      attester se pierde o se compromete y nadie mas puede invocar la rotacion.
     address public attester;
+
+    /// @notice Deployer dedicado que hace el `new SocialFeeEscrow(...)` real (Audit v4,
+    ///         774664f8): asi el initcode del vault cuenta contra el INITCODE de este
+    ///         contrato en vez de contra su RUNTIME (cap EIP-170, mucho mas ajustado). Solo
+    ///         esta factory puede llamar `deployer.deploy(...)` (gateado en el deployer mismo).
+    SocialFeeEscrowDeployer public immutable deployer;
 
     mapping(bytes32 => address[]) internal _vaultsByIdentity;
     address[] public allVaults;
@@ -44,6 +53,10 @@ contract SocialFeeEscrowFactory is VaultFactoryBaseV2 {
     constructor(address attester_) {
         require(attester_ != address(0), unicode"zero attester / 认证者地址为空");
         attester = attester_;
+        // El deployer queda atado a ESTA factory (su constructor lee msg.sender, que aca
+        // adentro ya es la address final de esta factory -- CREATE fija address(this) antes de
+        // correr el constructor). Nadie mas puede llamar deployer.deploy(...).
+        deployer = new SocialFeeEscrowDeployer();
     }
 
     /// @notice El attester vigente designa a su sucesor (rotacion de key: higiene o compromiso
@@ -109,10 +122,8 @@ contract SocialFeeEscrowFactory is VaultFactoryBaseV2 {
             require(vaultXVerifier != address(0), unicode"x verifier not deployed on this chain / 本链暂无 X 验证器");
         }
 
-        vault = address(
-            new SocialFeeEscrow(
-                taxToken, creator, t, normalized, identityWallet, vaultAttesterSource, vaultXVerifier, recoveryAfter
-            )
+        vault = deployer.deploy(
+            taxToken, creator, t, normalized, identityWallet, vaultAttesterSource, vaultXVerifier, recoveryAfter
         );
         _vaultsByIdentity[identityHash].push(vault);
         allVaults.push(vault);

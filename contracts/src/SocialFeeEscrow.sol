@@ -203,21 +203,45 @@ contract SocialFeeEscrow is VaultBaseV2, EIP712 {
     /// @notice Ruta TWITTER: prueba firmada por el oráculo de Flap (XGeneralVerifier) y cobra.
     ///         El claimer (msg.sender) es la wallet que recibe. Re-llamable con un tweet nuevo
     ///         (tweetId mayor) para re-bind a otra wallet.
-    function claimByProof(IXGeneralVerifier.XGeneralProof calldata proof, bytes calldata signature) external {
+    /// @dev Audit v4 (High, finding 1, reporte 774664f8): firma APLANADA. Antes tomaba
+    ///      `IXGeneralVerifier.XGeneralProof calldata proof` (un struct), pero el vocabulario de
+    ///      `FieldDescriptor.fieldType` en IVaultSchemasV1.sol NO tiene "tuple"/"struct" (solo
+    ///      string/address/uint16/uint256/time/bool/bytes/bytes32) -- un parametro struct es
+    ///      literalmente inexpresable en vaultUISchema(). Un UI generico que siguiera el schema
+    ///      (que por eso declaraba 0 inputs) encodeaba el selector de `claimByProof()` sin
+    ///      argumentos, no el de esta funcion: la ruta X quedaba inejecutable desde el portal.
+    ///      Aplanamos los 4 campos de XGeneralProof como parametros propios (tweetId/xId como
+    ///      uint256 -- el schema tampoco declara "uint128" -- ver AUDIT-NOTES.md) y reconstruimos
+    ///      el struct aca adentro solo para la llamada externa al verifier.
+    function claimByProof(
+        uint256 tweetId,
+        string calldata xHandle,
+        uint256 xId,
+        string calldata substring,
+        bytes calldata signature
+    ) external {
         require(identityType == TYPE_TWITTER, unicode"twitter identity only / 仅限 twitter 身份");
         require(xVerifier != address(0), unicode"x verifier not on this chain yet / 本链暂无 X 验证器");
+        // XGeneralProof usa uint128 para tweetId/xId; checkeamos el rango ANTES de castear para
+        // no truncar silenciosamente un valor fuera de rango hacia un tweetId/xId distinto.
+        require(tweetId <= type(uint128).max, unicode"tweetId too large / tweetId 过大");
+        require(xId <= type(uint128).max, unicode"xId too large / xId 过大");
         // (1) substring ata la prueba a ESTA wallet (msg.sender) y a ESTE vault.
         require(
-            keccak256(bytes(proof.substring)) == keccak256(bytes(expectedTweet(msg.sender))),
+            keccak256(bytes(substring)) == keccak256(bytes(expectedTweet(msg.sender))),
             unicode"substring mismatch / substring 不匹配"
         );
         // (2) el tweet debe ser del handle FONDEADO (el verifier devuelve el handle real, lowercase).
         //     Sin este check, cualquier cuenta que postee el substring podría reclamar.
-        require(
-            keccak256(bytes(proof.xHandle)) == keccak256(bytes(identityValue)),
-            unicode"wrong x handle / X 账号不符"
-        );
-        // (3) firma del oráculo de Flap.
+        require(keccak256(bytes(xHandle)) == keccak256(bytes(identityValue)), unicode"wrong x handle / X 账号不符");
+        // (3) firma del oráculo de Flap. Reconstruimos el struct que pide su interfaz -- la
+        // llamada externa lo ABI-encodea igual, sea el argumento memory o calldata de este lado.
+        IXGeneralVerifier.XGeneralProof memory proof = IXGeneralVerifier.XGeneralProof({
+            tweetId: uint128(tweetId),
+            xHandle: xHandle,
+            xId: uint128(xId),
+            substring: substring
+        });
         require(IXGeneralVerifier(xVerifier).verify(proof, signature), unicode"invalid proof / 证明无效");
         // (4) replay GLOBAL: los Snowflake IDs crecen; exigimos estrictamente mayor que el ULTIMO
         // claim exitoso de CUALQUIER candidato (Audit v3, Low, finding 6). Antes era por-claimer
@@ -225,8 +249,8 @@ contract SocialFeeEscrow is VaultBaseV2, EIP712 {
         // oracle-valido podia reclamar despues de que el handle ya hubiera probado una wallet mas
         // nueva, desviando el balance acumulado para esta ultima. Un tweet mas nuevo invalida a
         // TODOS los anteriores, igual que el bindNonce de github invalida vouchers viejos.
-        require(proof.tweetId > lastTweetId, unicode"outdated proof / 证明已过期");
-        lastTweetId = proof.tweetId;
+        require(tweetId > lastTweetId, unicode"outdated proof / 证明已过期");
+        lastTweetId = uint128(tweetId);
 
         emit Bound(msg.sender, bindNonce);
         boundWallet = msg.sender;
@@ -380,6 +404,21 @@ contract SocialFeeEscrow is VaultBaseV2, EIP712 {
         out[0] = a;
     }
 
+    function _arr5(
+        FieldDescriptor memory a,
+        FieldDescriptor memory b,
+        FieldDescriptor memory c,
+        FieldDescriptor memory d,
+        FieldDescriptor memory e
+    ) private pure returns (FieldDescriptor[] memory out) {
+        out = new FieldDescriptor[](5);
+        out[0] = a;
+        out[1] = b;
+        out[2] = c;
+        out[3] = d;
+        out[4] = e;
+    }
+
     function _method(
         string memory name_,
         string memory desc_,
@@ -396,10 +435,15 @@ contract SocialFeeEscrow is VaultBaseV2, EIP712 {
     ///      vault (antes omitia claimByProof y recoverUnclaimed, dejando los vaults twitter y la
     ///      recovery de creator sin ruta de claim documentada), cumpliendo el mandate de
     ///      VaultBaseV2 de describir cada metodo que la UI deba poder renderizar. `expectedTweet`
-    ///      queda fuera del schema (no es una accion de claim en si) por presupuesto de bytecode:
-    ///      este contrato se embebe entero en el initcode de SocialFeeEscrowFactory via
-    ///      `new SocialFeeEscrow(...)`, que ya viene justo bajo EIP-170 — ver AUDIT-NOTES.md.
-    ///      Traducciones deliberadamente concisas (mismo motivo).
+    ///      queda fuera del schema porque no es una accion de claim en si (es una view auxiliar
+    ///      que el dApp ya lee aparte para armar el texto del tweet), no por presupuesto de
+    ///      bytecode: desde el deployer split (Audit v4, ver AUDIT-NOTES.md) el initcode de este
+    ///      contrato ya NO vive en el runtime de SocialFeeEscrowFactory, asi que ese presupuesto
+    ///      dejo de ser la restriccion activa.
+    /// @dev Audit v4 (High, finding 1, 774664f8): `claimByProof` y `recoverUnclaimed` ahora
+    ///      declaran sus inputs REALES (antes ambos declaraban 0, el finding en si). Ver el
+    ///      docblock de la funcion `claimByProof` para por que su firma se aplano en vez de
+    ///      solo arreglar el schema.
     function vaultUISchema() public pure override returns (VaultUISchema memory schema) {
         FieldDescriptor[] memory noFields = new FieldDescriptor[](0);
         schema.vaultType = "SocialFeeEscrow";
@@ -424,9 +468,30 @@ contract SocialFeeEscrow is VaultBaseV2, EIP712 {
 
         schema.methods[1] = _method(
             "claimByProof",
-            unicode"X: XGeneralVerifier proof binds msg.sender, claims ETH. "
-                unicode"/ X：XGeneralVerifier 证明绑定 msg.sender 并领取 ETH。",
-            noFields,
+            unicode"X: XGeneralVerifier proof (flattened) binds msg.sender, claims ETH. "
+                unicode"/ X：XGeneralVerifier 证明（已拆分为独立字段）绑定 msg.sender 并领取 ETH。",
+            _arr5(
+                _fd(
+                    "tweetId",
+                    "uint256",
+                    unicode"Tweet Snowflake ID, from Flap oracle response / 推文 Snowflake ID，来自 Flap 预言机响应",
+                    0
+                ),
+                _fd("xHandle", "string", unicode"X handle, lowercase / X 账号（小写）", 0),
+                _fd(
+                    "xId",
+                    "uint256",
+                    unicode"X numeric user id, from Flap oracle response / X 数字用户 ID，来自 Flap 预言机响应",
+                    0
+                ),
+                _fd(
+                    "substring",
+                    "string",
+                    unicode"Verified tweet substring, from Flap oracle response / 已验证的推文子串，来自 Flap 预言机响应",
+                    0
+                ),
+                _fd("signature", "bytes", unicode"Oracle signature / 预言机签名", 0)
+            ),
             noFields,
             true
         );
@@ -452,7 +517,7 @@ contract SocialFeeEscrow is VaultBaseV2, EIP712 {
             "recoverUnclaimed",
             unicode"Creator-only: after deadline, if unbound, sends balance to chosen address. "
                 unicode"/ 仅创建者：截止后若未绑定，发送余额至指定地址。",
-            noFields,
+            _arr1(_fd("to", "address", unicode"Recipient / 接收地址", 0)),
             noFields,
             true
         );

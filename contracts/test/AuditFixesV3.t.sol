@@ -243,6 +243,11 @@ contract AuditFixesV3Test is Test {
         return IXGeneralVerifier.XGeneralProof({tweetId: tweetId, xHandle: handle, xId: 1, substring: e.expectedTweet(payout)});
     }
 
+    /// @dev Audit v4 (774664f8): claimByProof pasó a firma plana (5 args, no struct).
+    function _claim(SocialFeeEscrow e, IXGeneralVerifier.XGeneralProof memory p, bytes memory signature) internal {
+        e.claimByProof(p.tweetId, p.xHandle, p.xId, p.substring, signature);
+    }
+
     /// El escenario exacto del finding: B rebindea con un tweet mas nuevo (T2>T1); A intenta
     /// reclamar despues con su viejo T1 (aun oracle-valido) y debe fallar — el guard es GLOBAL.
     function test_F6_replayGlobal_walletViejaNoPuedeRobarTrasRebindMasNuevo() public {
@@ -256,7 +261,7 @@ contract AuditFixesV3Test is Test {
 
         IXGeneralVerifier.XGeneralProof memory proofA = _xproof(e, walletA, "0xkeezy", 100);
         vm.prank(walletA);
-        e.claimByProof(proofA, hex"aa");
+        _claim(e, proofA, hex"aa");
         assertEq(e.boundWallet(), walletA);
         assertEq(walletA.balance, 1 ether);
 
@@ -266,7 +271,7 @@ contract AuditFixesV3Test is Test {
         // tweet MAS NUEVO nombra a B (T2 > T1); B reclama y rebindea
         IXGeneralVerifier.XGeneralProof memory proofB = _xproof(e, walletB, "0xkeezy", 200);
         vm.prank(walletB);
-        e.claimByProof(proofB, hex"aa");
+        _claim(e, proofB, hex"aa");
         assertEq(e.boundWallet(), walletB);
         assertEq(walletB.balance, 2 ether);
 
@@ -277,7 +282,7 @@ contract AuditFixesV3Test is Test {
         IXGeneralVerifier.XGeneralProof memory proofAOld = _xproof(e, walletA, "0xkeezy", 100);
         vm.prank(walletA);
         vm.expectRevert(bytes(unicode"outdated proof / 证明已过期"));
-        e.claimByProof(proofAOld, hex"aa");
+        _claim(e, proofAOld, hex"aa");
 
         assertEq(address(e).balance, 0.5 ether, "los 0.5 ETH de B no deben desviarse");
         assertEq(e.boundWallet(), walletB);
@@ -292,7 +297,7 @@ contract AuditFixesV3Test is Test {
         address walletA = makeAddr("wallet-A");
         IXGeneralVerifier.XGeneralProof memory proofA = _xproof(e, walletA, "0xkeezy", 50);
         vm.prank(walletA);
-        e.claimByProof(proofA, hex"aa");
+        _claim(e, proofA, hex"aa");
         assertEq(e.lastTweetId(), 50);
 
         (bool ok2,) = address(e).call{value: 1 ether}("");
@@ -300,7 +305,7 @@ contract AuditFixesV3Test is Test {
         address walletC = makeAddr("wallet-C");
         IXGeneralVerifier.XGeneralProof memory proofC = _xproof(e, walletC, "0xkeezy", 999);
         vm.prank(walletC);
-        e.claimByProof(proofC, hex"aa");
+        _claim(e, proofC, hex"aa");
         assertEq(e.boundWallet(), walletC);
         assertEq(walletC.balance, 1 ether);
         assertEq(e.lastTweetId(), 999);
