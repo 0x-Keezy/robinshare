@@ -1,5 +1,21 @@
 # RobinShare — contract code for review (v3, post-audit)
 
+## AUDIT OUTCOME — approved for deployment (2026-07-17)
+
+GT's follow-up report (`774664f8`, v4) flagged **one** finding: `vaultUISchema()` declared
+`claimByProof`/`recoverUnclaimed` without their inputs (the EIP-170 concession we had disclosed
+in our own feedback, together with the deployer-split alternative). **David Zhang reviewed the
+report and our disclosure and approved as-is: "There are no problems now, you can proceed with
+the deployment."** Consistent with Flap's stated policy (RAM audit, 2026-07-03): the UI-schema
+constraints exist for the auto-generated portal UI and are lifted for projects shipping a
+bespoke UI — RobinShare ships its own dApp.
+
+**This tree (tag `audited-v3`) is the approved source; deployed bytecode must build from here.**
+A full fix for that finding (flattened `claimByProof(uint256,string,uint256,string,bytes)` +
+`SocialFeeEscrowDeployer` split freeing the factory's runtime + exact schema/signature parity
+with tests, 105/105 green) exists on branch **`v4-schema-exact`** — unaudited, parked as material
+for a future version. Do not deploy from that branch without a fresh audit round.
+
 ## Pre-audit propio adversarial — 18 findings, todos arreglados (2026-07-16)
 
 Antes de mandar el paquete v3 a GT armamos nuestro propio pre-audit adversarial (mismo estilo que
