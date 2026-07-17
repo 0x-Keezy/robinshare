@@ -17,4 +17,6 @@ library RobinhoodAddresses {
     ///      ("add support for Robinhood Chain"). Resuelve el placeholder histórico.
     ///      FLEDGE no tiene funciones privilegiadas, así que no lo usa; queda por referencia/correctitud.
     address internal constant GUARDIAN = 0x0000b48720d3B4ED6BC5031768B07F2b59270000;
+    // XGeneralVerifier oficial de Flap en Robinhood (docs.flap.sh, verificado on-chain 2026-07-16)
+    address internal constant X_VERIFIER = 0xccDaB0d5Bc6E0aCb8B157cffFA062688Aa849c17;
 }

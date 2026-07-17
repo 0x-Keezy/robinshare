@@ -5,6 +5,7 @@ import {VaultFactoryBaseV2} from "./flap/VaultFactoryBaseV2.sol";
 import {IVaultFactoryValidationV2} from "./flap/IVaultFactory.sol";
 import {VaultDataSchema, FieldDescriptor, FactoryPolicy} from "./flap/IVaultSchemasV1.sol";
 import {SocialFeeEscrow} from "./SocialFeeEscrow.sol";
+import {RobinhoodAddresses} from "./flap/RobinhoodAddresses.sol";
 
 /// @title SocialFeeEscrowFactory (FLEDGE)
 /// @notice Factory permissionless para VaultPortal.newTokenV6WithVault: crea un
@@ -146,11 +147,14 @@ contract SocialFeeEscrowFactory is VaultFactoryBaseV2 {
     }
 
     /// @notice El XGeneralVerifier oficial de Flap para esta chain (ruta twitter).
-    /// @dev BSC mainnet confirmado por Flap. Robinhood (4663): PENDIENTE de su deploy — hasta
-    ///      entonces devuelve 0 y claimByProof revierte (los vaults twitter se pueden crear igual).
+    /// @dev BSC mainnet confirmado por Flap. Robinhood (4663): desplegado y verificado on-chain
+    ///      por Jose (2026-07-16, docs.flap.sh) — ver RobinhoodAddresses.X_VERIFIER. Otras chains
+    ///      sin entrada aca devuelven 0 y claimByProof revertiria (los vaults twitter se pueden
+    ///      crear igual, salvo el gate de "verifier availability" en newVault).
     function _getXVerifier() internal view returns (address) {
         if (block.chainid == 56) return 0xcA8DBE6CAC4BFDc41226b0BaF2359fd99989b3E4; // BSC mainnet
-        return address(0); // Robinhood 4663 y otras: setear cuando Flap lo despliegue
+        if (block.chainid == 4663) return RobinhoodAddresses.X_VERIFIER; // Robinhood Chain
+        return address(0); // otras chains: setear cuando Flap lo despliegue ahi
     }
 
     /// @notice Expuesto para el dApp / verificación: el verifier que usarán los vaults twitter.

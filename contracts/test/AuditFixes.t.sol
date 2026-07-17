@@ -13,8 +13,10 @@ contract AuditFixesTest is Test {
     address predictedToken = address(0x7777);
 
     address constant BSC_X_VERIFIER = 0xcA8DBE6CAC4BFDc41226b0BaF2359fd99989b3E4;
+    address constant RH_X_VERIFIER = 0xccDaB0d5Bc6E0aCb8B157cffFA062688Aa849c17; // XGeneralVerifier Robinhood (4663)
     address constant RH_PORTAL = 0xe9F7AB7DE8FB8756acbB6a1cd13316a43308197B; // VaultPortal Robinhood (4663)
     address constant BSC_PORTAL = 0x90497450f2a706f1951b5bdda52B4E5d16f34C06; // VaultPortal BSC (56)
+    address constant BSC_TESTNET_PORTAL = 0x027e3704fC5C16522e9393d04C60A3ac5c0d775f; // VaultPortal BSC Testnet (97)
 
     /// El test contract hace de fuente-de-attester (rol de la factory) para vaults directos.
     function attester() external view returns (address) {
@@ -31,21 +33,24 @@ contract AuditFixesTest is Test {
 
     // ───────── Preaudit High #2: vaults twitter brickeados sin XGeneralVerifier ─────────
 
-    /// El escenario REAL de hoy: en Robinhood (4663) Flap aun no desplego el XGeneralVerifier.
-    /// Crear un vault twitter ahi lo brickearia para siempre: rechazar en la factory.
+    /// Post-v3: Robinhood (4663) YA tiene el XGeneralVerifier oficial de Flap desplegado y
+    /// verificado (ver test_xVerifier_robinhood_*), asi que el escenario "sin verifier" ya no
+    /// ocurre ahi. Lo probamos en BSC Testnet (97, chain soportada por _getVaultPortal pero sin
+    /// entrada en _getXVerifier) para preservar la cobertura del gate anti-brickeo.
     function test_twitter_sinVerifier_rechazadoAlCrear() public {
         SocialFeeEscrowFactory f = _freshFactory();
-        vm.chainId(4663);
-        vm.prank(RH_PORTAL);
+        vm.chainId(97);
+        vm.prank(BSC_TESTNET_PORTAL);
         vm.expectRevert(bytes(unicode"x verifier not deployed on this chain / 本链暂无 X 验证器"));
         f.newVault(predictedToken, address(0), creator, _data("twitter", "someone", address(0), 0));
     }
 
-    /// El charset invalido sigue reventando ANTES que el check del verifier (mismo orden de errores).
+    /// El charset invalido sigue reventando ANTES que el check del verifier (mismo orden de errores),
+    /// sin importar si la chain tiene o no verifier — mismo motivo, se prueba en 97.
     function test_twitter_sinVerifier_charsetRevientaPrimero() public {
         SocialFeeEscrowFactory f = _freshFactory();
-        vm.chainId(4663);
-        vm.prank(RH_PORTAL);
+        vm.chainId(97);
+        vm.prank(BSC_TESTNET_PORTAL);
         vm.expectRevert(bytes(unicode"bad handle charset / 句柄包含非法字符"));
         f.newVault(predictedToken, address(0), creator, _data("twitter", "bad-handle", address(0), 0));
     }
@@ -57,6 +62,33 @@ contract AuditFixesTest is Test {
         vm.prank(BSC_PORTAL);
         address v = f.newVault(predictedToken, address(0), creator, _data("twitter", "@0xKeezy", address(0), 0));
         assertEq(SocialFeeEscrow(payable(v)).xVerifier(), BSC_X_VERIFIER);
+    }
+
+    // ───────── Post-v3: XGeneralVerifier oficial de Flap desplegado en Robinhood (4663) ─────────
+
+    /// Flap desplego su XGeneralVerifier oficial en Robinhood Chain y Jose lo verifico
+    /// on-chain (2026-07-16): la factory ahora debe devolverlo para 4663, no address(0).
+    function test_xVerifier_robinhood_devuelveLaDireccionOficial() public {
+        SocialFeeEscrowFactory f = _freshFactory();
+        vm.chainId(4663);
+        assertEq(f.xVerifier(), RH_X_VERIFIER);
+    }
+
+    /// El cableo de Robinhood no debe pisar el de BSC (56), que sigue siendo el suyo.
+    function test_xVerifier_bsc_sigueSiendoElDeBSC() public {
+        SocialFeeEscrowFactory f = _freshFactory();
+        vm.chainId(56);
+        assertEq(f.xVerifier(), BSC_X_VERIFIER);
+    }
+
+    /// Con el verifier oficial ya cableado, la ruta twitter deja de estar bloqueada en
+    /// Robinhood: la factory crea el vault y este bakea el verifier oficial como immutable.
+    function test_twitterVault_enRobinhood_bakeaElVerifier() public {
+        SocialFeeEscrowFactory f = _freshFactory();
+        vm.chainId(4663);
+        vm.prank(RH_PORTAL);
+        address v = f.newVault(predictedToken, address(0), creator, _data("twitter", "@0xKeezy", address(0), 0));
+        assertEq(SocialFeeEscrow(payable(v)).xVerifier(), RH_X_VERIFIER);
     }
 
     // ───────── Preaudit Critical: TYPE_WALLET sin recovery si la wallet no recibe ETH ─────────

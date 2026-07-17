@@ -1,5 +1,27 @@
 # RobinShare — contract code for review (v3, post-audit)
 
+## Post-v3 — Robinhood's official XGeneralVerifier wired in (2026-07-16)
+
+Flap deployed its official `XGeneralVerifier` on Robinhood Chain and Jose verified it
+on-chain (has code, chain id 4663): `0xccDaB0d5Bc6E0aCb8B157cffFA062688Aa849c17` (docs.flap.sh).
+Added as `RobinhoodAddresses.X_VERIFIER`; `SocialFeeEscrowFactory._getXVerifier()` now returns it
+for `block.chainid == 4663` instead of `address(0)` (BSC 56 unchanged). This resolves the
+preaudit High #2 gate for Robinhood specifically: twitter vaults can now be **created** there too
+(previously rejected with `"x verifier not deployed on this chain"`), and the twitter claim path
+(`claimByProof`) is now live end-to-end on Robinhood, not just BSC.
+
+New TDD coverage in `test/AuditFixes.t.sol`: `test_xVerifier_robinhood_devuelveLaDireccionOficial`,
+`test_xVerifier_bsc_sigueSiendoElDeBSC`, `test_twitterVault_enRobinhood_bakeaElVerifier` (all born
+red against the pre-fix code, now green). The preexisting `test_twitter_sinVerifier_rechazadoAlCrear`
+/ `test_twitter_sinVerifier_charsetRevientaPrimero` (which used to exercise chain 4663 as the
+"verifier not deployed" case) moved to BSC Testnet (97, supported by `_getVaultPortal` but with no
+`_getXVerifier` entry) to keep covering the anti-brick gate for chains Flap hasn't reached yet.
+
+`forge test`: 95/95 green (92 pre-existing + 3 new). Fork E2E green against live Robinhood RPC.
+`SocialFeeEscrowFactory` runtime size: 24,116 B, margin 460 B under the 24576 B EIP-170 cap
+(measured with `forge build --sizes`) — still tight but not regressed materially from the 493 B
+pre-existing margin.
+
 ## v3 — response to GT's formal audit report (f70e5476, 2026-07-16)
 
 The owner reviewed all 6 findings and marked them all **TP** — every one is fixed in this
