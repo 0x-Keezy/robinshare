@@ -172,8 +172,8 @@ export function TerminalHome() {
           <div className="mt-6 max-w-xl text-[15px] leading-7" style={{ color: PHOS_DIM }}>
             <span style={{ color: PHOS_FAINT }}>stdout:</span> launch a coin for someone who ships.
             a slice of every trade escrows on-chain to their github, x, or wallet. claimable by
-            them alone. no owner keys. no custody. immutable code — the one emergency hatch is
-            flap&apos;s guardian, not ours.
+            them alone. no owner keys. no custody. immutable code — the only privileged role is
+            flap&apos;s official guardian, never ours.
           </div>
           <div className="mt-8 flex flex-wrap gap-4">
             <Link

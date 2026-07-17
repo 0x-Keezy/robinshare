@@ -164,7 +164,7 @@ export function MangaHome() {
             </div>
             <div className="mt-10 flex flex-wrap gap-x-6 gap-y-1 text-[11px] uppercase tracking-[0.16em]" style={{ fontFamily: "var(--f-mono)", color: DIM }}>
               <span>0 owner keys</span>
-              <span>71 tests ✓</span>
+              <span>95 tests ✓</span>
               <span>100ms blocks</span>
               <span>custody: none</span>
             </div>

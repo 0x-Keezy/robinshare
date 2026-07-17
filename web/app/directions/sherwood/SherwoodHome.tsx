@@ -344,7 +344,7 @@ export function SherwoodHome() {
               >
                 <span>Immutable</span>
                 <span>0 owner keys</span>
-                <span>71 tests green</span>
+                <span>95 tests green</span>
                 <span>Chain 4663</span>
               </div>
             </div>
