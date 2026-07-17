@@ -43,17 +43,20 @@ export const escrowAbi = [
     outputs: [{ type: "string" }],
   },
   {
-    // Audit v4 (774664f8): firma aplanada -- ver AUDIT-NOTES.md / claimByProof en
-    // SocialFeeEscrow.sol. Antes tomaba un struct XGeneralProof + bytes; el vocabulario de
-    // fieldType del schema on-chain no tiene "tuple", asi que el struct era inexpresable ahi.
     type: "function",
     name: "claimByProof",
     stateMutability: "nonpayable",
     inputs: [
-      { name: "tweetId", type: "uint256" },
-      { name: "xHandle", type: "string" },
-      { name: "xId", type: "uint256" },
-      { name: "substring", type: "string" },
+      {
+        name: "proof",
+        type: "tuple",
+        components: [
+          { name: "tweetId", type: "uint128" },
+          { name: "xHandle", type: "string" },
+          { name: "xId", type: "uint128" },
+          { name: "substring", type: "string" },
+        ],
+      },
       { name: "signature", type: "bytes" },
     ],
     outputs: [],

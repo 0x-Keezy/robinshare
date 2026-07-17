@@ -303,9 +303,6 @@ contract SocialFeeEscrowTest is Test {
 
     /// Pre-audit propio (doc-vs-code): el schema paso de 4 a 7 metodos (agrega claimByProof y
     /// recoverUnclaimed, que antes violaban el mandate de VaultBaseV2 por quedar sin documentar).
-    /// Audit v4 (774664f8): claimByProof y recoverUnclaimed ahora declaran sus inputs REALES
-    /// (antes ambos declaraban 0 — el finding en si). Ver test_F1_* en AuditFixesV4.t.sol para la
-    /// aserción exhaustiva de cada fieldType + el chequeo de consistencia selector<->schema.
     function test_vaultUISchema_tieneMetodos() public {
         SocialFeeEscrow e = _newGithub(0);
         VaultUISchema memory s = e.vaultUISchema();
@@ -316,14 +313,10 @@ contract SocialFeeEscrowTest is Test {
         assertEq(s.methods[0].inputs.length, 3);
         assertEq(s.methods[1].name, "claimByProof");
         assertTrue(s.methods[1].isWriteMethod);
-        assertEq(s.methods[1].inputs.length, 5);
         assertEq(s.methods[2].name, "rebindWallet");
         assertEq(s.methods[3].name, "sweep");
         assertEq(s.methods[4].name, "recoverUnclaimed");
         assertTrue(s.methods[4].isWriteMethod);
-        assertEq(s.methods[4].inputs.length, 1);
-        assertEq(s.methods[4].inputs[0].name, "to");
-        assertEq(s.methods[4].inputs[0].fieldType, "address");
         assertEq(s.methods[5].name, "pendingAmount");
         assertEq(s.methods[5].outputs[0].decimals, 18);
         assertEq(s.methods[6].name, "boundWallet");
@@ -366,13 +359,6 @@ contract SocialFeeEscrowTest is Test {
         });
     }
 
-    /// @dev Audit v4 (774664f8): claimByProof pasó a firma plana (5 args, no struct). Este helper
-    ///      arma la llamada a partir de un XGeneralProof armado con _xproof, para minimizar el
-    ///      diff en los tests de abajo (siguen razonando en términos del struct).
-    function _claim(SocialFeeEscrow e, IXGeneralVerifier.XGeneralProof memory p, bytes memory signature) internal {
-        e.claimByProof(p.tweetId, p.xHandle, p.xId, p.substring, signature);
-    }
-
     // NOTA: siempre construir la prueba (_xproof llama e.expectedTweet, una call externa) ANTES
     // de vm.prank/vm.expectRevert, o el cheat se aplica a expectedTweet y no a claimByProof.
 
@@ -385,7 +371,7 @@ contract SocialFeeEscrowTest is Test {
         IXGeneralVerifier.XGeneralProof memory p = _xproof(e, payout, "0xkeezy", 100);
 
         vm.prank(payout);
-        _claim(e, p, hex"aa");
+        e.claimByProof(p, hex"aa");
 
         assertEq(e.boundWallet(), payout);
         assertEq(payout.balance, 2 ether);
@@ -400,7 +386,7 @@ contract SocialFeeEscrowTest is Test {
         IXGeneralVerifier.XGeneralProof memory p = _xproof(e, payout, "impostor", 100);
         vm.prank(payout);
         vm.expectRevert(bytes(unicode"wrong x handle / X 账号不符"));
-        _claim(e, p, hex"aa");
+        e.claimByProof(p, hex"aa");
     }
 
     function test_claimByProof_wrongSubstring_reverts() public {
@@ -411,7 +397,7 @@ contract SocialFeeEscrowTest is Test {
         IXGeneralVerifier.XGeneralProof memory p = _xproof(e, makeAddr("otro"), "0xkeezy", 100);
         vm.prank(payout);
         vm.expectRevert(bytes(unicode"substring mismatch / substring 不匹配"));
-        _claim(e, p, hex"aa");
+        e.claimByProof(p, hex"aa");
     }
 
     function test_claimByProof_badSignature_reverts() public {
@@ -422,7 +408,7 @@ contract SocialFeeEscrowTest is Test {
         IXGeneralVerifier.XGeneralProof memory p = _xproof(e, payout, "0xkeezy", 100);
         vm.prank(payout);
         vm.expectRevert(bytes(unicode"invalid proof / 证明无效"));
-        _claim(e, p, hex"aa");
+        e.claimByProof(p, hex"aa");
     }
 
     function test_claimByProof_replay_reverts() public {
@@ -431,11 +417,11 @@ contract SocialFeeEscrowTest is Test {
         address payout = makeAddr("p");
         IXGeneralVerifier.XGeneralProof memory p = _xproof(e, payout, "0xkeezy", 100);
         vm.prank(payout);
-        _claim(e, p, hex"aa");
+        e.claimByProof(p, hex"aa");
         // mismo (o menor) tweetId -> outdated
         vm.prank(payout);
         vm.expectRevert(bytes(unicode"outdated proof / 证明已过期"));
-        _claim(e, p, hex"aa");
+        e.claimByProof(p, hex"aa");
     }
 
     function test_claimByProof_onGithubType_reverts() public {
@@ -444,7 +430,7 @@ contract SocialFeeEscrowTest is Test {
         IXGeneralVerifier.XGeneralProof memory p = _xproof(e, payout, "torvalds", 100);
         vm.prank(payout);
         vm.expectRevert(bytes(unicode"twitter identity only / 仅限 twitter 身份"));
-        _claim(e, p, hex"aa");
+        e.claimByProof(p, hex"aa");
     }
 
     function test_claimByProof_noVerifierOnChain_reverts() public {
@@ -453,7 +439,7 @@ contract SocialFeeEscrowTest is Test {
         IXGeneralVerifier.XGeneralProof memory p = _xproof(e, payout, "0xkeezy", 100);
         vm.prank(payout);
         vm.expectRevert(bytes(unicode"x verifier not on this chain yet / 本链暂无 X 验证器"));
-        _claim(e, p, hex"aa");
+        e.claimByProof(p, hex"aa");
     }
 
     function test_expectedHandle_devuelveElFondeado() public {

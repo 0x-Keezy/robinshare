@@ -1,120 +1,5 @@
 # RobinShare — contract code for review (v3, post-audit)
 
-## Audit v4 — GT's follow-up report (774664f8, 2026-07-17) — the ONE finding, fixed
-
-GT's v4 report flagged a single High finding: `SocialFeeEscrow.vaultUISchema()` declared
-`claimByProof` and `recoverUnclaimed` with **zero** inputs, while their real signatures took
-`claimByProof(IXGeneralVerifier.XGeneralProof calldata, bytes calldata)` (2 params, one a struct)
-and `recoverUnclaimed(address)` (1 param). A generic UI/integrator following the schema would
-encode a call with no arguments — the wrong selector (`claimByProof()` / `recoverUnclaimed()`),
-which doesn't match the deployed functions. The X claim route and the creator recovery route were
-inexecutable from the auto-generated portal UI. Marked `[x] TP` — see
-`AUDIT-STATUS-774664f8.md` for the sign-off copy.
-
-### Why the schema alone couldn't be patched
-
-`FieldDescriptor.fieldType`'s vocabulary (`IVaultSchemasV1.sol`) is exactly: `string`, `address`,
-`uint16`, `uint256`, `time`, `bool`, `bytes`, `bytes32`. There is no `tuple`/`struct` value — a
-parameter of type `IXGeneralVerifier.XGeneralProof` (a 4-field struct) is literally inexpressible
-in the schema. Just declaring 4 flat inputs while leaving the real function signature untouched
-wouldn't have fixed anything either: the real function still took ONE struct parameter, so the
-calldata a schema-following UI would produce from 4 top-level scalar inputs (individually
-ABI-encoded) would not match the real function's calldata layout (a single encoded tuple). The
-mismatch would just move from "0 inputs" to "wrong encoding."
-
-**Decision: flatten `claimByProof`'s real signature.** It is now
-`claimByProof(uint256 tweetId, string xHandle, uint256 xId, string substring, bytes signature)`.
-The 4 fields of `XGeneralProof` become the function's own top-level scalar params (all
-declarable in the schema's vocabulary — `tweetId`/`xId` as `uint256`, since the schema doesn't
-have `uint128` either), and the function reconstructs the struct internally, in memory, only to
-call `IXGeneralVerifier.verify()` (an external call — Solidity ABI-encodes a `memory` struct into
-`calldata` for the callee correctly regardless of the callee's own `calldata`-qualified parameter).
-Bounds checks (`tweetId`/`xId` `<= type(uint128).max`) guard the cast to the verifier's `uint128`
-fields — an out-of-range value now reverts (`"tweetId too large"` / `"xId too large"`) instead of
-silently truncating into a different tweetId/xId. `recoverUnclaimed(address)` already had an
-expressible signature; only its schema entry was wrong, so only the schema needed the fix there
-(now declares 1 input: `to`, address).
-
-### Deployer split: unblocking the schema fix (EIP-170)
-
-Adding 5 declared inputs to `claimByProof` and 1 to `recoverUnclaimed` needed real
-`FieldDescriptor[]` bytecode. `SocialFeeEscrowFactory.newVault` did `new SocialFeeEscrow(...)`
-directly, so the vault's entire initcode (16,827 B pre-fix) lived inside the factory's *runtime*
-— the same runtime that only had **136 B** of margin left under EIP-170 (see the now-historical
-EIP-170 section below). There was no room to add anything.
-
-**Fix:** `src/SocialFeeEscrowDeployer.sol`, a new single-purpose contract deployed once by the
-factory's own constructor (`deployer = new SocialFeeEscrowDeployer()`; its constructor captures
-`msg.sender`, which is already the factory's final address — CREATE fixes a contract's own
-address before its constructor body runs). Its `deploy(...)` — gated
-`require(msg.sender == factory)` — does the actual `new SocialFeeEscrow(...)` and returns the
-address. `newVault` now calls `deployer.deploy(...)` instead of constructing the vault itself.
-
-This doesn't remove the vault's initcode from existing anywhere — it moves *which* contract's
-bytecode carries it. `deploy()` is a runtime function of the deployer (not a constructor), so the
-vault's initcode blob now lives in the **deployer's** runtime, not the **factory's**. The deployer
-is a brand-new contract with nothing else in it, so it comfortably absorbs that blob; the factory
-— which carries all of its own logic (`newVault`, identity normalization, both schemas, launch
-validation, policies) — is freed from ever sharing its 24,576 B runtime budget with the vault's
-bytecode again.
-
-No caller precomputes the vault's address (`newVault` returns it), so this extra indirection
-doesn't break any existing assumption. Verified against the real Portal flow, not just unit tests:
-`forge test --match-contract Fork --fork-url robinhood -vv` green (real launch → tax → GitHub
-claim → sweep, now flowing through the deployer end-to-end on live Robinhood Chain).
-
-### Sizes (measured with `forge build --sizes`, post deployer split — not estimated)
-
-| Contract | Runtime | Runtime margin (cap 24,576 B) | Initcode | Initcode margin (cap 49,152 B) |
-|---|---|---|---|---|
-| `SocialFeeEscrow` | 16,023 B | 8,553 B | 18,401 B | 30,751 B |
-| `SocialFeeEscrowDeployer` | 19,089 B | 5,487 B | 19,135 B | 30,017 B |
-| `SocialFeeEscrowFactory` | 7,805 B | **16,771 B** | 27,243 B | 21,909 B |
-
-The factory went from a **136 B** margin (pre-fix — see the historical EIP-170 section below) to
-**16,771 B** — the split achieved exactly what it set out to do; the factory is now the most
-comfortable contract in the whole system, not the tightest. `SocialFeeEscrowDeployer` is the new
-tightest contract (5,487 B margin, ~22% of cap) since it now carries the vault's initcode blob in
-its own runtime; a future growth of `SocialFeeEscrow` itself should re-check *this* contract's
-size with `forge build --sizes`, not the factory's.
-
-### Tests
-
-New file `test/AuditFixesV4.t.sol` (11 tests, all born red against the pre-fix code):
-
-- `test_schema_claimByProof_declara5InputsConFieldTypesExactos`,
-  `test_schema_recoverUnclaimed_declara1InputAddress` — exact `fieldType`/name assertions for
-  both methods' real inputs.
-- `test_schema_selectorMatchesRealFunction_paraTodosLosWriteMethods` — for every write method in
-  the schema, computes the selector a generic UI would derive from the declared `fieldType`s and
-  asserts it matches the **real** function selector (read via `.selector` on the compiled
-  function, never hand-typed) — this is the test that directly proves the finding is dead and
-  guards against future schema/signature drift on any method, not just the two that were broken.
-- `test_claimByProof_firmaPlana_endToEnd` — the new flat signature exercised end-to-end (fees
-  pay out, `boundWallet`/`lastTweetId` update).
-- `test_claimByProof_tweetIdOverflow_reverts`, `test_claimByProof_xIdOverflow_reverts`,
-  `test_claimByProof_tweetIdEnElLimite_ok` — the new `uint128` bounds checks, including the
-  inclusive boundary (`type(uint128).max` itself must still succeed).
-- `test_deployer_soloLaFactoryQueLoCreoPuedeLlamarDeploy`,
-  `test_deployer_capturaSuFactoryComoInmutable`,
-  `test_deployer_dosFactoriesTienenDeployersDistintos` — the deployer's access gate and its
-  1:1 binding to the factory that created it.
-- `test_newVault_viaDeployer_creaUnVaultFuncional` — `newVault` still produces a fully working
-  vault end-to-end through the new indirection.
-
-Pre-existing `test_claimByProof_*` (in `test/SocialFeeEscrow.t.sol`) and `test_F6_*` (in
-`test/AuditFixesV3.t.sol`) updated to call the flattened signature via a small `_claim(...)` test
-helper that destructures the still-struct-shaped `_xproof(...)` fixture into the 5 flat args —
-kept the diff small without changing what each test actually asserts.
-`test_vaultUISchema_tieneMetodos` extended with the new input-count/`fieldType` assertions for
-both fixed methods.
-
-`forge test`: **105 of 105 green** (94 pre-v4 + 11 new; the fork test still reports "skipped"
-without `--fork-url`, same as always — 106 total). `forge test --match-contract Fork --fork-url
-robinhood -vv`: green against the live chain (real launch → tax → GitHub claim → sweep).
-
----
-
 ## Pre-audit propio adversarial — 18 findings, todos arreglados (2026-07-16)
 
 Antes de mandar el paquete v3 a GT armamos nuestro propio pre-audit adversarial (mismo estilo que
@@ -144,14 +29,7 @@ post-X_VERIFIER. Encontró 18 cosas reales, todas arregladas en esta pasada:
   la fila de `rotateAttester` del preaudit contradiciendo el finding 5 de v3 sin marcarlo, y una
   sección de "claims elsewhere" que ya era ella misma stale. Ver las notas inline más abajo.
 
-### EIP-170: la factory embebia el initcode ENTERO del vault (HISTORICO — resuelto en Audit v4)
-
-> **Esta sub-seccion es historica.** El deployer split del Audit v4 (ver seccion de arriba, tope
-> del archivo) saco el `new SocialFeeEscrow(...)` de la factory: hoy vive en
-> `SocialFeeEscrowDeployer.deploy`, asi que la restriccion de 136 B que describe esta seccion **ya
-> NO aplica** — la factory tiene 16,771 B de margen actual. Se conserva el texto tal cual se
-> escribio (motivo original de los recortes de copy que siguen vigentes en el codigo) por
-> contexto historico, no como estado actual.
+### EIP-170: la factory embebe el initcode ENTERO del vault
 
 `SocialFeeEscrowFactory.newVault` hace `new SocialFeeEscrow(...)`, así que agregar contenido a
 `SocialFeeEscrow.vaultUISchema()` (lo mandado arriba) infla el bytecode de **ambos** contratos, no

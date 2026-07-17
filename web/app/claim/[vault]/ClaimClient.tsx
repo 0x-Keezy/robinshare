@@ -248,15 +248,13 @@ export function ClaimClient({ vault }: { vault: Address }) {
         setMsg(`Verification failed: ${p.error ?? "oracle rejected the tweet"}`);
         return;
       }
-      // Audit v4 (774664f8): claimByProof pasó a firma plana (5 args escalares, ya no un
-      // struct) -- ver AUDIT-NOTES.md / web/lib/abis.ts.
-      await sendTx("claimByProof", [
-        BigInt(p.tweet_id),
-        p.x_handle as string,
-        BigInt(p.x_id),
-        p.substring as string,
-        p.signature,
-      ]);
+      const proof = {
+        tweetId: BigInt(p.tweet_id),
+        xHandle: p.x_handle as string,
+        xId: BigInt(p.x_id),
+        substring: p.substring as string,
+      };
+      await sendTx("claimByProof", [proof, p.signature]);
     } catch (e) {
       setMsg(e instanceof Error ? e.message : String(e));
     }
