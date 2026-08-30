@@ -31,7 +31,7 @@ export async function GET(req: NextRequest) {
   let identityValue: string;
   try {
     ({ identityValue } = await assertVaultIdentity(state.vault, 1));
-    await assertVaultFromFactory(state.vault, 1, identityValue);
+    await assertVaultFromFactory(state.vault);
   } catch (e) {
     return NextResponse.json({ error: (e as Error).message }, { status: 403 });
   }

@@ -94,6 +94,9 @@ contract RobinShareVault is EIP712, ReentrancyGuard {
     error ZeroPayout();
     error TokenAlreadyAttached();
     error NotOurLaunch();
+    error PairMustBeNative();
+    error BuybackMustBeDisabled();
+    error SelfPayout();
     error NotBoundWallet();
     error NotBoundYet();
     error NothingToSweep();
@@ -159,10 +162,20 @@ contract RobinShareVault is EIP712, ReentrancyGuard {
     /// @dev No es un parametro del constructor porque la direccion del token depende de la de este
     ///      vault (la creation code de la curva incluye el creatorFeeRecipient), asi que no se
     ///      puede predecir. Nadie tiene que confiar en quien llama: la verdad la da la cadena.
-    function attachToken(address token_) external {
+    function attachToken(address token_) external nonReentrant {
         if (token != address(0)) revert TokenAlreadyAttached();
         IPonsV2LaunchFactory.LaunchedToken memory info = ponsFactory.getLaunchedToken(token_);
         if (!info.exists || info.creatorFeeRecipient != address(this)) revert NotOurLaunch();
+        // SOLO PARES NATIVOS. El camino del dinero de este vault es ETH: con un par ERC-20 las
+        // fees se acreditan en el ledger POR TOKEN del escrow de pons y `pull()`/`withdraw()`
+        // entregarian CERO, con la UI mostrando un vault vacio. El spec §2 ya declaraba fuera de
+        // alcance pagar en otros activos; esto lo hace cumplir en el contrato, como hacia el rail
+        // auditado (`require(quoteToken == address(0))`). Se mide ~50% de los launches de pons
+        // pareados contra ERC-20: esos NO son elegibles, y es mejor rechazarlos que atraparlos.
+        if (info.pairToken != address(0)) revert PairMustBeNative();
+        // El spec §4 exige buybackEnabled = false: con buyback activo la curva revierte
+        // InternalSwapRequiresOperator y `sweepCurve()` seria un no-op SILENCIOSO.
+        if (info.buybackEnabled) revert BuybackMustBeDisabled();
         token = token_;
         curve = info.curve;
         emit TokenAttached(token_, info.curve);
@@ -175,7 +188,11 @@ contract RobinShareVault is EIP712, ReentrancyGuard {
     ///      (en 404 s tradearon 118 curvas y solo se barrieron 15). Tolera el revert a proposito:
     ///      post-graduacion `AlreadyGraduated()`, y en el hook `InternalSwapRequiresOperator()`
     ///      cuando hay fees denominadas en el memecoin — casos normales, no errores.
-    function sweepCurve() public {
+    function sweepCurve() external nonReentrant {
+        _sweepCurve();
+    }
+
+    function _sweepCurve() internal {
         address c = curve;
         if (c == address(0)) return;
         try IPonsV2Curve(c).sweepFees(0) {} catch {}
@@ -185,16 +202,24 @@ contract RobinShareVault is EIP712, ReentrancyGuard {
     /// @dev El `claim()` de pons es msg.sender-only, asi que esto SOLO lo puede hacer el vault.
     ///      Se consulta el saldo antes: `claim()` con saldo cero revierte `NoBalance()`, lo que
     ///      convertiria un no-op en un griefing repetible contra las rutas de claim.
-    function pull() public returns (uint256 amount) {
+    function pull() external nonReentrant returns (uint256) {
+        return _pull();
+    }
+
+    function _pull() internal returns (uint256 amount) {
         if (feeEscrow.balanceOf(address(this)) == 0) return 0;
         amount = feeEscrow.claim();
         emit Harvested(amount);
     }
 
     /// @notice Los dos pasos juntos. Permissionless: cualquiera puede pagar el gas.
-    function harvest() public returns (uint256) {
-        sweepCurve();
-        return pull();
+    function harvest() external nonReentrant returns (uint256) {
+        return _harvest();
+    }
+
+    function _harvest() internal returns (uint256) {
+        _sweepCurve();
+        return _pull();
     }
 
     /// @notice Lo que hay para cobrar: lo que ya esta aca mas lo acreditado en el escrow de pons.
@@ -213,7 +238,7 @@ contract RobinShareVault is EIP712, ReentrancyGuard {
         address to = boundWallet;
         if (to == address(0)) revert NotBoundYet();
         if (msg.sender != to) revert NotBoundWallet();
-        harvest();
+        _harvest();
         uint256 amount = address(this).balance;
         if (amount == 0) revert NothingToSweep();
         totalPaid += amount;
@@ -231,6 +256,7 @@ contract RobinShareVault is EIP712, ReentrancyGuard {
         address to = boundWallet;
         if (to == address(0)) revert NotBoundYet();
         if (msg.sender != to) revert NotBoundWallet();
+        _sweepCurve();
         // el ledger por-token de pons tambien se cobra con msg.sender-only
         if (feeEscrow.balanceOfToken(address(this), erc20) > 0) {
             feeEscrow.claimToken(erc20);
@@ -246,11 +272,12 @@ contract RobinShareVault is EIP712, ReentrancyGuard {
     function _tryPayout(address to) private {
         uint256 amount = address(this).balance;
         if (amount == 0) return;
+        totalPaid += amount; // efecto ANTES de la interaccion
         (bool ok,) = to.call{value: amount}("");
         if (ok) {
-            totalPaid += amount;
             emit Swept(to, amount);
         } else {
+            totalPaid -= amount;
             emit PayoutDeferred(to, amount);
         }
     }
@@ -278,6 +305,7 @@ contract RobinShareVault is EIP712, ReentrancyGuard {
     {
         if (identityType != TYPE_GITHUB) revert GithubOnly();
         if (payoutWallet == address(0)) revert ZeroPayout();
+        if (payoutWallet == address(this)) revert SelfPayout();
         if (block.timestamp > deadline) revert VoucherExpired();
         address signer = ECDSA.recover(bindDigest(payoutWallet, deadline), signature);
         if (signer != attester()) revert BadAttesterSignature();
@@ -288,7 +316,7 @@ contract RobinShareVault is EIP712, ReentrancyGuard {
             bindNonce++;
         }
 
-        harvest();
+        _harvest();
         _tryPayout(payoutWallet);
     }
 
@@ -320,6 +348,7 @@ contract RobinShareVault is EIP712, ReentrancyGuard {
     ) external nonReentrant {
         if (identityType != TYPE_TWITTER) revert TwitterOnly();
         if (payoutWallet == address(0)) revert ZeroPayout();
+        if (payoutWallet == address(this)) revert SelfPayout();
         if (xVerifier == address(0)) revert XVerifierMissing();
         // (1) el substring ata la prueba a ESA wallet y a ESTE vault
         if (keccak256(bytes(proof.substring)) != keccak256(bytes(expectedTweet(payoutWallet)))) {
@@ -339,7 +368,7 @@ contract RobinShareVault is EIP712, ReentrancyGuard {
             bindNonce++;
         }
 
-        harvest();
+        _harvest();
         _tryPayout(payoutWallet);
     }
 
@@ -348,6 +377,7 @@ contract RobinShareVault is EIP712, ReentrancyGuard {
         if (identityType != TYPE_WALLET) revert WalletOnly();
         if (msg.sender != identityWallet) revert NotIdentityWallet();
         if (newPayout == address(0)) revert ZeroPayout();
+        if (newPayout == address(this)) revert SelfPayout();
         emit Bound(newPayout, bindNonce);
         boundWallet = newPayout;
         unchecked {
@@ -361,13 +391,29 @@ contract RobinShareVault is EIP712, ReentrancyGuard {
     /// @dev `recoveryAfter == 0` (el DEFAULT del producto) lo deshabilita para siempre. Hacerlo
     ///      obligatorio le daria al launcher un clawback garantizado: lanzar "para" un dev conocido,
     ///      farmear fees y quedarse con todo si la persona no aparece a tiempo.
+    /// @notice Gemelo de `recoverUnclaimed` para ERC-20 que hayan llegado sin aviso.
+    /// @dev Sin esto, un token que aterriza en un vault que nunca se bindeo queda encerrado para
+    ///      siempre: `withdrawToken` exige un boundWallet que por hipotesis no existe.
+    function recoverUnclaimedToken(address erc20, address to) external nonReentrant {
+        if (msg.sender != launcher) revert OnlyLauncher();
+        if (to == address(0)) revert ZeroPayout();
+        if (recoveryAfter == 0) revert RecoveryDisabled();
+        if (boundWallet != address(0)) revert AlreadyBound();
+        if (block.timestamp < recoveryAfter) revert TooEarly();
+        if (feeEscrow.balanceOfToken(address(this), erc20) > 0) feeEscrow.claimToken(erc20);
+        uint256 amount = IERC20(erc20).balanceOf(address(this));
+        if (amount == 0) revert NothingToSweep();
+        emit SweptToken(to, erc20, amount);
+        IERC20(erc20).safeTransfer(to, amount);
+    }
+
     function recoverUnclaimed(address to) external nonReentrant {
         if (msg.sender != launcher) revert OnlyLauncher();
         if (to == address(0)) revert ZeroPayout();
         if (recoveryAfter == 0) revert RecoveryDisabled();
         if (boundWallet != address(0)) revert AlreadyBound();
         if (block.timestamp < recoveryAfter) revert TooEarly();
-        harvest();
+        _harvest();
         uint256 amount = address(this).balance;
         if (amount == 0) revert NothingToSweep();
         totalPaid += amount;

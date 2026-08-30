@@ -3,7 +3,6 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 const FACTORY = "0x9999999999999999999999999999999999999999" as const;
 const GOOD = "0x1111111111111111111111111111111111111111" as const;
 const EVIL = "0x3333333333333333333333333333333333333333" as const;
-const HASH = "0xabc0000000000000000000000000000000000000000000000000000000000001" as const;
 
 // vi.hoisted: la factory del mock corre antes que los `const` del cuerpo del archivo.
 const { readContract } = vi.hoisted(() => ({ readContract: vi.fn() }));
@@ -17,9 +16,8 @@ vi.mock("@/lib/chain", async (orig) => ({
 // vi.mock, mockClear() TAMBIEN descarta la implementacion — no solo el historial de llamadas.
 // Por eso se re-aplica en cada beforeEach. Sin esto el primer test pasa y los siguientes
 // revientan con "Cannot destructure property 'functionName' of 'undefined'".
-const impl = async ({ functionName }: { functionName: string }) => {
-  if (functionName === "identityHashFor") return HASH;
-  if (functionName === "getVaults") return [GOOD];
+const impl = async ({ functionName, args }: { functionName: string; args: unknown[] }) => {
+  if (functionName === "isVault") return String(args[0]).toLowerCase() === GOOD.toLowerCase();
   throw new Error(`unexpected read: ${functionName}`);
 };
 readContract.mockImplementation(impl);
@@ -33,23 +31,24 @@ describe("assertVaultFromFactory", () => {
   });
 
   it("acepta un vault registrado en la factory", async () => {
-    await expect(assertVaultFromFactory(GOOD, 1, "torvalds")).resolves.toBeUndefined();
+    await expect(assertVaultFromFactory(GOOD)).resolves.toBeUndefined();
   });
 
   it("rechaza una direccion que no salio de la factory", async () => {
-    await expect(assertVaultFromFactory(EVIL, 1, "torvalds")).rejects.toThrow(/not from factory/i);
+    await expect(assertVaultFromFactory(EVIL)).rejects.toThrow(/not from factory/i);
   });
 
   it("compara sin distinguir mayusculas (checksum vs lowercase)", async () => {
     const upper = ("0x" + GOOD.slice(2).toUpperCase()) as `0x${string}`;
-    await expect(assertVaultFromFactory(upper, 1, "torvalds")).resolves.toBeUndefined();
+    await expect(assertVaultFromFactory(upper)).resolves.toBeUndefined();
   });
 
-  it("usa el typeStr correcto segun el tipo de identidad", async () => {
-    await assertVaultFromFactory(GOOD, 1, "torvalds");
+  it("consulta el registro isVault de la factory, no un hash reimplementado off-chain", async () => {
+    await assertVaultFromFactory(GOOD);
     const call = readContract.mock.calls.find(
-      (c) => (c[0] as { functionName: string }).functionName === "identityHashFor",
+      (c) => (c[0] as { functionName: string }).functionName === "isVault",
     );
-    expect((call![0] as { args: unknown[] }).args[0]).toBe("github");
+    expect(call, "debe leer isVault").toBeDefined();
+    expect((call![0] as { address: string }).address).toBe(FACTORY);
   });
 });

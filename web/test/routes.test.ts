@@ -22,6 +22,7 @@ vi.mock("@/lib/chain", () => ({
     readContract: vi.fn(async ({ functionName }: { functionName: string }) => {
       if (functionName === "identityType") return mockType;
       if (functionName === "identityValue") return mockValue;
+      if (functionName === "isVault") return mockVaults.includes(VAULT);
       if (functionName === "identityHashFor") return IDENTITY_HASH;
       if (functionName === "getVaults") return mockVaults;
       if (functionName === "bindNonce") return 0n;

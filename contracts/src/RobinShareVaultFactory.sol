@@ -27,10 +27,18 @@ contract RobinShareVaultFactory {
     address public immutable xVerifier;
 
     /// @notice El attester vigente de la ruta GitHub. Los vaults lo leen EN VIVO de aca.
-    /// @dev Rotable solo por el attester vigente: no hay Guardian de respaldo (era de Flap). Si la
-    ///      llave se pierde sin rotar, la ruta GitHub queda sin sucesor — riesgo aceptado y
-    ///      registrado en el spec; la custodia del attester es decision abierta.
+    /// @dev Rotable por el attester vigente o por `attesterAdmin` (co-gate de emergencia).
     address public attester;
+
+    /// @notice Co-gate de EMERGENCIA que solo puede ROTAR el attester. No toca fondos, no puede
+    ///         firmar vouchers, no tiene ninguna otra potestad. `address(0)` lo desactiva.
+    /// @dev Repuesto tras un review adversarial: el audit v3 del rail Flap habia cerrado esto como
+    ///      High (finding 5) con el Guardian de Flap como respaldo, y el port lo borro dejando
+    ///      `rotateAttester` auto-gateado. Sin sucesor, una llave de attester perdida CONGELA para
+    ///      siempre el ETH de todos los vaults de GitHub (claimAndBind es su unica ruta de bind, y
+    ///      con el default recoveryAfter=0 tampoco hay recovery). El poder esta acotado a propósito:
+    ///      quien lo tenga no puede sacar un wei.
+    address public immutable attesterAdmin;
 
     /// @notice Registro de procedencia. Lo consulta el attester server ANTES de firmar nada.
     /// @dev Sin esto, cualquiera despliega un contrato que finge ser un vault. Es la segunda capa
@@ -57,20 +65,30 @@ contract RobinShareVaultFactory {
     error RecoveryWindowTooLong();
     error ValueMustBeEmptyForWallet();
     error WalletRequired();
-    error EmptyValue();
+    error BadHandleLength();
+    error BadHandleCharset();
 
-    constructor(address attester_, address feeEscrow_, address ponsFactory_, address xVerifier_) {
+    constructor(
+        address attester_,
+        address feeEscrow_,
+        address ponsFactory_,
+        address xVerifier_,
+        address attesterAdmin_
+    ) {
         if (attester_ == address(0) || feeEscrow_ == address(0) || ponsFactory_ == address(0)) {
             revert ZeroAddress();
         }
         attester = attester_;
+        attesterAdmin = attesterAdmin_;
         feeEscrow = feeEscrow_;
         ponsFactory = ponsFactory_;
         xVerifier = xVerifier_; // puede ser 0 si la chain no tiene verifier: los vaults X se rechazan
     }
 
     function rotateAttester(address newAttester) external {
-        if (msg.sender != attester) revert OnlyAttester();
+        if (msg.sender != attester && (attesterAdmin == address(0) || msg.sender != attesterAdmin)) {
+            revert OnlyAttester();
+        }
         if (newAttester == address(0)) revert ZeroAddress();
         emit AttesterRotated(attester, newAttester);
         attester = newAttester;
@@ -104,8 +122,7 @@ contract RobinShareVaultFactory {
             if (identityWallet_ == address(0)) revert WalletRequired();
             identityHash = keccak256(abi.encode(uint8(0), identityWallet_));
         } else {
-            normalized = _normalize(rawValue);
-            if (bytes(normalized).length == 0) revert EmptyValue();
+            normalized = _normalize(identityType_, rawValue);
             identityHash = keccak256(abi.encode(identityType_, normalized));
         }
         // Un vault X sin verifier quedaria brickeado para siempre (xVerifier es immutable en el
@@ -148,17 +165,33 @@ contract RobinShareVaultFactory {
         returns (bytes32)
     {
         if (identityType_ == TYPE_WALLET) return keccak256(abi.encode(uint8(0), identityWallet_));
-        return keccak256(abi.encode(identityType_, _normalize(rawValue)));
+        return keccak256(abi.encode(identityType_, _normalize(identityType_, rawValue)));
     }
 
-    /// @dev Normalizacion: strip de un '@' inicial y lowercase ASCII. Idempotente.
-    function _normalize(string memory raw) internal pure returns (string memory) {
+    /// @dev strip '@' inicial + lowercase ASCII + CHARSET ESTRICTO por tipo.
+    ///      twitter: 1-15 de [a-z0-9_] · github: 1-39 de [a-z0-9-]. No-ASCII => revert.
+    ///
+    ///      RECUPERADO del contrato auditado tras un review adversarial: la primera version del
+    ///      port solo bajaba a minusculas, lo que permitia crear vaults con handles que NINGUNA
+    ///      persona real puede reclamar (homoglifos cirilicos, zero-width, espacios). Con un plazo
+    ///      de recovery eso convierte el clawback OPCIONAL del launcher en uno GARANTIZADO: se
+    ///      lanza "para" un dev, la UI muestra su handle, el claim nunca puede matchear, y a los 30
+    ///      dias el launcher se lleva todo. Es exactamente el ataque que el producto existe para
+    ///      impedir, reabierto por otra puerta.
+    function _normalize(uint8 t, string memory raw) internal pure returns (string memory) {
         bytes memory b = bytes(raw);
         uint256 start = (b.length > 0 && b[0] == "@") ? 1 : 0;
-        bytes memory out = new bytes(b.length - start);
-        for (uint256 i = start; i < b.length; i++) {
-            bytes1 c = b[i];
-            out[i - start] = (c >= 0x41 && c <= 0x5A) ? bytes1(uint8(c) + 32) : c;
+        uint256 len = b.length - start;
+        uint256 max = t == TYPE_TWITTER ? 15 : 39;
+        if (len < 1 || len > max) revert BadHandleLength();
+        bytes memory out = new bytes(len);
+        for (uint256 i = 0; i < len; i++) {
+            bytes1 c = b[start + i];
+            if (c >= "A" && c <= "Z") c = bytes1(uint8(c) + 32);
+            bool ok = (c >= "a" && c <= "z") || (c >= "0" && c <= "9")
+                || (t == TYPE_TWITTER ? c == bytes1("_") : c == bytes1("-"));
+            if (!ok) revert BadHandleCharset();
+            out[i] = c;
         }
         return string(out);
     }

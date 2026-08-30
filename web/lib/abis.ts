@@ -65,12 +65,25 @@ export const escrowAbi = [
 
 export const factoryAbi = [
   { type: "function", name: "attester", stateMutability: "view", inputs: [], outputs: [{ type: "address" }] },
+  // La factory del rail pons expone un registro directo. Reemplaza al par
+  // identityHashFor+getVaults: es O(1), no depende de reimplementar la normalizacion de handles
+  // del contrato off-chain, y no crece con la cantidad de vaults de una identidad.
+  {
+    type: "function",
+    name: "isVault",
+    stateMutability: "view",
+    inputs: [{ name: "vault", type: "address" }],
+    outputs: [{ type: "bool" }],
+  },
+  // OJO: la firma cambio respecto de la factory de Flap, que tomaba (string typeStr, ...).
+  // La del rail pons toma el tipo como uint8. Con la firma vieja el selector no existe y la
+  // llamada revierte.
   {
     type: "function",
     name: "identityHashFor",
     stateMutability: "pure",
     inputs: [
-      { name: "typeStr", type: "string" },
+      { name: "identityType", type: "uint8" },
       { name: "rawValue", type: "string" },
       { name: "identityWallet", type: "address" },
     ],

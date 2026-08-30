@@ -78,10 +78,22 @@ contract MockPonsFactory {
     mapping(address => IPonsV2LaunchFactory.LaunchedToken) internal _info;
 
     function setLaunch(address token, address curve, address recipient) external {
+        setLaunchFull(token, curve, recipient, address(0), false);
+    }
+
+    function setLaunchFull(
+        address token,
+        address curve,
+        address recipient,
+        address pairToken,
+        bool buyback
+    ) public {
         IPonsV2LaunchFactory.LaunchedToken memory t;
         t.token = token;
         t.curve = curve;
         t.creatorFeeRecipient = recipient;
+        t.pairToken = pairToken;
+        t.buybackEnabled = buyback;
         t.exists = true;
         _info[token] = t;
     }
@@ -149,6 +161,7 @@ contract RobinShareTest is Test {
     address launcher;
     address dev;
     address relayer;
+    address admin;
     address TOKEN = address(0x7011);
 
     function setUp() public {
@@ -159,7 +172,10 @@ contract RobinShareTest is Test {
         escrow = new MockFeeEscrow();
         pons = new MockPonsFactory();
         xver = new MockXVerifier();
-        factory = new RobinShareVaultFactory(attester, address(escrow), address(pons), address(xver));
+        admin = makeAddr("attesterAdmin");
+        factory = new RobinShareVaultFactory(
+            attester, address(escrow), address(pons), address(xver), admin
+        );
         vm.deal(launcher, 100 ether);
         vm.deal(relayer, 10 ether);
     }
@@ -545,5 +561,95 @@ contract RobinShareTest is Test {
         v.recoverUnclaimed(launcher);
 
         assertEq(address(v).balance, 5 ether, "la plata sigue esperando a su dueno");
+    }
+
+    // ── regresiones del review adversarial ──
+
+    function test_attachToken_rechazaParERC20() public {
+        RobinShareVault v = _github(0);
+        MockCurve c = new MockCurve(address(v), escrow);
+        MockERC20 pair = new MockERC20();
+        pons.setLaunchFull(TOKEN, address(c), address(v), address(pair), false);
+        // ~50% de los launches de pons cotizan contra ERC-20: ahi este vault entregaria CERO,
+        // asi que se rechazan en vez de atrapar la plata.
+        vm.expectRevert(RobinShareVault.PairMustBeNative.selector);
+        v.attachToken(TOKEN);
+    }
+
+    function test_attachToken_rechazaBuybackActivo() public {
+        RobinShareVault v = _github(0);
+        MockCurve c = new MockCurve(address(v), escrow);
+        pons.setLaunchFull(TOKEN, address(c), address(v), address(0), true);
+        // con buyback la curva revierte InternalSwapRequiresOperator y sweepCurve() seria un
+        // no-op SILENCIOSO: mejor no dejar atar el launch.
+        vm.expectRevert(RobinShareVault.BuybackMustBeDisabled.selector);
+        v.attachToken(TOKEN);
+    }
+
+    function test_handleHomoglifo_esRechazado() public {
+        // "torvalds" con la 'o' cirilica (U+043E): se ve igual en la UI, pero la identidad real
+        // nunca podria reclamarlo. Con recovery, eso le regala el clawback al launcher.
+        vm.prank(launcher);
+        vm.expectRevert(RobinShareVaultFactory.BadHandleCharset.selector);
+        factory.createVault(1, unicode"tоrvalds", address(0), 30);
+    }
+
+    function test_handleConEspacioOVacio_esRechazado() public {
+        vm.prank(launcher);
+        vm.expectRevert(RobinShareVaultFactory.BadHandleCharset.selector);
+        factory.createVault(1, "tor valds", address(0), 0);
+
+        vm.prank(launcher);
+        vm.expectRevert(RobinShareVaultFactory.BadHandleLength.selector);
+        factory.createVault(1, "", address(0), 0);
+    }
+
+    function test_handleDemasiadoLargo_porTipo() public {
+        // twitter: 15 · github: 39
+        vm.prank(launcher);
+        vm.expectRevert(RobinShareVaultFactory.BadHandleLength.selector);
+        factory.createVault(2, "abcdefghijklmnop", address(0), 0); // 16
+
+        vm.prank(launcher);
+        address ok = factory.createVault(2, "abcdefghijklmno", address(0), 0); // 15
+        assertEq(RobinShareVault(payable(ok)).identityValue(), "abcdefghijklmno");
+    }
+
+    function test_attesterAdmin_puedeRotarSiSePierdeLaLlave() public {
+        address nuevo = makeAddr("nuevoAttester");
+        vm.prank(admin);
+        factory.rotateAttester(nuevo);
+        assertEq(factory.attester(), nuevo, "sin sucesor, una llave perdida congela todos los vaults github");
+
+        // pero el admin NO puede tocar fondos: no existe ninguna funcion para eso
+        RobinShareVault v = _github(0);
+        vm.deal(address(v), 1 ether);
+        vm.prank(admin);
+        vm.expectRevert(RobinShareVault.NotBoundYet.selector);
+        v.withdraw();
+    }
+
+    function test_noSePuedeBindearElPropioVault() public {
+        RobinShareVault v = _github(0);
+        bytes memory sig = _voucher(v, address(v), block.timestamp + 600);
+        vm.expectRevert(RobinShareVault.SelfPayout.selector);
+        v.claimAndBind(address(v), block.timestamp + 600, sig);
+    }
+
+    function test_recoverUnclaimedToken_rescataUnERC20Atrapado() public {
+        vm.prank(launcher);
+        RobinShareVault v =
+            RobinShareVault(payable(factory.createVault(1, "torvalds", address(0), 30)));
+        MockERC20 erc = new MockERC20();
+        erc.mint(address(v), 500); // llegada sin aviso, y la identidad nunca aparece
+
+        vm.prank(launcher);
+        vm.expectRevert(RobinShareVault.TooEarly.selector);
+        v.recoverUnclaimedToken(address(erc), launcher);
+
+        vm.warp(block.timestamp + 31 days);
+        vm.prank(launcher);
+        v.recoverUnclaimedToken(address(erc), launcher);
+        assertEq(erc.balanceOf(launcher), 500);
     }
 }

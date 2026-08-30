@@ -31,11 +31,14 @@ export function useVaultLookup() {
     setLoading(true);
     try {
       const isWallet = type === "wallet";
+      // La factory del rail pons toma el tipo como uint8 (0 wallet · 1 github · 2 twitter), no
+      // como el string que usaba la factory de Flap. Con el string, el selector no existe.
+      const typeId = isWallet ? 0 : type === "github" ? 1 : 2;
       const identityHash = (await publicClient.readContract({
         address: factory,
         abi: factoryAbi,
         functionName: "identityHashFor",
-        args: [type, isWallet ? "" : value, isWallet ? (value as Address) : ZERO],
+        args: [typeId, isWallet ? "" : value, isWallet ? (value as Address) : ZERO],
       })) as `0x${string}`;
 
       const vaults = (await publicClient.readContract({

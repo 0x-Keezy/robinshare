@@ -14,8 +14,8 @@ export async function GET(req: NextRequest) {
   // Valida tipo Y PROCEDENCIA antes de mandar a GitHub: sin el chequeo de factory, cualquier
   // contrato que declare identityType()=1 pasa y termina consiguiendo una firma del attester.
   try {
-    const { identityValue } = await assertVaultIdentity(vault, 1);
-    await assertVaultFromFactory(vault, 1, identityValue);
+    await assertVaultIdentity(vault, 1);
+    await assertVaultFromFactory(vault);
   } catch (e) {
     return NextResponse.json({ error: (e as Error).message }, { status: 403 });
   }

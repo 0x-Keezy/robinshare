@@ -32,6 +32,14 @@ Guardian en el camino crítico), launch permissionless por ~0,0005 ETH.
 
 ## 2. Alcance
 
+> **ACTUALIZADO 2026-08-29 tras el review adversarial**: el limite "solo ETH nativo" pasa de ser una
+> decision de alcance a estar **impuesto por el contrato**. `attachToken()` rechaza cualquier launch
+> con `pairToken != address(0)` o `buybackEnabled == true`. Motivo medido: **el 50,5% de los launches
+> reales de pons cotiza contra un ERC-20**, y en esos el vault entregaria **CERO** (las fees se
+> acreditan en el ledger por-token del escrow, `pendingAmount()` da 0 y `withdraw()` revierte); con
+> `recoveryDays > 0` la plata quedaba **encerrada para siempre**. Es mejor rechazar el launch que
+> atrapar fondos. **Consecuencia de producto: RobinShare sirve para la mitad ETH-pareada de pons.**
+
 **Dentro**: contratos (vault + factory), backend del attester, y los cambios de la web necesarios
 para lanzar y cobrar sobre pons.
 
