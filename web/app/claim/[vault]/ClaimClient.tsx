@@ -7,6 +7,7 @@ import { useAccount, useConnect, useWriteContract } from "wagmi";
 import { injected } from "wagmi/connectors";
 import { publicClient } from "@/lib/chain";
 import { escrowAbi } from "@/lib/abis";
+import { recoveryBadge } from "@/lib/pons";
 import { RSShell, RS } from "@/components/RSShell";
 
 const ZERO = "0x0000000000000000000000000000000000000000";
@@ -30,8 +31,20 @@ type State = {
   pending: bigint;
   bound: Address;
   totalPaid: bigint;
-  description: string;
+  /// 0 = NUNCA. Es lo que decide el badge irrevocable/revocable, leido de la cadena.
+  recoveryAfter: bigint;
+  /// 0x0 hasta que alguien corra `attachToken()`. Sin el, `sweepCurve()` es un no-op y las fees
+  /// se quedan en la curva de pons.
+  token: Address;
 };
+
+/// El vault del rail pons ya no expone `description()`: se elimino junto con `vaultUISchema()`
+/// para que la auditoria fuera chica. La frase se arma aca, con lo que igual se lee de la cadena.
+function describeVault(identityType: number, identityValue: string): string {
+  if (identityType === 0) return "Fees are bound to one wallet from launch.";
+  if (identityType === 1) return `Fees for @${identityValue} — claimable by proving the GitHub account.`;
+  return `Fees for @${identityValue} — claimable by posting from the X account.`;
+}
 
 const ctaCls =
   "rounded-full px-7 py-3 font-bold transition-all duration-150 will-change-transform disabled:cursor-not-allowed disabled:opacity-60 hover:scale-105 hover:brightness-110 active:scale-95 active:brightness-95";
@@ -79,23 +92,30 @@ export function ClaimClient({ vault }: { vault: Address }) {
   const [tweetUrl, setTweetUrl] = useState("");
   const [msg, setMsg] = useState<string | null>(null);
   const [txHash, setTxHash] = useState<Hex | null>(null);
+  // Ruta de reparacion: si el launch salio pero `attachToken()` no, el vault existe y el token
+  // tambien, pero la curva nunca se puede barrer. Cualquiera puede atarlos — el contrato lo
+  // verifica contra el registro de pons, asi que no hay que confiar en quien lo pega aca.
+  const [attachAddr, setAttachAddr] = useState("");
 
   const refresh = useCallback(async () => {
-    const [identityType, identityValue, pending, bound, totalPaid, description] = await Promise.all([
-      publicClient.readContract({ address: vault, abi: escrowAbi, functionName: "identityType" }),
-      publicClient.readContract({ address: vault, abi: escrowAbi, functionName: "identityValue" }),
-      publicClient.readContract({ address: vault, abi: escrowAbi, functionName: "pendingAmount" }),
-      publicClient.readContract({ address: vault, abi: escrowAbi, functionName: "boundWallet" }),
-      publicClient.readContract({ address: vault, abi: escrowAbi, functionName: "totalPaid" }),
-      publicClient.readContract({ address: vault, abi: escrowAbi, functionName: "description" }),
-    ]);
+    const [identityType, identityValue, pending, bound, totalPaid, recoveryAfter, token] =
+      await Promise.all([
+        publicClient.readContract({ address: vault, abi: escrowAbi, functionName: "identityType" }),
+        publicClient.readContract({ address: vault, abi: escrowAbi, functionName: "identityValue" }),
+        publicClient.readContract({ address: vault, abi: escrowAbi, functionName: "pendingAmount" }),
+        publicClient.readContract({ address: vault, abi: escrowAbi, functionName: "boundWallet" }),
+        publicClient.readContract({ address: vault, abi: escrowAbi, functionName: "totalPaid" }),
+        publicClient.readContract({ address: vault, abi: escrowAbi, functionName: "recoveryAfter" }),
+        publicClient.readContract({ address: vault, abi: escrowAbi, functionName: "token" }),
+      ]);
     setS({
       identityType: Number(identityType),
       identityValue: identityValue as string,
       pending: pending as bigint,
       bound: bound as Address,
       totalPaid: totalPaid as bigint,
-      description: description as string,
+      recoveryAfter: recoveryAfter as bigint,
+      token: token as Address,
     });
   }, [vault]);
 
@@ -126,7 +146,8 @@ export function ClaimClient({ vault }: { vault: Address }) {
       pending: 64900000000000000n, // 0.0649 ETH
       bound: ZERO as Address,
       totalPaid: 0n,
-      description: "Fees for @arlo_dev — claimable via GitHub",
+      recoveryAfter: 0n, // irrevocable, el default del producto
+      token: "0x00000000000000000000000000000000000000dd" as Address,
     });
   }, [isDemo]);
 
@@ -148,7 +169,10 @@ export function ClaimClient({ vault }: { vault: Address }) {
     }
   }, []);
 
-  async function sendTx(fn: "sweep" | "claimAndBind" | "claimByProof", args: readonly unknown[] = []) {
+  async function sendTx(
+    fn: "withdraw" | "harvest" | "claimAndBind" | "claimByProof" | "attachToken",
+    args: readonly unknown[] = [],
+  ) {
     setMsg(null);
     try {
       const hash = await writeContractAsync({ address: vault, abi: escrowAbi, functionName: fn, args } as never);
@@ -254,7 +278,9 @@ export function ClaimClient({ vault }: { vault: Address }) {
         xId: BigInt(p.x_id),
         substring: p.substring as string,
       };
-      await sendTx("claimByProof", [proof, p.signature]);
+      // `payoutWallet` va PRIMERO y ya no se exige `msg.sender == payout`: el substring del
+      // tweet ata la prueba a esta wallet y a este vault, asi que un relayer podria mandarla.
+      await sendTx("claimByProof", [address, proof, p.signature]);
     } catch (e) {
       setMsg(e instanceof Error ? e.message : String(e));
     }
@@ -275,6 +301,12 @@ export function ClaimClient({ vault }: { vault: Address }) {
   const label = s.identityType === 0 ? "wallet" : s.identityType === 1 ? `github:${s.identityValue}` : `x:${s.identityValue}`;
   const effectiveConnected = isDemo ? demoConnected : isConnected;
   const effectivePending = isDemo ? demoPending : isPending;
+  // `withdraw()` es PULL: solo lo puede llamar el boundWallet. Reemplazo del `sweep()` push del
+  // rail de Flap, y lo que permitio borrar el Guardian entero — si la wallet no puede recibir ETH
+  // en una llamada push, simplemente no llama.
+  const isPayoutWallet = !!address && address.toLowerCase() === s.bound.toLowerCase();
+  const isAttached = s.token !== ZERO;
+  const badge = recoveryBadge(s.recoveryAfter, Math.floor(Date.now() / 1000), isBound);
 
   return (
     <RSShell>
@@ -288,11 +320,9 @@ export function ClaimClient({ vault }: { vault: Address }) {
         >
           This vault is yours to prove.
         </h1>
-        {s.description && (
-          <p className="mt-3 max-w-md" style={{ color: RS.DIM }}>
-            {s.description}
-          </p>
-        )}
+        <p className="mt-3 max-w-md" style={{ color: RS.DIM }}>
+          {describeVault(s.identityType, s.identityValue)}
+        </p>
 
         <div className="relative mt-10 rounded-2xl border p-6 sm:p-8" style={{ borderColor: RS.HAIR }}>
           {isDemo && demoDrainEth !== null && (
@@ -318,6 +348,30 @@ export function ClaimClient({ vault }: { vault: Address }) {
             pending · {formatEther(s.totalPaid)} ETH paid out
             {isBound ? ` · bound to ${s.bound.slice(0, 6)}…${s.bound.slice(-4)}` : ""}
           </div>
+          {/* El badge sale de `recoveryAfter()` on-chain, no de una promesa: cualquiera puede
+              leer el mismo numero en Blockscout y comprobarlo. */}
+          <div className="mt-3 flex flex-wrap items-center gap-2" style={{ fontFamily: "var(--f-mono)" }}>
+            <span
+              className="rounded-full px-3 py-1 text-[10px] uppercase tracking-[0.14em]"
+              style={
+                badge.irrevocable
+                  ? { background: "rgba(0,200,5,0.14)", color: RS.GREEN_TEXT }
+                  : { background: "rgba(192,57,43,0.12)", color: "#c0392b" }
+              }
+              title="Read from recoveryAfter() on this contract"
+            >
+              {badge.label}
+            </span>
+            {!isAttached && (
+              <span
+                className="rounded-full px-3 py-1 text-[10px] uppercase tracking-[0.14em]"
+                style={{ background: "rgba(192,57,43,0.12)", color: "#c0392b" }}
+                title="attachToken() has not been called yet"
+              >
+                not linked to a coin
+              </span>
+            )}
+          </div>
 
           <div className="mt-7 flex flex-col gap-3">
             {!effectiveConnected ? (
@@ -326,11 +380,57 @@ export function ClaimClient({ vault }: { vault: Address }) {
               </button>
             ) : (
               <>
-                {/* Ya probada la identidad: cualquiera puede empujar los fees a la wallet bound */}
-                {isBound && (
-                  <button onClick={() => sendTx("sweep")} disabled={effectivePending || s.pending === 0n} className={ctaCls} style={ctaStyle}>
-                    Sweep to {s.bound.slice(0, 6)}…{s.bound.slice(-4)}
+                {/* Identidad ya probada. El retiro es PULL: solo el boundWallet lo puede llamar. */}
+                {isBound && isPayoutWallet && (
+                  <button onClick={() => sendTx("withdraw")} disabled={effectivePending} className={ctaCls} style={ctaStyle}>
+                    Withdraw to {s.bound.slice(0, 6)}…{s.bound.slice(-4)}
                   </button>
+                )}
+                {isBound && !isPayoutWallet && (
+                  <p className="text-sm leading-relaxed" style={{ color: RS.DIM }}>
+                    These fees belong to {s.bound.slice(0, 6)}…{s.bound.slice(-4)} — only that wallet
+                    can withdraw them, and nothing here can change that. You can still pay the gas to
+                    pull the fees out of pons and into the vault for them.
+                  </p>
+                )}
+
+                {/* Permissionless: cualquiera paga el gas de traer la plata desde la curva y el
+                    escrow de pons hasta el vault. No hace falta estar bindeado ni ser nadie.
+                    `withdraw()` ya lo hace adentro; esto sirve para que el saldo se VEA antes. */}
+                {isAttached && (
+                  <button
+                    onClick={() => sendTx("harvest")}
+                    disabled={effectivePending}
+                    className={ghostCls}
+                    style={ghostStyle}
+                  >
+                    Collect fees into the vault
+                  </button>
+                )}
+
+                {!isAttached && (
+                  <div className="flex flex-col gap-2.5">
+                    <p className="text-sm leading-relaxed" style={{ color: RS.DIM }}>
+                      This vault is not linked to its coin yet, so trading fees stay stuck on the
+                      pons curve. Anyone can link them — the contract only accepts a coin whose
+                      creator fees already point here, so there is nothing to trust.
+                    </p>
+                    <input
+                      value={attachAddr}
+                      onChange={(e) => setAttachAddr(e.target.value)}
+                      placeholder="0x coin address"
+                      className="w-full border-0 border-b-2 bg-transparent py-2 text-sm placeholder:opacity-35 focus:outline-none"
+                      style={{ borderColor: RS.INK, color: RS.INK, fontFamily: "var(--f-mono)" }}
+                    />
+                    <button
+                      onClick={() => sendTx("attachToken", [attachAddr as Address])}
+                      disabled={effectivePending || !/^0x[0-9a-fA-F]{40}$/.test(attachAddr)}
+                      className={ctaCls}
+                      style={ctaStyle}
+                    >
+                      Link the coin
+                    </button>
+                  </div>
                 )}
 
                 {/* Social: hay voucher listo -> Claim; si no, verificar */}
@@ -451,8 +551,8 @@ export function ClaimClient({ vault }: { vault: Address }) {
                 )}
                 {!isBound && s.identityType === 0 && (
                   <p className="text-sm leading-relaxed" style={{ color: RS.FAINT }}>
-                    This is a wallet vault — its fees can only ever go to {s.bound.slice(0, 6)}…{s.bound.slice(-4)}.
-                    Sweep above once it has a balance.
+                    This is a wallet vault — its fees can only ever go to the wallet it was bound to
+                    at launch, and only that wallet can withdraw them.
                   </p>
                 )}
               </>

@@ -1,24 +1,38 @@
 "use client";
 
-import { useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
-import { parseEther, type Address, type Hex } from "viem";
+import { formatEther, type Address, type Hex } from "viem";
 import { useAccount, useConnect, useWriteContract } from "wagmi";
 import { injected } from "wagmi/connectors";
 import { publicClient, factoryAddress } from "@/lib/chain";
-import { vaultPortalAbi } from "@/lib/portalAbi";
+import { escrowAbi, factoryAbi } from "@/lib/abis";
 import {
-  VAULT_PORTAL,
-  mineSalt,
-  encodeVaultData,
-  buildLaunchParams,
+  PONS_LAUNCH_FACTORY,
+  PONS_LAUNCH_CONFIG_ID,
+  PONS_NATIVE_PAIR,
+  EXPECTED_LAUNCH_FEE,
+  MAX_CREATOR_TAX_BPS,
+  ponsAbi,
+  identityTypeId,
+  buildTokenParams,
+  randomSalt,
+  vaultFromReceiptLogs,
+  launchFromReceiptLogs,
+  ponsRevertHint,
   type IdentityType,
-} from "@/lib/fledge";
+  type LaunchIdentity,
+} from "@/lib/pons";
 import { RSShell, RS } from "@/components/RSShell";
 
 const inputCls = "w-full border-0 border-b-2 bg-transparent py-2 placeholder:opacity-35 focus:outline-none";
 const inputStyle = { borderColor: RS.INK, color: RS.INK, fontFamily: "var(--f-mono)" } as const;
 const labelStyle = { fontFamily: "var(--f-mono)", color: RS.FAINT, letterSpacing: "0.16em" } as const;
+
+/// Progreso del launch. Se guarda en estado a proposito: el flujo son TRES transacciones y si
+/// una falla no hay que rehacer las anteriores. Un vault sin token es inofensivo (nunca recibe
+/// fees), pero volver a crearlo seria tirar gas y dejar un vault huerfano de mas.
+type Progress = { vault?: Address; token?: Address; curve?: Address; attached?: boolean };
 
 export default function CreatePage() {
   const { address, isConnected } = useAccount();
@@ -28,29 +42,50 @@ export default function CreatePage() {
   const [name, setName] = useState("");
   const [symbol, setSymbol] = useState("");
   const [description, setDescription] = useState("");
+  const [logoUrl, setLogoUrl] = useState("");
   const [type, setType] = useState<IdentityType>("github");
   const [handle, setHandle] = useState("");
   const [wallet, setWallet] = useState("");
   const [recoveryDays, setRecoveryDays] = useState("0");
-  const [devBuy, setDevBuy] = useState("0.01");
-  // % del trade que va al vault. Límites sondeados contra el portal REAL en
-  // Robinhood Chain (eth_call, scripts/_taxprobe.mjs): mínimo 0.01%, máximo
-  // 10.00% — fuera de eso el portal revierte con el custom error 0xcfdd26ea.
+  // % de cada trade que va al vault, sobre el fee base de pons. Tope leido EN VIVO de
+  // `maxCreatorTaxBps()` (hoy 1000 bps = 10%); pons revierte CreatorTaxTooHigh por encima.
   const [taxPct, setTaxPct] = useState(3);
-  const [imageFile, setImageFile] = useState<File | null>(null);
 
   const [busy, setBusy] = useState<string | null>(null);
   const [msg, setMsg] = useState<string | null>(null);
-  const [result, setResult] = useState<{ token: Address; tx: Hex } | null>(null);
+  const [progress, setProgress] = useState<Progress>({});
+  const [launchFee, setLaunchFee] = useState<bigint | null>(null);
+  const [maxTaxBps, setMaxTaxBps] = useState<number>(MAX_CREATOR_TAX_BPS);
+  const [launchOpen, setLaunchOpen] = useState<boolean | null>(null);
 
   const factory = factoryAddress();
 
+  /// Se lee la config VIVA de pons, no la constante: `launchFee` y `maxCreatorTaxBps` son estado
+  /// mutable de un Safe 2-de-3. Hardcodearlas haria que el dia que las muevan todo launch
+  /// revierta `LaunchFeeNotPaid` sin explicacion.
+  const loadPonsConfig = useCallback(async () => {
+    try {
+      const [fee, maxTax, open] = await Promise.all([
+        publicClient.readContract({ address: PONS_LAUNCH_FACTORY, abi: ponsAbi, functionName: "launchFee" }),
+        publicClient.readContract({ address: PONS_LAUNCH_FACTORY, abi: ponsAbi, functionName: "maxCreatorTaxBps" }),
+        publicClient.readContract({ address: PONS_LAUNCH_FACTORY, abi: ponsAbi, functionName: "launchEnabled" }),
+      ]);
+      setLaunchFee(fee as bigint);
+      setMaxTaxBps(Number(maxTax as bigint));
+      setLaunchOpen(open as boolean);
+    } catch {
+      // sin RPC la pagina sigue usable; el launch fallara con un error claro de la cadena
+    }
+  }, []);
+
+  useEffect(() => {
+    loadPonsConfig();
+  }, [loadPonsConfig]);
+
   async function create() {
     setMsg(null);
-    setResult(null);
     if (!factory) return setMsg("NEXT_PUBLIC_FACTORY_ADDRESS is not configured.");
     if (!isConnected || !address) return setMsg("Connect your wallet first.");
-    if (!name || !symbol) return setMsg("Name and ticker are required.");
 
     const recipientWallet = (type === "wallet" ? wallet || address : address) as Address;
     if (type === "wallet" && !/^0x[0-9a-fA-F]{40}$/.test(recipientWallet)) {
@@ -59,68 +94,111 @@ export default function CreatePage() {
     if (type !== "wallet" && !handle.trim()) {
       return setMsg("Enter the GitHub / X handle.");
     }
+    const days = Number(recoveryDays);
+    if (!Number.isInteger(days) || days < 0 || (days !== 0 && days < 30) || days > 3650) {
+      return setMsg("Recovery must be 0 (never) or between 30 and 3650 days.");
+    }
 
+    const identity: LaunchIdentity =
+      type === "wallet"
+        ? { type: "wallet", wallet: recipientWallet }
+        : { type, handle: handle.trim() };
+
+    let step: Progress = { ...progress };
     try {
-      setBusy("Mining salt (vanity 7777)…");
-      const { salt, token } = await mineSalt((t) => setBusy(`Mining salt… (${t} attempts)`));
-
-      const vaultData = encodeVaultData(type, handle.trim(), recipientWallet, Number(recoveryDays) || 0);
-
-      // Arte + metadata del token: subir a Flap (/api/upload via nuestro proxy) -> CID on-chain.
-      // Sin imagen propia y con identidad github: usamos el avatar del dev por defecto.
-      let meta = "{}";
-      const ghAvatar = type === "github" && handle.trim() ? `https://github.com/${handle.trim()}.png` : null;
-      if (imageFile || ghAvatar) {
-        setBusy("Uploading token art to Flap…");
-        const fd = new FormData();
-        fd.append("name", name);
-        fd.append("symbol", symbol);
-        fd.append("description", description || `${name} — fees on RobinShare`);
-        if (type === "twitter") fd.append("twitter", handle.trim());
-        if (type === "github") fd.append("website", `https://github.com/${handle.trim()}`);
-        if (imageFile) fd.append("image", imageFile);
-        else if (ghAvatar) fd.append("sourceUrl", ghAvatar);
-        try {
-          const r = await fetch("/api/token-image", { method: "POST", body: fd });
-          const j = await r.json();
-          if (j.cid) meta = j.cid;
-          else setMsg(`Token art skipped (${j.error}). Launching without image.`);
-        } catch {
-          setMsg("Token art upload failed. Launching without image.");
-        }
+      // ── Tx 1 · el VAULT va primero ───────────────────────────────────────────────
+      // La creation code de la curva de pons incluye el `creatorFeeRecipient`, asi que la
+      // direccion del token depende de la del vault: no se puede predecir al reves. Por eso el
+      // orden es fijo y no hay un orquestador de una sola transaccion.
+      if (!step.vault) {
+        setBusy("1/3 · Creating the vault…");
+        const vaultTx = await writeContractAsync({
+          address: factory,
+          abi: factoryAbi,
+          functionName: "createVault",
+          args: [identityTypeId(type), type === "wallet" ? "" : handle.trim(), type === "wallet" ? recipientWallet : ("0x0000000000000000000000000000000000000000" as Address), BigInt(days)],
+        } as never);
+        const receipt = await publicClient.waitForTransactionReceipt({ hash: vaultTx });
+        const vault = vaultFromReceiptLogs(receipt.logs, factory);
+        if (!vault) throw new Error("The vault transaction confirmed but emitted no VaultCreated event.");
+        step = { ...step, vault };
+        setProgress(step);
       }
 
-      const devBuyWei = parseEther(devBuy || "0");
-      const params = buildLaunchParams({
-        name,
-        symbol,
-        meta,
-        salt,
-        factory,
-        vaultData,
-        taxBps: Math.round(taxPct * 100),
-        devBuyWei,
-      });
+      // ── Tx 2 · el LAUNCH en pons ────────────────────────────────────────────────
+      if (!step.token) {
+        setBusy("2/3 · Launching the coin on pons…");
+        // El fee se relee justo antes de mandar: `launchToken` exige `msg.value == launchFee`
+        // EXACTO, y el owner de pons lo puede mover.
+        const fee = (await publicClient.readContract({
+          address: PONS_LAUNCH_FACTORY,
+          abi: ponsAbi,
+          functionName: "launchFee",
+        })) as bigint;
+        setLaunchFee(fee);
+        // Pin de la economia cotizada. Sin esto, un re-peg del owner de pons puede aterrizar
+        // debajo de un launch en vuelo y cambiar los terminos del token que se acaba de firmar.
+        const economics = (await publicClient.readContract({
+          address: PONS_LAUNCH_FACTORY,
+          abi: ponsAbi,
+          functionName: "previewLaunchEconomics",
+          args: [PONS_LAUNCH_CONFIG_ID, PONS_NATIVE_PAIR],
+        })) as Hex;
 
-      setBusy(`Launching ${symbol} (token ${token.slice(0, 6)}…7777)…`);
-      const tx = await writeContractAsync({
-        address: VAULT_PORTAL,
-        abi: vaultPortalAbi,
-        functionName: "newTokenV6WithVault",
-        args: [params],
-        value: devBuyWei,
-      } as never);
+        const params = buildTokenParams({
+          name,
+          symbol,
+          description,
+          logoUrl,
+          vault: step.vault!,
+          creatorTaxBps: Math.round(taxPct * 100),
+          identity,
+          salt: randomSalt(),
+          expectedEconomics: economics,
+        });
 
-      setBusy("Waiting for confirmation…");
-      await publicClient.waitForTransactionReceipt({ hash: tx });
-      setResult({ token, tx });
+        const launchTx = await writeContractAsync({
+          address: PONS_LAUNCH_FACTORY,
+          abi: ponsAbi,
+          functionName: "launchToken",
+          args: [params, PONS_LAUNCH_CONFIG_ID, PONS_NATIVE_PAIR],
+          value: fee,
+        } as never);
+        const receipt = await publicClient.waitForTransactionReceipt({ hash: launchTx });
+        const launched = launchFromReceiptLogs(receipt.logs);
+        if (!launched) throw new Error("The launch confirmed but emitted no TokenLaunched event.");
+        step = { ...step, token: launched.token, curve: launched.curve };
+        setProgress(step);
+      }
+
+      // ── Tx 3 · atar vault ↔ token ───────────────────────────────────────────────
+      // Permissionless y auto-verificable: el vault solo acepta si el factory de pons dice que
+      // ES el `creatorFeeRecipient` de ese launch. Nadie tiene que confiar en quien llama.
+      if (!step.attached) {
+        setBusy("3/3 · Linking the vault to the coin…");
+        const attachTx = await writeContractAsync({
+          address: step.vault!,
+          abi: escrowAbi,
+          functionName: "attachToken",
+          args: [step.token!],
+        } as never);
+        await publicClient.waitForTransactionReceipt({ hash: attachTx });
+        step = { ...step, attached: true };
+        setProgress(step);
+      }
+
       setBusy(null);
       setMsg(null);
     } catch (e) {
+      const raw = e instanceof Error ? e.message : String(e);
       setBusy(null);
-      setMsg(e instanceof Error ? e.message : String(e));
+      setMsg(ponsRevertHint(raw) ?? raw);
     }
   }
+
+  const done = progress.attached && progress.token && progress.vault;
+  const feeLabel = launchFee !== null ? `${formatEther(launchFee)} ETH` : `${formatEther(EXPECTED_LAUNCH_FEE)} ETH`;
+  const maxPct = maxTaxBps / 100;
 
   return (
     <RSShell>
@@ -135,47 +213,45 @@ export default function CreatePage() {
           Launch a coin for a builder.
         </h1>
         <p className="mt-3 max-w-md" style={{ color: RS.DIM }}>
-          Name a builder. Their coin goes live on Flap, and a cut of every trade — you pick 1 to
-          10% — lands in a vault only they can claim.
+          Name a builder. Their coin goes live on pons, and a cut of every trade — you pick, up to{" "}
+          {maxPct}% — lands in a vault only they can claim. The launch costs {feeLabel} plus gas.
         </p>
 
-        {result ? (
+        {done ? (
           <div className="mt-10 rounded-2xl border p-6" style={{ borderColor: RS.HAIR }}>
             <div style={{ fontFamily: "var(--f-mono)", letterSpacing: "0.24em", color: RS.GREEN_TEXT }} className="text-xs font-medium uppercase">
               Live
             </div>
             <div className="mt-3 break-all text-sm" style={{ fontFamily: "var(--f-mono)", color: RS.INK }}>
-              {result.token}
+              {progress.token}
             </div>
             <div className="mt-4 flex flex-col gap-1.5 text-sm font-medium" style={{ color: RS.INK }}>
               <a
                 className="underline decoration-1 underline-offset-4 hover:opacity-70"
-                href={`https://robinhoodchain.blockscout.com/address/${result.token}`}
+                href={`https://robinhoodchain.blockscout.com/address/${progress.token}`}
                 target="_blank"
                 rel="noreferrer"
               >
                 Token on Blockscout →
               </a>
-              <a
-                className="underline decoration-1 underline-offset-4 hover:opacity-70"
-                href={`https://robinhoodchain.blockscout.com/tx/${result.tx}`}
-                target="_blank"
-                rel="noreferrer"
-              >
-                Launch transaction →
-              </a>
+              <Link className="underline decoration-1 underline-offset-4 hover:opacity-70" href={`/claim/${progress.vault}`}>
+                The builder&apos;s claim page →
+              </Link>
             </div>
             <p className="mt-4 text-sm leading-relaxed" style={{ color: RS.DIM }}>
               Fees now accrue to the {type === "twitter" ? "X" : type === "github" ? "GitHub" : "wallet"} identity.
-              Share the{" "}
-              <Link className="underline decoration-1 underline-offset-4" href="/" style={{ color: RS.INK }}>
-                claim page
-              </Link>{" "}
-              with the recipient.
+              Send them the claim page — they don&apos;t need a wallet or any ETH to collect.
             </p>
           </div>
         ) : (
           <div className="mt-10 flex flex-col gap-8">
+            {launchOpen === false && (
+              <p className="rounded-xl border p-4 text-sm" style={{ borderColor: RS.HAIR, color: "#c0392b" }}>
+                pons has its public launch gate closed right now — only whitelisted addresses can
+                launch. Nothing you do here will spend anything until that reopens.
+              </p>
+            )}
+
             <div className="flex gap-6">
               <label className="flex flex-1 flex-col gap-2">
                 <span className="text-[10px] uppercase" style={labelStyle}>
@@ -212,18 +288,18 @@ export default function CreatePage() {
 
             <label className="flex flex-col gap-2">
               <span className="text-[10px] uppercase" style={labelStyle}>
-                Token image {imageFile ? `· ${imageFile.name}` : <span className="normal-case">(optional)</span>}
+                Logo URL <span className="normal-case">(optional)</span>
               </span>
               <input
-                type="file"
-                accept="image/*"
-                onChange={(e) => setImageFile(e.target.files?.[0] ?? null)}
-                className="text-sm file:mr-3 file:rounded-full file:border file:bg-transparent file:px-4 file:py-1.5 file:text-xs file:uppercase file:tracking-[0.12em]"
-                style={{ color: RS.DIM, fontFamily: "var(--f-mono)" }}
+                value={logoUrl}
+                onChange={(e) => setLogoUrl(e.target.value)}
+                placeholder="https://…/logo.png"
+                className={inputCls}
+                style={inputStyle}
               />
-              {type === "github" && !imageFile && (
+              {type === "github" && !logoUrl && (
                 <span className="text-xs" style={{ color: RS.FAINT }}>
-                  No image? We use {handle.trim() ? `@${handle.trim()}` : "the builder"}&apos;s GitHub avatar.
+                  Leave it blank and we use {handle.trim() ? `@${handle.trim()}` : "the builder"}&apos;s GitHub avatar.
                 </span>
               )}
             </label>
@@ -269,16 +345,16 @@ export default function CreatePage() {
               </div>
               <p className="mt-3 text-xs leading-relaxed" style={{ color: RS.FAINT }}>
                 {type === "wallet"
-                  ? "Fees are bound to this wallet from launch. It just sweeps them."
+                  ? "Fees are bound to this wallet from launch. It just withdraws them."
                   : "They claim by proving the handle is theirs. You can't redirect it — neither can we."}
               </p>
 
               <div className="mt-6 border-t pt-5" style={{ borderColor: RS.HAIR }}>
                 <div className="text-[10px] uppercase" style={labelStyle}>
-                  Trade fee → vault
+                  Creator tax → vault
                 </div>
                 <div className="mt-4 flex flex-wrap gap-2.5" style={{ fontFamily: "var(--f-mono)" }}>
-                  {[1, 2, 3, 5, 10].map((pct) => (
+                  {[1, 2, 3, 5, 10].filter((pct) => pct <= maxPct).map((pct) => (
                     <button
                       key={pct}
                       onClick={() => setTaxPct(pct)}
@@ -294,25 +370,32 @@ export default function CreatePage() {
                   ))}
                 </div>
                 <p className="mt-3 text-xs leading-relaxed" style={{ color: RS.FAINT }}>
-                  Set at launch, between 1 and 10%. All of it goes to the builder&apos;s vault.
+                  Charged on top of pons&apos; own trade fee, on every buy and sell, and paid in full
+                  to the builder&apos;s vault — pons never splits it. Fixed at launch; nobody can
+                  change it afterwards, not even us.
                 </p>
               </div>
             </div>
 
-            <div className="flex gap-6">
-              <label className="flex flex-1 flex-col gap-2">
-                <span className="text-[10px] uppercase" style={labelStyle}>
-                  Dev-buy (ETH)
-                </span>
-                <input value={devBuy} onChange={(e) => setDevBuy(e.target.value)} className={inputCls} style={inputStyle} />
-              </label>
-              <label className="flex flex-1 flex-col gap-2">
-                <span className="text-[10px] uppercase" style={labelStyle}>
-                  Recovery days (0 = never)
-                </span>
-                <input value={recoveryDays} onChange={(e) => setRecoveryDays(e.target.value)} className={inputCls} style={inputStyle} />
-              </label>
-            </div>
+            <label className="flex flex-col gap-2">
+              <span className="text-[10px] uppercase" style={labelStyle}>
+                Recovery days (0 = never, the default)
+              </span>
+              <input value={recoveryDays} onChange={(e) => setRecoveryDays(e.target.value)} className={inputCls} style={inputStyle} />
+              <span className="text-xs leading-relaxed" style={{ color: RS.FAINT }}>
+                {Number(recoveryDays) === 0
+                  ? "Irrevocable: the fees wait for the builder forever. You can never take them back."
+                  : `You could reclaim the unclaimed balance after ${recoveryDays} days — but only if nobody has proved the identity by then. Minimum 30 days.`}
+              </span>
+            </label>
+
+            {(progress.vault || progress.token) && !done && (
+              <div className="rounded-xl border p-4 text-xs leading-relaxed" style={{ borderColor: RS.HAIR, fontFamily: "var(--f-mono)", color: RS.DIM }}>
+                <div>Partial progress — press launch again to resume, nothing is lost:</div>
+                {progress.vault && <div className="mt-1.5 break-all">vault · {progress.vault}</div>}
+                {progress.token && <div className="mt-1 break-all">token · {progress.token}</div>}
+              </div>
+            )}
 
             {!isConnected ? (
               <button
@@ -339,8 +422,8 @@ export default function CreatePage() {
               </p>
             )}
             <p className="text-xs leading-relaxed" style={{ fontFamily: "var(--f-mono)", color: RS.FAINT }}>
-              The fee applies per side (buy and sell) and all of it goes to the vault. Token
-              addresses are mined locally to end in 7777.
+              Three signatures: create the vault, launch the coin, link the two. The coin is always
+              paired against native ETH — RobinShare can only collect from ETH-paired launches.
             </p>
           </div>
         )}
