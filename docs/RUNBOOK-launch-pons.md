@@ -223,5 +223,6 @@ consulta el balance antes).
 - **`msg.value` del launch es EXACTO.** Un wei de mas revierte `LaunchFeeNotPaid()`.
 - **El salt es por-cuenta.** Reusarlo con los mismos terminos revierte porque el par ya existe en esa
   direccion. No hay que minar nada: pons no pide vanity.
+- **No pinnees el bloque del fork.** El RPC publico de RH Chain **no es archival**: un fork pinneado a un bloque viejo muere con `metadata is not found`. Correr el fork test contra `latest` (que es lo que hace el comando de arriba) siempre funciona. Si hiciera falta pinnear —para cachear y que las corridas siguientes sean instantaneas— usar el RPC de Alchemy, que si es archival (`https://robinhood-mainnet.g.alchemy.com/v2/<KEY>`; la key de Jose vive en el `.env` gitignoreado de otro proyecto, NUNCA en este repo).
 - **`launchFee` y `maxCreatorTaxBps` se mueven.** Son setters del owner de pons. Por eso §1 existe y
   por eso la web los lee en vivo en vez de hardcodearlos.
