@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { encodeState } from "@/lib/state";
-import { assertVaultIdentity } from "@/lib/identity";
+import { assertVaultIdentity, assertVaultFromFactory } from "@/lib/identity";
 import type { Address } from "viem";
 
 export const dynamic = "force-dynamic";
@@ -11,7 +11,14 @@ export async function GET(req: NextRequest) {
   if (!vault || !payout) {
     return NextResponse.json({ error: "vault & payout required" }, { status: 400 });
   }
-  await assertVaultIdentity(vault, 1); // valida que es un vault github ANTES de mandar a GitHub
+  // Valida tipo Y PROCEDENCIA antes de mandar a GitHub: sin el chequeo de factory, cualquier
+  // contrato que declare identityType()=1 pasa y termina consiguiendo una firma del attester.
+  try {
+    const { identityValue } = await assertVaultIdentity(vault, 1);
+    await assertVaultFromFactory(vault, 1, identityValue);
+  } catch (e) {
+    return NextResponse.json({ error: (e as Error).message }, { status: 403 });
+  }
 
   const url = new URL("https://github.com/login/oauth/authorize");
   url.searchParams.set("client_id", process.env.GITHUB_CLIENT_ID!);
