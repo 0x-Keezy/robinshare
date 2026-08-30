@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { decodeState } from "@/lib/state";
-import { assertVaultIdentity, handleMatches } from "@/lib/identity";
+import { assertVaultIdentity, assertVaultFromFactory, handleMatches } from "@/lib/identity";
 import { signBindVoucher } from "@/lib/attester";
 
 export const dynamic = "force-dynamic";
@@ -27,7 +27,14 @@ export async function GET(req: NextRequest) {
   });
   const { login } = await userRes.json();
 
-  const { identityValue } = await assertVaultIdentity(state.vault, 1);
+  // Tipo Y PROCEDENCIA: el vault tiene que haber salido de nuestra factory antes de firmar nada.
+  let identityValue: string;
+  try {
+    ({ identityValue } = await assertVaultIdentity(state.vault, 1));
+    await assertVaultFromFactory(state.vault, 1, identityValue);
+  } catch (e) {
+    return NextResponse.json({ error: (e as Error).message }, { status: 403 });
+  }
   if (!login || !handleMatches(identityValue, login)) {
     return NextResponse.json({ error: "github login does not match vault identity" }, { status: 403 });
   }

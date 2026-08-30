@@ -14,15 +14,22 @@ const PAYOUT = "0x2222222222222222222222222222222222222222";
 // identityType/identityValue del vault: por defecto github "torvalds"; se sobreescribe por test
 let mockType = 1;
 let mockValue = "torvalds";
+const FACTORY = "0x9999999999999999999999999999999999999999";
+const IDENTITY_HASH = "0x" + "cd".repeat(32);
+let mockVaults: string[] = [VAULT];
 vi.mock("@/lib/chain", () => ({
   publicClient: {
     readContract: vi.fn(async ({ functionName }: { functionName: string }) => {
       if (functionName === "identityType") return mockType;
       if (functionName === "identityValue") return mockValue;
+      if (functionName === "identityHashFor") return IDENTITY_HASH;
+      if (functionName === "getVaults") return mockVaults;
+      if (functionName === "bindNonce") return 0n;
       if (functionName === "bindDigest") return "0x" + "ab".repeat(32);
       return 0;
     }),
   },
+  factoryAddress: () => FACTORY,
 }));
 vi.mock("@/lib/attester", () => ({
   signBindVoucher: vi.fn(async () => ({ signature: "0xVOUCHER", deadline: "9999999999" })),
@@ -33,6 +40,7 @@ const ghCallback = (await import("@/app/api/attest/github/callback/route")).GET;
 beforeEach(() => {
   mockType = 1;
   mockValue = "torvalds";
+  mockVaults = [VAULT];
   vi.clearAllMocks();
   vi.stubGlobal(
     "fetch",
@@ -66,5 +74,13 @@ describe("github callback", () => {
   it("state invalido -> 400", async () => {
     const res = await ghCallback(new NextRequest(`https://fledge.test/cb?code=abc&state=garbage`));
     expect(res.status).toBe(400);
+  });
+
+  it("vault que no salio de la factory -> 403 sin voucher", async () => {
+    (globalThis as Record<string, unknown>).__ghLogin = "torvalds";
+    mockVaults = ["0x4444444444444444444444444444444444444444"]; // VAULT no esta en la lista
+    const st = encodeState({ vault: VAULT as `0x${string}`, payout: PAYOUT as `0x${string}` });
+    const res = await ghCallback(new NextRequest(`https://fledge.test/cb?code=abc&state=${encodeURIComponent(st)}`));
+    expect(res.status).toBe(403);
   });
 });
