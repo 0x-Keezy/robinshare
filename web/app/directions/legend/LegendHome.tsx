@@ -331,7 +331,7 @@ export function LegendHome() {
           </Reveal>
           <div className="mt-10 flex flex-col">
             {[
-              { n: "01", t: "Name them", d: "Pick a builder by GitHub, X, or wallet. Their coin lists on Flap in seconds." },
+              { n: "01", t: "Name them", d: "Pick a builder by GitHub, X, or wallet. Their coin lists on pons in seconds, paired against native ETH." },
               { n: "02", t: "Fees accrue", d: "A launch-set cut of every trade (1–10%) lands in an on-chain vault under their name." },
               { n: "03", t: "They claim", d: "They prove it's them (GitHub login, a tweet, or a signature) and sweep the ETH." },
             ].map((s) => (
@@ -363,7 +363,7 @@ export function LegendHome() {
           {/* hechos en negro gigante — user-meaningful, verificables */}
           <div className="grid grid-cols-2 gap-x-8 gap-y-10 border-t pt-14 sm:grid-cols-4" style={{ borderColor: HAIR }}>
             <Stat value={100} suffix="ms" label="Block time" accent={INK} dim={FAINT} />
-            <Stat value={0} label="Owner keys" accent={INK} dim={FAINT} />
+            <Stat value={0} label="Admin keys we hold" accent={INK} dim={FAINT} />
             <Stat value={3} label="Ways to claim" accent={INK} dim={FAINT} />
             <Stat value={100} suffix="%" label="Of the fee → builder" accent={GREEN_TEXT} dim={FAINT} />
           </div>
@@ -387,15 +387,23 @@ export function LegendHome() {
               <h2 style={{ fontFamily: "var(--f-display)", lineHeight: 1 }} className="text-[clamp(1.8rem,4.2vw,3rem)] uppercase">
                 One vault. One identity.
                 <br />
-                <span style={{ color: GREEN_TEXT }}>Zero keys held.</span>
+                <span style={{ color: GREEN_TEXT }}>No keys of ours.</span>
               </h2>
             </Reveal>
             <Reveal delay={120}>
               <div>
                 <p className="max-w-md text-lg leading-relaxed" style={{ color: DIM }}>
-                  The vault is fixed at launch — no owner, no upgrades, and we hold no keys.
-                  The money only moves to the wallet that proves the name. The one emergency
-                  hatch belongs to Flap&apos;s public Guardian multisig, never to us.
+                  The vault is fixed at launch — no owner, no upgrades, no admin keys, no
+                  emergency hatch. The money only moves to the wallet that proves the name, and
+                  the economics are frozen the second the coin exists. Whoever launched it can
+                  never redirect the fees. Neither can we.
+                </p>
+                <p className="mt-4 max-w-md text-sm leading-relaxed" style={{ color: FAINT }}>
+                  One thing is not ours to promise. pons — the launchpad the coin lives on — can
+                  point a coin&apos;s creator fees somewhere else: a 2-of-3 multisig, behind a
+                  public 3-day timelock anyone can watch on-chain before it lands. We route around
+                  it by sweeping fees out early and often, and we would rather say so than let you
+                  read &ldquo;zero keys&rdquo; and find out later.
                 </p>
                 <div className="mt-6 flex flex-wrap gap-2.5" style={{ fontFamily: "var(--f-mono)" }}>
                   {["wallet signature", "github oauth", "x oracle proof"].map((m) => (
@@ -558,7 +566,7 @@ export function LegendHome() {
               </div>
               <p className="text-xs leading-relaxed" style={{ fontFamily: "var(--f-mono)", color: FAINT }}>
                 Permissionless and non-custodial. Funds release only to the wallet that proves the
-                recipient identity. Not affiliated with Robinhood or Flap.
+                recipient identity. Not affiliated with Robinhood, pons or Flap.
               </p>
             </div>
           </footer>

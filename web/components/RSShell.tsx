@@ -72,7 +72,7 @@ export function RSShell({ children }: { children: React.ReactNode }) {
           style={{ fontFamily: "var(--f-mono)", color: RS.FAINT }}
         >
           Permissionless and non-custodial. Funds release only to the wallet that proves the
-          recipient identity. Not affiliated with Robinhood or Flap.
+          recipient identity. Launches on pons, paired against native ETH. Not affiliated with Robinhood, pons or Flap.
         </p>
       </footer>
     </div>

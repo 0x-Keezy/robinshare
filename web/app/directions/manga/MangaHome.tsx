@@ -163,11 +163,16 @@ export function MangaHome() {
               </a>
             </div>
             <div className="mt-10 flex flex-wrap gap-x-6 gap-y-1 text-[11px] uppercase tracking-[0.16em]" style={{ fontFamily: "var(--f-mono)", color: DIM }}>
-              <span>0 owner keys</span>
+              <span>0 admin keys ours</span>
               <span>95 tests ✓</span>
               <span>100ms blocks</span>
               <span>custody: none</span>
             </div>
+            <p className="mt-4 max-w-lg text-[11px] leading-relaxed" style={{ fontFamily: "var(--f-mono)", color: DIM }}>
+              Small print, said out loud: pons — the launchpad — can redirect a coin&apos;s creator
+              fees behind a public 3-day timelock. We can&apos;t, and neither can whoever launched
+              it.
+            </p>
           </div>
 
           {/* el panel del arquero */}
@@ -200,7 +205,7 @@ export function MangaHome() {
           </h2>
           <div className="mt-12 grid gap-10 sm:grid-cols-3">
             {[
-              { ch: "Ch.1", t: "The Mark", d: "Pick a builder — GitHub, X, or wallet. Their coin drops on Flap in seconds. They don't even know yet!", rot: -1.5 },
+              { ch: "Ch.1", t: "The Mark", d: "Pick a builder — GitHub, X, or wallet. Their coin drops on pons in seconds, paired against native ETH. They don't even know yet!", rot: -1.5 },
               { ch: "Ch.2", t: "The Tithe", d: "Every buy & sell pays up: a slice of the tax streams into their vault. Automatic. Untouchable.", rot: 1 },
               { ch: "Ch.3", t: "The Claim", d: "They prove the name — signature, OAuth, or the X oracle — and sweep the gold. Nobody else. Ever.", rot: -0.5 },
             ].map((c, i) => (
@@ -372,7 +377,7 @@ export function MangaHome() {
           </Reveal>
           <footer className="mx-auto mt-16 max-w-xl border-t-4 pt-5 text-xs leading-6" style={{ borderColor: INKB, fontFamily: "var(--f-mono)", color: DIM }}>
             FLEDGE — permissionless & non-custodial. Funds release only to the wallet that proves
-            the name. Not affiliated with Robinhood or Flap. — fin del capítulo —
+            the name. Not affiliated with Robinhood, pons or Flap. — fin del capítulo —
           </footer>
         </section>
       </div>

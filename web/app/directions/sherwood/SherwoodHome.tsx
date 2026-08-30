@@ -343,7 +343,7 @@ export function SherwoodHome() {
                 style={{ fontFamily: "var(--f-mono)", color: "rgba(242,239,230,0.5)", ...inStyle(660) }}
               >
                 <span>Immutable</span>
-                <span>0 owner keys</span>
+                <span>0 admin keys ours</span>
                 <span>95 tests green</span>
                 <span>Chain 4663</span>
               </div>
@@ -390,7 +390,7 @@ export function SherwoodHome() {
               </Reveal>
               <div className="mt-14 flex flex-col">
                 {[
-                  { k: "01 · Mark", t: "Name the builder", d: "Pick someone who ships — by their GitHub, their X, or a wallet. Their coin goes live on Flap in seconds." },
+                  { k: "01 · Mark", t: "Name the builder", d: "Pick someone who ships — by their GitHub, their X, or a wallet. Their coin goes live on pons in seconds, paired against native ETH." },
                   { k: "02 · Tax", t: "Every trade pays them", d: "A slice of the trading tax drips into an on-chain vault held in their name. Automatic, permissionless, non-custodial." },
                   { k: "03 · Claim", t: "Only they collect", d: "They prove the name is theirs — signature, OAuth, or the X oracle — and sweep the gold to any wallet. No one else can." },
                 ].map((row, i) => (
@@ -415,10 +415,19 @@ export function SherwoodHome() {
 
               <div className="mt-20 grid grid-cols-2 gap-x-8 gap-y-12 border-t pt-14 sm:grid-cols-4" style={{ borderImage: `${hairline()} 1` }}>
                 <Stat value={100} suffix="ms" label="Block time · 4663" accent={CREAM} dim="rgba(242,239,230,0.5)" />
-                <Stat value={0} label="Owner keys · immutable" accent={SIGNAL} dim="rgba(242,239,230,0.5)" />
+                <Stat value={0} label="Admin keys we hold" accent={SIGNAL} dim="rgba(242,239,230,0.5)" />
                 <Stat value={3} label="Ways to prove a name" accent={CREAM} dim="rgba(242,239,230,0.5)" />
                 <Stat value={71} label="Tests green · fork E2E" accent={GOLD} dim="rgba(242,239,230,0.5)" />
               </div>
+              <p
+                className="mt-8 max-w-2xl text-xs leading-relaxed"
+                style={{ fontFamily: "var(--f-mono)", color: "rgba(242,239,230,0.5)" }}
+              >
+                Said plainly, because the sheriff is real: the vault holds no key of ours and the
+                launcher can never call the fees back. But pons — the launchpad the coin lives on —
+                can redirect a coin&apos;s creator fees, by a 2-of-3 multisig and only after a
+                public 3-day timelock anyone can watch. We sweep early to keep that window small.
+              </p>
             </div>
           </div>
         </section>
@@ -684,7 +693,7 @@ export function SherwoodHome() {
                 </div>
                 <p className="text-xs leading-relaxed" style={{ fontFamily: "var(--f-mono)", color: "rgba(242,239,230,0.42)" }}>
                   Permissionless and non-custodial. Funds release only to the wallet that proves the
-                  recipient identity. Not affiliated with Robinhood or Flap.
+                  recipient identity. Not affiliated with Robinhood, pons or Flap.
                 </p>
               </div>
             </div>

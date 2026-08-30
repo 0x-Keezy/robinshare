@@ -127,7 +127,7 @@ export function SkyHome() {
         </div>
 
         <p className="mt-8 max-w-xl text-lg" style={{ color: "rgba(244,247,242,0.72)" }}>
-          Someone you follow ships every day and nobody pays them. Launch their coin on Flap. Every trade feeds them, by
+          Someone you follow ships every day and nobody pays them. Launch their coin on pons. Every trade feeds them, by
           their GitHub, their X, or a wallet. Only they can ever claim it. That is the whole point.
         </p>
 
@@ -159,7 +159,7 @@ export function SkyHome() {
         </div>
         <div className="grid gap-10 sm:grid-cols-3">
           {[
-            { n: "01", t: "Launch", d: "Pick someone by their GitHub, X, or wallet. Their coin goes live on Flap in seconds." },
+            { n: "01", t: "Launch", d: "Pick someone by their GitHub, X, or wallet. Their coin goes live on pons in seconds, paired against native ETH." },
             { n: "02", t: "Every trade feeds them", d: "A slice of the trading tax drips into an on-chain escrow held for that identity. Automatic." },
             { n: "03", t: "Only they claim", d: "They prove it is them and sweep the ETH to any wallet. No one else can touch it." },
           ].map((s, idx) => (
@@ -253,7 +253,7 @@ export function SkyHome() {
         </div>
         <p className="mt-3 max-w-2xl">
           Permissionless and non-custodial. Funds can only ever be released to the wallet that proves the recipient
-          identity. Not affiliated with Robinhood or Flap.
+          identity. Not affiliated with Robinhood, pons or Flap.
         </p>
       </footer>
     </main>

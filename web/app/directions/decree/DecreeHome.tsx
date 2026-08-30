@@ -187,7 +187,7 @@ export function DecreeHome() {
           </Reveal>
           <div className="mt-10 flex flex-col gap-12">
             {[
-              { n: "I", t: "Of the Naming", d: "The issuer shall name a builder — by GitHub, by X, or by wallet — and the coin shall be struck upon Flap within moments. The named need not know, nor sign, nor hold a key." },
+              { n: "I", t: "Of the Naming", d: "The issuer shall name a builder — by GitHub, by X, or by wallet — and the coin shall be struck upon pons within moments, paired against native ETH. The named need not know, nor sign, nor hold a key." },
               { n: "II", t: "Of the Tithe", d: "Upon every purchase and every sale, a portion of the tax shall ride, untouched by any hand, into a vault sworn to that name. Neither issuer nor scribe nor sovereign may divert it." },
               { n: "III", t: "Of the Claiming", d: "Only the named, upon proof — a signature, an oath of GitHub, or the oracle of X — may open the vault and carry the gold to any wallet of their choosing. No other soul may touch it." },
             ].map((c, i) => (
@@ -212,7 +212,7 @@ export function DecreeHome() {
             <div className="mt-14 flex justify-center gap-10 text-center" style={{ fontFamily: "var(--f-mono)", color: INK_FAINT }}>
               <div>
                 <div className="text-3xl" style={{ color: INK }}>0</div>
-                <div className="mt-1 text-[10px] uppercase tracking-[0.2em]">owner keys</div>
+                <div className="mt-1 text-[10px] uppercase tracking-[0.2em]">admin keys ours</div>
               </div>
               <div>
                 <div className="text-3xl" style={{ color: INK }}>71</div>
@@ -223,6 +223,17 @@ export function DecreeHome() {
                 <div className="mt-1 text-[10px] uppercase tracking-[0.2em]">proofs of name</div>
               </div>
             </div>
+          </Reveal>
+          <Reveal delay={260}>
+            <p
+              className="mx-auto mt-10 max-w-2xl text-center text-xs leading-relaxed"
+              style={{ fontFamily: "var(--f-mono)", color: INK_FAINT }}
+            >
+              Be it known: the vault holds no key of ours, and the issuer may never call the fees
+              back. One power is not ours to forswear — pons, the launchpad upon which the coin is
+              struck, may redirect a coin&apos;s creator fees, though only by a 2-of-3 seal and
+              only after a public 3-day timelock all may witness.
+            </p>
           </Reveal>
         </section>
 
@@ -350,7 +361,7 @@ export function DecreeHome() {
           <footer className="mt-10 text-xs leading-6" style={{ fontFamily: "var(--f-mono)", color: INK_FAINT }}>
             Permissionless & non-custodial · funds release only to the wallet that proves the name
             <br />
-            Not affiliated with Robinhood or Flap
+            Not affiliated with Robinhood, pons or Flap
           </footer>
         </section>
       </div>

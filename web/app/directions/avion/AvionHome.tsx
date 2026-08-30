@@ -200,7 +200,7 @@ export function AvionHome() {
         </div>
         <div className="grid gap-8 sm:grid-cols-3">
           {[
-            { t: "Address", d: "Name the recipient by their GitHub, X, or wallet. Their coin ships on Flap in seconds." },
+            { t: "Address", d: "Name the recipient by their GitHub, X, or wallet. Their coin ships on pons in seconds, paired against native ETH." },
             { t: "Frank", d: "Every buy and sell franks a slice of the trading tax into an on-chain escrow held in their name." },
             { t: "Deliver", d: "They prove who they are and the escrow is delivered, swept to any wallet they choose." },
           ].map((s, i) => (
@@ -302,7 +302,7 @@ export function AvionHome() {
         </div>
         <p className="mt-3 max-w-2xl leading-relaxed">
           Permissionless and non-custodial. Funds can only ever be released to the wallet that proves the recipient
-          identity. Not affiliated with Robinhood or Flap.
+          identity. Not affiliated with Robinhood, pons or Flap.
         </p>
       </footer>
     </main>

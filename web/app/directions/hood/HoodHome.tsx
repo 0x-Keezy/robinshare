@@ -376,7 +376,7 @@ export function HoodHome() {
         <section className="relative min-h-[150vh]">
           <div className="mx-auto max-w-4xl px-6 py-24">
             {[
-              { act: "Act I", num: "I", t: "Mark", d: "Name the builder — by their GitHub, their X, or a wallet. Their coin goes live on Flap in seconds. They don't even need to know yet." },
+              { act: "Act I", num: "I", t: "Mark", d: "Name the builder — by their GitHub, their X, or a wallet. Their coin goes live on pons in seconds, paired against native ETH. They don't even need to know yet." },
               { act: "Act II", num: "II", t: "Tribute", d: "Every buy and sell pays tribute: a slice of the trading tax rides into an on-chain vault sworn to that name. Automatic. Non-custodial. No hands touch it." },
               { act: "Act III", num: "III", t: "Claim", d: "The builder proves the name is theirs — a signature, a login, the X oracle — and sweeps the gold to any wallet. No one else. Not us. Not the launcher." },
             ].map((s, i) => (
@@ -566,7 +566,7 @@ export function HoodHome() {
               <span className="uppercase tracking-[0.28em]">Fledge</span>
               <p className="max-w-xl leading-relaxed">
                 Permissionless and non-custodial. Funds release only to the wallet that proves the
-                recipient identity. Not affiliated with Robinhood or Flap.
+                recipient identity. Not affiliated with Robinhood, pons or Flap.
               </p>
             </div>
           </footer>

@@ -183,7 +183,7 @@ export function NestHome() {
         </div>
         <div className="grid gap-12 sm:grid-cols-3">
           {[
-            { n: "Egg", d: "Pick someone by their GitHub, X, or wallet. Their coin hatches on Flap in seconds." },
+            { n: "Egg", d: "Pick someone by their GitHub, X, or wallet. Their coin hatches on pons in seconds, paired against native ETH." },
             { n: "Feed", d: "Every buy and sell drips a slice of the trading tax into an on-chain nest held for that identity." },
             { n: "Fledge", d: "They prove who they are and the nest opens, sweeping the ETH to any wallet they choose." },
           ].map((s, i) => (
@@ -280,7 +280,7 @@ export function NestHome() {
         <span style={{ letterSpacing: "0.24em" }} className="uppercase">Fledge</span>
         <p className="mt-3 max-w-2xl leading-relaxed">
           Permissionless and non-custodial. Funds can only ever be released to the wallet that proves the recipient
-          identity. Not affiliated with Robinhood or Flap.
+          identity. Not affiliated with Robinhood, pons or Flap.
         </p>
       </footer>
     </main>

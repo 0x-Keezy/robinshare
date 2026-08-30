@@ -172,8 +172,12 @@ export function TerminalHome() {
           <div className="mt-6 max-w-xl text-[15px] leading-7" style={{ color: PHOS_DIM }}>
             <span style={{ color: PHOS_FAINT }}>stdout:</span> launch a coin for someone who ships.
             a slice of every trade escrows on-chain to their github, x, or wallet. claimable by
-            them alone. no owner keys. no custody. immutable code — the only privileged role is
-            flap&apos;s official guardian, never ours.
+            them alone. no admin keys. no custody. no emergency hatch. immutable code, frozen
+            economics — and the coin is always paired against native ETH.
+            <br />
+            <span style={{ color: PHOS_FAINT }}>warn:</span> one role is not ours and not zero —
+            pons, the launchpad, can redirect a coin&apos;s creator fees behind a public 3-day
+            timelock. we sweep early to shrink that window. we will not pretend it is not there.
           </div>
           <div className="mt-8 flex flex-wrap gap-4">
             <Link
@@ -209,7 +213,7 @@ export function TerminalHome() {
           </h2>
           <div className="mt-10 flex flex-col gap-8">
             {[
-              { cmd: "fledge mark <builder>", d: "name the builder — github, x handle, or wallet. their coin lists on flap in seconds." },
+              { cmd: "fledge mark <builder>", d: "name the builder — github, x handle, or wallet. their coin lists on pons in seconds, paired against native ETH." },
               { cmd: "fledge tax --auto", d: "a slice of every trade streams into an on-chain vault held in their name. permissionless." },
               { cmd: "fledge claim --prove", d: "they prove the identity (signature | oauth | x-oracle) and sweep the eth. nobody else can." },
             ].map((r, i) => (
@@ -353,7 +357,7 @@ export function TerminalHome() {
           </Link>
           <footer className="mt-20 border-t pt-6 text-left text-xs leading-6" style={{ borderColor: PHOS_FAINT, color: PHOS_FAINT }}>
             <div>fledge — permissionless, non-custodial. funds release only to the wallet that proves the recipient identity.</div>
-            <div>not affiliated with robinhood or flap. exit code 0.</div>
+            <div>not affiliated with robinhood, pons or flap. exit code 0.</div>
           </footer>
         </section>
       </div>
