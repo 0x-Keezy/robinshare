@@ -183,6 +183,11 @@ guard **global** `lastTweetId`.
 
 ## 8. Attester (backend) — arreglo de seguridad
 
+> **RESUELTO 2026-08-29** — plan `docs/superpowers/plans/2026-08-29-attester-blind-signature-fix.md`,
+> aplicado en `main` (merge `3b3dc9b`) y en `flap-rail` (`5d5a810`). El server ya no le pide el
+> digest al contrato (`web/lib/bind.ts`) y valida procedencia contra la factory
+> (`assertVaultFromFactory`). Suite: 15 → **26 tests**, `tsc` y `next build` limpios en ambas ramas.
+
 **Bug existente en el código auditado**, independiente del port: el attester expone
 `/api/attest/github/start?vault=<address>`, toma esa dirección, le pide `bindDigest(...)`,
 `identityType()` e `identityValue()`, valida el OAuth de GitHub, y **firma el digest que ese contrato
