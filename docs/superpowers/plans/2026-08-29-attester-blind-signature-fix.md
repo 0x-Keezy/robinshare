@@ -8,6 +8,8 @@
 
 **Tech Stack:** Next.js 16 (App Router), TypeScript, viem ^2.55.0, vitest ^4.1.10 (`environment: node`, alias `@` → raíz de `web/`).
 
+**Estado:** ✅ COMPLETADO 2026-08-29 — merge `3b3dc9b` en `main`, cherry-pick `5d5a810` en `flap-rail`. Suite 15 → 26 tests, `tsc` y `next build` limpios en ambas ramas.
+
 **Spec:** `docs/superpowers/specs/2026-08-29-robinshare-pons-port-design.md` §8
 
 ## Global Constraints
@@ -68,7 +70,7 @@ Con la Task 1, el digest se calcula con `verifyingContract = EVIL`, así que la 
   - `bindDigestLocal(vault: Address, payout: Address, nonce: bigint, deadline: bigint): Hex`
   - `signBindVoucher(vault: Address, payout: Address): Promise<{ signature: Hex; deadline: string }>` (firma sin cambios)
 
-- [ ] **Step 1: Agregar el script de test**
+- [x] **Step 1: Agregar el script de test**
 
 En `web/package.json`, dentro de `"scripts"`, agregar:
 
@@ -76,7 +78,7 @@ En `web/package.json`, dentro de `"scripts"`, agregar:
 "test": "vitest run"
 ```
 
-- [ ] **Step 2: Escribir el test que falla, del digest local**
+- [x] **Step 2: Escribir el test que falla, del digest local**
 
 Crear `web/test/bind.test.ts`:
 
@@ -119,12 +121,12 @@ describe("bindDigestLocal", () => {
 });
 ```
 
-- [ ] **Step 3: Correr el test y verificar que falla**
+- [x] **Step 3: Correr el test y verificar que falla**
 
 Run: `cd web && npx vitest run test/bind.test.ts`
 Expected: FAIL — `Failed to resolve import "@/lib/bind"`.
 
-- [ ] **Step 4: Implementar `web/lib/bind.ts`**
+- [x] **Step 4: Implementar `web/lib/bind.ts`**
 
 ```ts
 import { hashTypedData, type Address, type Hex, type TypedDataDefinition } from "viem";
@@ -170,12 +172,12 @@ export function bindDigestLocal(
 }
 ```
 
-- [ ] **Step 5: Correr el test y verificar que pasa**
+- [x] **Step 5: Correr el test y verificar que pasa**
 
 Run: `cd web && npx vitest run test/bind.test.ts`
 Expected: PASS (3 tests).
 
-- [ ] **Step 6: Escribir el test que falla, del attester**
+- [x] **Step 6: Escribir el test que falla, del attester**
 
 Reemplazar **todo** `web/test/attester.test.ts` por:
 
@@ -236,12 +238,12 @@ describe("signBindVoucher", () => {
 });
 ```
 
-- [ ] **Step 7: Correr el test y verificar que falla**
+- [x] **Step 7: Correr el test y verificar que falla**
 
 Run: `cd web && npx vitest run test/attester.test.ts`
 Expected: FAIL — el test *"la firma NO sirve contra el vault de la victima"* falla porque hoy el attester firma justamente `VICTIM_DIGEST`, y *"nunca llama bindDigest"* falla porque hoy sí lo llama. **Confirmar que fallan por esas razones y no por un import roto.**
 
-- [ ] **Step 8: Reescribir `web/lib/attester.ts`**
+- [x] **Step 8: Reescribir `web/lib/attester.ts`**
 
 ```ts
 import { sign, privateKeyToAccount } from "viem/accounts";
@@ -275,17 +277,17 @@ export async function signBindVoucher(
 }
 ```
 
-- [ ] **Step 9: Correr los tests y verificar que pasan**
+- [x] **Step 9: Correr los tests y verificar que pasan**
 
 Run: `cd web && npx vitest run test/bind.test.ts test/attester.test.ts`
 Expected: PASS (7 tests).
 
-- [ ] **Step 10: Verificar que no rompimos tipos**
+- [x] **Step 10: Verificar que no rompimos tipos**
 
 Run: `cd web && npx tsc --noEmit`
 Expected: sin errores nuevos respecto de la línea base.
 
-- [ ] **Step 11: Commit**
+- [x] **Step 11: Commit**
 
 ```bash
 git add web/lib/bind.ts web/lib/attester.ts web/test/bind.test.ts web/test/attester.test.ts web/package.json
@@ -310,7 +312,7 @@ direccion pedida, asi que una firma solo puede valer contra esa direccion."
 
 **Nota sobre el tipo:** la factory mapea `1 → "github"` y `2 → "twitter"`. El `identityValue` on-chain ya viene normalizado y `identityHashFor` vuelve a normalizar; la normalización es idempotente (lowercase + strip `@`), así que el hash coincide.
 
-- [ ] **Step 1: Escribir el test que falla**
+- [x] **Step 1: Escribir el test que falla**
 
 Crear `web/test/identity.test.ts`:
 
@@ -361,12 +363,12 @@ describe("assertVaultFromFactory", () => {
 });
 ```
 
-- [ ] **Step 2: Correr el test y verificar que falla**
+- [x] **Step 2: Correr el test y verificar que falla**
 
 Run: `cd web && npx vitest run test/identity.test.ts`
 Expected: FAIL — `assertVaultFromFactory is not a function`.
 
-- [ ] **Step 3: Implementar `assertVaultFromFactory`**
+- [x] **Step 3: Implementar `assertVaultFromFactory`**
 
 En `web/lib/identity.ts`, **reemplazar las lineas 2-3** (los imports actuales son
 `import { publicClient } from "./chain";` y `import { escrowAbi } from "./abis";`) por los dos
@@ -410,12 +412,12 @@ export async function assertVaultFromFactory(
 }
 ```
 
-- [ ] **Step 4: Correr el test y verificar que pasa**
+- [x] **Step 4: Correr el test y verificar que pasa**
 
 Run: `cd web && npx vitest run test/identity.test.ts`
 Expected: PASS (4 tests).
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add web/lib/identity.ts web/test/identity.test.ts
@@ -435,7 +437,7 @@ git commit -m "feat(attester): verificar que el vault salio de nuestra factory (
 - Consumes: `assertVaultIdentity` y `assertVaultFromFactory` de `web/lib/identity.ts`.
 - Produces: nada nuevo; ambas rutas rechazan direcciones ajenas antes de mandar a GitHub y antes de firmar.
 
-- [ ] **Step 1: Extender el mock de `@/lib/chain` en `web/test/routes.test.ts`**
+- [x] **Step 1: Extender el mock de `@/lib/chain` en `web/test/routes.test.ts`**
 
 ⚠️ **Sin este paso, los tests que hoy PASAN se rompen.** El mock actual devuelve `0` para toda
 funcion desconocida, y `factoryAddress()` real leeria env vacia y devolveria `null` — con la
@@ -469,7 +471,7 @@ Y en el `beforeEach`, junto a `mockType = 1;` y `mockValue = "torvalds";`, agreg
   mockVaults = [VAULT];
 ```
 
-- [ ] **Step 2: Escribir el test que falla**
+- [x] **Step 2: Escribir el test que falla**
 
 Agregar dentro del `describe("github callback", ...)` existente, como cuarto test:
 
@@ -487,7 +489,7 @@ Correr: `cd web && npx vitest run test/routes.test.ts`
 Expected: FAIL — devuelve `307` (el redirect con el voucher) porque la ruta todavia no verifica
 procedencia. Los otros 3 tests deben seguir en PASS.
 
-- [ ] **Step 3: Cablear `start/route.ts`**
+- [x] **Step 3: Cablear `start/route.ts`**
 
 Reemplazar el bloque de validación (la línea `await assertVaultIdentity(vault, 1);`) por:
 
@@ -506,7 +508,7 @@ Y actualizar el import:
 import { assertVaultIdentity, assertVaultFromFactory } from "@/lib/identity";
 ```
 
-- [ ] **Step 4: Cablear `callback/route.ts`**
+- [x] **Step 4: Cablear `callback/route.ts`**
 
 Reemplazar:
 
@@ -532,17 +534,17 @@ Y actualizar el import:
 import { assertVaultIdentity, assertVaultFromFactory, handleMatches } from "@/lib/identity";
 ```
 
-- [ ] **Step 5: Correr toda la suite**
+- [x] **Step 5: Correr toda la suite**
 
 Run: `cd web && npx vitest run`
 Expected: PASS — todos los tests, incluidos los preexistentes.
 
-- [ ] **Step 6: Verificar tipos y build**
+- [x] **Step 6: Verificar tipos y build**
 
 Run: `cd web && npx tsc --noEmit && npx next build`
 Expected: sin errores.
 
-- [ ] **Step 7: Commit**
+- [x] **Step 7: Commit**
 
 ```bash
 git add web/app/api/attest/github/start/route.ts web/app/api/attest/github/callback/route.ts web/test/routes.test.ts
@@ -561,7 +563,7 @@ git commit -m "fix(attester): rechazar con 403 las direcciones que no salieron d
 - Consumes: los commits de las Tasks 1-3.
 - Produces: `flap-rail` con el fix aplicado; §8 del spec marcado como resuelto.
 
-- [ ] **Step 1: Cherry-pickear a `flap-rail`**
+- [x] **Step 1: Cherry-pickear a `flap-rail`**
 
 ```bash
 git log --oneline main -3
@@ -569,18 +571,18 @@ git checkout flap-rail
 git cherry-pick <sha-task1> <sha-task2> <sha-task3>
 ```
 
-- [ ] **Step 2: Correr la suite en `flap-rail`**
+- [x] **Step 2: Correr la suite en `flap-rail`**
 
 Run: `cd web && npx vitest run`
 Expected: PASS. Si algún test falla por diferencias entre ramas, arreglarlo **en `flap-rail`** sin tocar `main`.
 
-- [ ] **Step 3: Volver a `main`**
+- [x] **Step 3: Volver a `main`**
 
 ```bash
 git checkout main
 ```
 
-- [ ] **Step 4: Marcar el fix como resuelto en el spec**
+- [x] **Step 4: Marcar el fix como resuelto en el spec**
 
 En `docs/superpowers/specs/2026-08-29-robinshare-pons-port-design.md`, al inicio de §8, agregar:
 
@@ -589,14 +591,14 @@ En `docs/superpowers/specs/2026-08-29-robinshare-pons-port-design.md`, al inicio
 > aplicado en `main` y `flap-rail`. El server ya no pide el digest al contrato y valida procedencia.
 ```
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add docs/superpowers/specs/2026-08-29-robinshare-pons-port-design.md
 git commit -m "docs(spec): marcar el fix del attester como resuelto en ambas ramas"
 ```
 
-- [ ] **Step 6: Avisar que el push queda habilitado**
+- [x] **Step 6: Avisar que el push queda habilitado**
 
 Con el fix en las dos ramas, la restricción de no pushear (Global Constraints) **deja de aplicar**. El push a `origin` sigue siendo decisión de Jose, no del ejecutor del plan.
 
