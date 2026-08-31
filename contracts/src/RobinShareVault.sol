@@ -94,6 +94,7 @@ contract RobinShareVault is EIP712, ReentrancyGuard {
     error ZeroPayout();
     error TokenAlreadyAttached();
     error NotOurLaunch();
+    error LaunchedByStranger();
     error PairMustBeNative();
     error BuybackMustBeDisabled();
     error SelfPayout();
@@ -166,6 +167,26 @@ contract RobinShareVault is EIP712, ReentrancyGuard {
         if (token != address(0)) revert TokenAlreadyAttached();
         IPonsV2LaunchFactory.LaunchedToken memory info = ponsFactory.getLaunchedToken(token_);
         if (!info.exists || info.creatorFeeRecipient != address(this)) revert NotOurLaunch();
+        // Y ademas tiene que haberlo lanzado NUESTRO launcher.
+        //
+        // Sin esto, `attachToken` era squateable: la direccion del vault es publica desde que se
+        // emite `VaultCreated`, y el flujo de `/create` son tres transacciones. Un extrano podia
+        // lanzar SU propia moneda de pons apuntandole las creator fees a este vault (cuesta el
+        // launch fee, 0,0005 ETH) y atarla ANTES de la tercera. Como el link es de una sola vez,
+        // el vault quedaba pegado para siempre a la curva del atacante: la moneda real ya no se
+        // podia atar nunca, `sweepCurve()` barria la curva equivocada, y el beneficiario probaba
+        // su identidad para cobrar CERO mientras sus fees se acumulaban fuera de alcance.
+        //
+        // El spec §7.2 habia descartado este chequeo, pero por un motivo que aplica a OTRO
+        // ataque: decia que "no protege contra el squat real (cualquiera puede lanzar y ser
+        // deployer de su propio squat)", que es sobre squatear una IDENTIDAD — y eso es el
+        // producto, no un bug. Contra el secuestro del link, en cambio, funciona exactamente.
+        // El costo declarado (cerrarle la puerta al orquestador de 1 tx) es una mejora de UX que
+        // el propio §4 deja para despues; el squat es explotable hoy por 0,0005 ETH.
+        //
+        // Que `deployer` sea quien LANZO (y no el recipient vigente) esta probado contra la
+        // cadena real en ForkPons.t.sol::test_fork_fullCycle_nativePair.
+        if (info.deployer != launcher) revert LaunchedByStranger();
         // SOLO PARES NATIVOS. El camino del dinero de este vault es ETH: con un par ERC-20 las
         // fees se acreditan en el ledger POR TOKEN del escrow de pons y `pull()`/`withdraw()`
         // entregarian CERO, con la UI mostrando un vault vacio. El spec §2 ya declaraba fuera de

@@ -30,14 +30,26 @@ contract RobinShareVaultFactory {
     /// @dev Rotable por el attester vigente o por `attesterAdmin` (co-gate de emergencia).
     address public attester;
 
-    /// @notice Co-gate de EMERGENCIA que solo puede ROTAR el attester. No toca fondos, no puede
-    ///         firmar vouchers, no tiene ninguna otra potestad. `address(0)` lo desactiva.
-    /// @dev Repuesto tras un review adversarial: el audit v3 del rail Flap habia cerrado esto como
-    ///      High (finding 5) con el Guardian de Flap como respaldo, y el port lo borro dejando
+    /// @notice Co-gate de EMERGENCIA cuya UNICA funcion es rotar el attester. `address(0)` lo
+    ///         desactiva.
+    ///
+    /// @dev ⚠️ LEER ANTES DE ELEGIR ESTA DIRECCION. Una version anterior de este comentario decia
+    ///      que "quien lo tenga no puede sacar un wei". **Es falso**, y dos revisores externos lo
+    ///      reprodujeron con un PoC: rotar el attester a una llave propia y firmarse un voucher
+    ///      alcanza los fondos de CUALQUIER vault de GitHub, porque en esa ruta "probar la
+    ///      identidad" ES la firma del attester. Probado en
+    ///      `ReviewRound2.t.sol::test_attesterAdmin_SI_alcanzaLosFondosDeUnVaultGithub`.
+    ///
+    ///      Lo que si es cierto, y es el limite real de la potestad:
+    ///        · no alcanza los vaults de wallet (ahi `boundWallet` lo fija el constructor);
+    ///        · no alcanza los vaults de X (esos dependen del XGeneralVerifier, no del attester);
+    ///        · no puede hacerlo en silencio: rotar emite `AttesterRotated` y el bind emite `Bound`.
+    ///
+    ///      Por que existe igual: el audit v3 del rail Flap habia cerrado esto como High
+    ///      (finding 5) con el Guardian de Flap como respaldo, y el port lo borro dejando
     ///      `rotateAttester` auto-gateado. Sin sucesor, una llave de attester perdida CONGELA para
-    ///      siempre el ETH de todos los vaults de GitHub (claimAndBind es su unica ruta de bind, y
-    ///      con el default recoveryAfter=0 tampoco hay recovery). El poder esta acotado a propósito:
-    ///      quien lo tenga no puede sacar un wei.
+    ///      siempre el ETH de todos los vaults de GitHub. O sea: la eleccion es entre un riesgo de
+    ///      liveness (sin admin) y uno de custodia (con admin), y es de Jose — PENDIENTES.md §3.
     address public immutable attesterAdmin;
 
     /// @notice Registro de procedencia. Lo consulta el attester server ANTES de firmar nada.
@@ -169,7 +181,16 @@ contract RobinShareVaultFactory {
     }
 
     /// @dev strip '@' inicial + lowercase ASCII + CHARSET ESTRICTO por tipo.
-    ///      twitter: 1-15 de [a-z0-9_] · github: 1-39 de [a-z0-9-]. No-ASCII => revert.
+    ///      twitter: 1-15 de [a-z0-9_] · github: 1-39 de [a-z0-9-] SIN guion al principio, al
+    ///      final, ni dos seguidos — que son exactamente las reglas de GitHub.
+    ///
+    ///      La regla del guion se agrego tras un review adversarial: el charset solo ya dejaba
+    ///      crear vaults para `-torvalds`, `torvalds-` o `tor--valds`, que NINGUNA cuenta real de
+    ///      GitHub puede tener. El attester nunca ve ese login, `claimAndBind` no puede firmar
+    ///      jamas, y con `recoveryDays > 0` el clawback OPCIONAL del launcher se vuelve
+    ///      GARANTIZADO. Es el mismo ataque que la validacion de charset existe para impedir
+    ///      (homoglifos cirilicos, zero-width), entrando por la puerta de al lado. En X no
+    ///      aplica: ahi el guion bajo si puede ir en los bordes y repetido.
     ///
     ///      RECUPERADO del contrato auditado tras un review adversarial: la primera version del
     ///      port solo bajaba a minusculas, lo que permitia crear vaults con handles que NINGUNA
@@ -188,9 +209,14 @@ contract RobinShareVaultFactory {
         for (uint256 i = 0; i < len; i++) {
             bytes1 c = b[start + i];
             if (c >= "A" && c <= "Z") c = bytes1(uint8(c) + 32);
-            bool ok = (c >= "a" && c <= "z") || (c >= "0" && c <= "9")
-                || (t == TYPE_TWITTER ? c == bytes1("_") : c == bytes1("-"));
+            bool sep = t == TYPE_TWITTER ? c == bytes1("_") : c == bytes1("-");
+            bool ok = (c >= "a" && c <= "z") || (c >= "0" && c <= "9") || sep;
             if (!ok) revert BadHandleCharset();
+            // GitHub no admite el guion al principio, al final, ni dos seguidos.
+            if (sep && t == TYPE_GITHUB) {
+                if (i == 0 || i == len - 1) revert BadHandleCharset();
+                if (out[i - 1] == bytes1("-")) revert BadHandleCharset();
+            }
             out[i] = c;
         }
         return string(out);

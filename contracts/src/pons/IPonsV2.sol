@@ -36,6 +36,8 @@ interface IPonsV2Curve {
     function sell(uint256 tokensIn, uint256 minQuoteOut, address recipient)
         external
         returns (uint256 quoteOut);
+    /// @dev Umbral cruzado. Solo lo usa el fork test para llevar una curva real a graduar.
+    function readyToGraduate() external view returns (bool);
 }
 
 /// @notice Registro de launches del factory de pons v2.
@@ -120,4 +122,6 @@ interface IPonsV2Launchpad {
     function launchEnabled() external view returns (bool);
     function canLaunch(address launcher) external view returns (bool);
     function approvedPairTokens(address pairToken) external view returns (bool);
+    /// @dev Dispara la graduacion una vez cruzado el umbral. Permissionless en pons.
+    function graduate(address token) external;
 }

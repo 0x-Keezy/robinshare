@@ -6,6 +6,7 @@ import {IERC20} from "openzeppelin-contracts/token/ERC20/IERC20.sol";
 import {RobinShareVault} from "../src/RobinShareVault.sol";
 import {RobinShareVaultFactory} from "../src/RobinShareVaultFactory.sol";
 import {PonsAddresses} from "../src/pons/PonsAddresses.sol";
+import {IXGeneralVerifier} from "../src/flap/IXGeneralVerifier.sol";
 import {
     IPonsV2Launchpad,
     IPonsV2Curve,
@@ -50,6 +51,11 @@ contract ForkPonsTest is Test {
     IPonsV2Launchpad constant PONS = IPonsV2Launchpad(PonsAddresses.LAUNCH_FACTORY);
     IV2FeeEscrow constant ESCROW = IV2FeeEscrow(PonsAddresses.FEE_ESCROW);
 
+    /// @notice Ventana del snipe tax de pons, medida en vivo: `snipeTaxStartBps` 9900 decayendo a
+    ///         cero en `snipeTaxSeconds` = 3 s. Todo trade DENTRO de esa ventana paga un take
+    ///         brutal que NO representa la economia del producto — ver `_warpPastSnipeWindow`.
+    uint256 constant SNIPE_TAX_SECONDS = 3;
+
     RobinShareVaultFactory factory;
     address attester;
     address launcher;
@@ -57,7 +63,16 @@ contract ForkPonsTest is Test {
     /// @dev El fork se saltea si el test no corre sobre Robinhood Chain. `vm.skip` y no un
     ///      `return`: un early-return lo reporta forge como [PASS] sin haber ejecutado nada.
     modifier onlyFork() {
-        vm.skip(block.chainid != PonsAddresses.CHAIN_ID);
+        // `vm.skip` y no un `return`: un early-return lo reporta forge como [PASS] sin haber
+        // ejecutado nada. Pero un SKIP tambien deja `forge test` en exit 0, asi que un CI que
+        // corra el suite sin `--fork-url` queda verde sin haber probado NADA contra pons.
+        // `REQUIRE_FORK=1` convierte ese skip en un fallo, para poder exigirlo en CI.
+        if (block.chainid != PonsAddresses.CHAIN_ID) {
+            if (vm.envOr("REQUIRE_FORK", false)) {
+                fail("REQUIRE_FORK=1 pero no se corrio contra un fork de Robinhood Chain");
+            }
+            vm.skip(true);
+        }
         _;
     }
 
@@ -123,6 +138,26 @@ contract ForkPonsTest is Test {
         IPonsV2Curve(curve).buy{value: amount}(amount, 0, trader);
     }
 
+    /// @dev SIN ESTO TODOS LOS NUMEROS DE ESTE ARCHIVO MIENTEN.
+    ///
+    ///      `vm.prank` no adelanta el reloj, asi que sin un warp explicito cada compra del test
+    ///      cae en el SEGUNDO DEL LANZAMIENTO, donde el snipe tax de pons esta en su maximo. Y el
+    ///      snipe tax **se suma al bucket del creador**: la fuente verificada dice
+    ///      `_accrueFees(fee + snipeTax, tax)`, y el sweep reparte ese bucket 30/70 entre
+    ///      protocolo y creador.
+    ///
+    ///      Aritmetica de las dos regimenes, con la config viva (curveFeeBps 100, creatorTaxBps
+    ///      1000, protocolFeeShareBps 3000, snipe cap = 10000-100-1000-100 = 8800):
+    ///        · dentro de la ventana: (1% + 88%) x 70% + 10% = **72,3%** del volumen
+    ///        · en regimen normal:    (1%      ) x 70% + 10% = **10,7%** del volumen
+    ///
+    ///      Una version anterior de este test media la primera y la publicaba como si fuera la
+    ///      segunda — un 7x de diferencia en el numero que justifica el producto entero. Lo cazo
+    ///      un revisor externo. `test_fork_feeSplit_dosRegimenes` fija las dos cifras.
+    function _warpPastSnipeWindow() internal {
+        vm.warp(block.timestamp + SNIPE_TAX_SECONDS + 1);
+    }
+
     // ───────────────────────── el ciclo entero ─────────────────────────
 
     function test_fork_fullCycle_nativePair() public onlyFork {
@@ -144,7 +179,9 @@ contract ForkPonsTest is Test {
         //     creatorFeeRecipient vigente. Si esto fuera falso el vault no podria barrer nunca.
         assertEq(IPonsV2Curve(curve).deployer(), address(vault), "la curva debe autorizar al vault");
 
-        // (3) trades reales contra la curva real
+        // (3) trades reales contra la curva real, FUERA de la ventana del snipe tax: lo que se
+        //     mide aca es la economia de todos los dias, no el segundo del lanzamiento.
+        _warpPastSnipeWindow();
         _buy(makeAddr("trader-a"), curve, 0.4 ether);
         _buy(makeAddr("trader-b"), curve, 0.35 ether);
 
@@ -182,6 +219,8 @@ contract ForkPonsTest is Test {
         assertEq(vault.boundWallet(), dev);
         assertEq(dev.balance, credited, "el dev cobro sin haber pagado gas");
         console2.log("cobrado por un dev con 0 ETH (wei):", dev.balance);
+
+        assertEq(credited, 0.75 ether * 107 / 1000, "10,7% del volumen: el regimen normal");
 
         // (8) payout PULL: mas trades, y el boundWallet retira por su cuenta.
         _buy(makeAddr("trader-c"), curve, 0.3 ether);
@@ -318,5 +357,160 @@ contract ForkPonsTest is Test {
         vault.withdrawToken(NVDA);
         assertEq(IERC20(NVDA).balanceOf(dev), 5e18, "el ERC-20 sale, y solo al boundWallet");
         assertEq(IERC20(NVDA).balanceOf(address(vault)), 0);
+    }
+
+    // ───────────────────────── la economia, en sus dos regimenes ─────────────────────────
+
+    /// @notice Fija las DOS cifras del take del creador contra la curva real, para que nadie
+    ///         vuelva a publicar una por la otra.
+    /// @dev El snipe tax de pons no es un bucket aparte: la fuente verificada hace
+    ///      `_accrueFees(fee + snipeTax, tax)`, asi que en la ventana de lanzamiento el creador
+    ///      cobra una fortuna que no tiene nada que ver con la economia del producto.
+    function test_fork_feeSplit_dosRegimenes() public onlyFork {
+        // (a) DENTRO de la ventana del snipe tax (el segundo del lanzamiento)
+        (RobinShareVault sniped,, address snipedCurve) =
+            _createVaultAndLaunch(PonsAddresses.MAX_CREATOR_TAX_BPS, keccak256("robinshare/fork/snipe"));
+        _buy(makeAddr("sniper"), snipedCurve, 1 ether);
+        vm.prank(makeAddr("k1"));
+        sniped.sweepCurve();
+        uint256 inWindow = ESCROW.balanceOf(address(sniped));
+        assertEq(inWindow, 0.723 ether, "en la ventana el creador se lleva 72,3% del volumen");
+
+        // (b) FUERA de la ventana: el regimen en el que vive el 99,99% de la vida del token
+        (RobinShareVault normal,, address normalCurve) =
+            _createVaultAndLaunch(PonsAddresses.MAX_CREATOR_TAX_BPS, keccak256("robinshare/fork/normal"));
+        _warpPastSnipeWindow();
+        _buy(makeAddr("trader"), normalCurve, 1 ether);
+        vm.prank(makeAddr("k2"));
+        normal.sweepCurve();
+        uint256 steady = ESCROW.balanceOf(address(normal));
+        assertEq(steady, 0.107 ether, "en regimen normal el creador se lleva 10,7% del volumen");
+
+        console2.log("take en la ventana del snipe tax (wei por ETH de volumen):", inWindow);
+        console2.log("take en regimen normal           (wei por ETH de volumen):", steady);
+    }
+
+    // ───────────────────────── el caso post-graduacion ─────────────────────────
+
+    /// @notice El caso que el spec §14 marcaba obligatorio y no existia: que pasa DESPUES de que
+    ///         la curva gradua. Se cruza el umbral REAL (4,2 ETH) contra la curva REAL.
+    ///
+    /// @dev Lo que este test fija, y que antes solo estaba en la cabeza del que lo escribio:
+    ///        · `sweepFees` de la curva revierte para siempre una vez graduada;
+    ///        · el `try/catch` de `_sweepCurve()` se lo traga, asi que `harvest()` NO revierte
+    ///          y las rutas de claim/withdraw siguen vivas;
+    ///        · lo ya barrido antes de graduar sigue siendo cobrable con `pull()`;
+    ///        · el vault NO tiene ninguna ruta hacia las fees del pool post-graduacion: depende
+    ///          del operador de pons. Es una perdida de LIVENESS, no de fondos.
+    function test_fork_postGraduation_noRompeElVaultYLoBarridoSigueCobrable() public onlyFork {
+        (RobinShareVault vault, address token, address curve) =
+            _createVaultAndLaunch(PonsAddresses.MAX_CREATOR_TAX_BPS, keccak256("robinshare/fork/grad"));
+        _warpPastSnipeWindow();
+
+        // barrer ANTES de graduar: esta plata tiene que sobrevivir a la graduacion
+        _buy(makeAddr("early"), curve, 1 ether);
+        vault.sweepCurve();
+        uint256 antes = ESCROW.balanceOf(address(vault));
+        assertGt(antes, 0);
+
+        // Cruzar el umbral real de graduacion (4,2 ETH).
+        //
+        // HALLAZGO del fork, que ningun mock daba: la graduacion NO hay que dispararla. La
+        // ejecuta el propio `buy()` que cruza el umbral, dentro de la misma transaccion del
+        // comprador. Por eso el bucle corta con `graduated()` y no con `readyToGraduate()`:
+        // llamar `graduate()` despues revierte, y un `buy()` mas tambien (`CurveGraduated()`).
+        for (uint256 i = 0; i < 10 && !IPonsV2Curve(curve).graduated(); i++) {
+            _buy(makeAddr(string.concat("whale", vm.toString(i))), curve, 1 ether);
+        }
+        assertTrue(IPonsV2Curve(curve).graduated(), "la curva graduo de verdad");
+        token; // el registro de pons ya la marco; no hace falta llamar graduate() a mano
+
+        // Y la graduacion ACREDITA al vault en el camino: barre las fees pendientes antes de
+        // cerrar la curva, asi que no hay nada que se pierda en el borde. Medido en el trace:
+        // `credit(vault, 0.3979 ETH)` desde la curva, dentro del mismo buy.
+        assertGt(
+            ESCROW.balanceOf(address(vault)),
+            antes,
+            "graduar tiene que barrer lo pendiente hacia el escrow, no tirarlo"
+        );
+
+        // 1. la curva ya no se puede barrer, NUNCA
+        vm.expectRevert();
+        IPonsV2Curve(curve).sweepFees(0);
+
+        // 2. pero el vault no se rompe: el try/catch se lo traga
+        vm.prank(makeAddr("keeper"));
+        vault.sweepCurve();
+
+        // 3. y todo lo acreditado se cobra igual
+        uint256 acreditado = ESCROW.balanceOf(address(vault));
+        assertGe(acreditado, antes, "la graduacion no puede evaporar lo ya acreditado");
+        vault.pull();
+        assertGe(address(vault).balance, antes);
+        console2.log("acreditado al vault al graduar (wei):", acreditado);
+
+        // 4. el claim sigue funcionando despues de graduar
+        address dev = makeAddr("dev-post-grad");
+        uint256 deadline = block.timestamp + 15 minutes;
+        (uint8 v, bytes32 r, bytes32 sg) = vm.sign(ATTESTER_PK, vault.bindDigest(dev, deadline));
+        vm.prank(makeAddr("relayer2"));
+        vault.claimAndBind(dev, deadline, abi.encodePacked(r, sg, v));
+        assertEq(vault.boundWallet(), dev);
+        assertGt(dev.balance, 0, "el dev cobra igual despues de la graduacion");
+        console2.log("cobrado post-graduacion (wei):", dev.balance);
+    }
+
+    // ───────────────────────── la ruta X contra el verifier REAL ─────────────────────────
+
+    /// @notice El spec §14 senalaba con nombre y apellido que "no existe un solo test que no use
+    ///         un mock con un bool seteable". Esto lo cierra a medias: la llamada llega al
+    ///         `XGeneralVerifier` REAL de Flap desplegado en 4663.
+    ///
+    /// @dev LO QUE PRUEBA: que el verifier real esta vivo y tiene codigo, que el vault lo llama
+    ///      de verdad, y que NO firma cualquier cosa — una prueba forjada se rechaza.
+    ///      LO QUE NO PRUEBA: el camino positivo. Para eso hace falta una firma real del oraculo
+    ///      de Flap sobre un tweet real, que no se puede fabricar en un test. Ese eslabon sigue
+    ///      SIN PROBAR, y esta declarado como tal en el spec y en PENDIENTES.
+    function test_fork_rutaX_llegaAlVerifierRealYRechazaUnaPruebaForjada() public onlyFork {
+        assertGt(PonsAddresses.X_GENERAL_VERIFIER.code.length, 0, "el verifier real debe tener codigo");
+
+        vm.prank(launcher);
+        RobinShareVault v =
+            RobinShareVault(payable(factory.createVault(2, "0xkeezy", address(0), 0)));
+        assertEq(v.xVerifier(), PonsAddresses.X_GENERAL_VERIFIER, "el vault apunta al verifier real");
+
+        address dev = makeAddr("dev-x");
+        IXGeneralVerifier.XGeneralProof memory proof = IXGeneralVerifier.XGeneralProof({
+            tweetId: 1,
+            xHandle: "0xkeezy",
+            xId: 1,
+            substring: v.expectedTweet(dev) // pasa los chequeos (1) y (2)
+        });
+
+        // (3) el verifier REAL tiene que rechazar una firma que no es del oraculo.
+        //
+        //     OJO con la forma de la firma, que es un hallazgo del fork: con bytes malformados
+        //     (`hex"deadbeef"`) el verifier NO devuelve false — revierte
+        //     "ECDSA: invalid signature length" desde adentro. O sea que `claimByProof` propaga
+        //     el error de Flap en vez del nuestro. No es un agujero (igual se rechaza), pero un
+        //     integrador que espere `InvalidProof` para TODA firma invalida se equivoca.
+        (uint8 bv, bytes32 br, bytes32 bs) = vm.sign(uint256(0xBADBEEF), keccak256("no soy el oraculo"));
+        bytes memory wellFormedButWrong = abi.encodePacked(br, bs, bv);
+
+        assertFalse(
+            IXGeneralVerifier(PonsAddresses.X_GENERAL_VERIFIER).verify(proof, wellFormedButWrong),
+            "el verifier real no puede aceptar una firma que no es del oraculo"
+        );
+        vm.expectRevert(RobinShareVault.InvalidProof.selector);
+        v.claimByProof(dev, proof, wellFormedButWrong);
+
+        // una firma con la LONGITUD mal revierte adentro del verifier de Flap, no en el nuestro
+        vm.expectRevert();
+        v.claimByProof(dev, proof, hex"deadbeef");
+
+        // y el handle equivocado ni siquiera llega al verifier
+        proof.xHandle = "otro";
+        vm.expectRevert(RobinShareVault.WrongXHandle.selector);
+        v.claimByProof(dev, proof, wellFormedButWrong);
     }
 }

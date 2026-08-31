@@ -92,10 +92,30 @@ contract MockPonsFactory {
         t.token = token;
         t.curve = curve;
         t.creatorFeeRecipient = recipient;
+        // Por default el `deployer` es el launcher del vault destinatario, que es el caso normal
+        // (el mismo que creo el vault lanza la moneda). El squat se arma con `setLaunchDeployer`.
+        t.deployer = _launcherOf(recipient);
         t.pairToken = pairToken;
         t.buybackEnabled = buyback;
         t.exists = true;
         _info[token] = t;
+    }
+
+    /// @dev Para armar el caso del extrano que lanza apuntando al vault de otro.
+    function setLaunchDeployer(address token, address deployer_) external {
+        _info[token].deployer = deployer_;
+    }
+
+    function _launcherOf(address recipient) internal view returns (address) {
+        // El chequeo de `code.length` va ANTES del try: para una llamada de alto nivel a una
+        // direccion sin codigo, Solidity inserta un `extcodesize` cuyo revert ocurre en ESTE
+        // contexto y NO lo atrapa el `catch`.
+        if (recipient.code.length == 0) return address(0);
+        try RobinShareVault(payable(recipient)).launcher() returns (address l) {
+            return l;
+        } catch {
+            return address(0);
+        }
     }
 
     function getLaunchedToken(address token)
@@ -621,12 +641,17 @@ contract RobinShareTest is Test {
         factory.rotateAttester(nuevo);
         assertEq(factory.attester(), nuevo, "sin sucesor, una llave perdida congela todos los vaults github");
 
-        // pero el admin NO puede tocar fondos: no existe ninguna funcion para eso
+        // El admin no tiene NINGUNA funcion que mueva fondos directamente...
         RobinShareVault v = _github(0);
         vm.deal(address(v), 1 ether);
         vm.prank(admin);
         vm.expectRevert(RobinShareVault.NotBoundYet.selector);
         v.withdraw();
+        // ...pero eso NO significa que no alcance los fondos: rotando el attester y firmandose
+        // un voucher llega igual. Probado en
+        // `ReviewRound2.t.sol::test_attesterAdmin_SI_alcanzaLosFondosDeUnVaultGithub`.
+        // Esta aclaracion esta aca porque la version anterior de este test afirmaba lo
+        // contrario ("no existe ninguna funcion para eso") y dos revisores lo refutaron.
     }
 
     function test_noSePuedeBindearElPropioVault() public {
