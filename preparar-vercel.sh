@@ -41,7 +41,17 @@ printf "   Pega la private key del ATTESTER y Enter (no se va a ver nada): "
 read -s -r PK
 echo
 [ -n "$PK" ] || { echo "   no escribiste nada. cancelado."; exit 1; }
-case "$PK" in 0x*) ;; *) PK="0x$PK" ;; esac
+# Misma limpieza y diagnostico que en deploy-factory.sh: pegar en Windows arrastra  y espacios,
+# y el error crudo de foundry ("Failed to decode private key") no dice que arreglar.
+PK="$(printf '%s' "$PK" | tr -d '[:space:]"'"'"'`')"
+case "$PK" in 0x*|0X*) PK="0x${PK#0[xX]}" ;; *) PK="0x$PK" ;; esac
+HEX="${PK#0x}"
+if [ "${#HEX}" -ne 64 ] || case "$HEX" in *[!0-9a-fA-F]*) true;; *) false;; esac; then
+  echo "   ESA NO PARECE UNA PRIVATE KEY: recibi ${#HEX} caracteres hex (esperaba 64)."
+  echo "   En Git Bash el pegado NO es Ctrl+V: usa CLICK DERECHO o Shift+Insert."
+  unset PK HEX; exit 1
+fi
+unset HEX
 DIR="$(cast wallet address --private-key "$PK")"
 unset PK
 if [ "${DIR,,}" != "${ATTESTER_ESPERADO,,}" ]; then

@@ -46,7 +46,40 @@ printf "   Pega la private key del deployer y Enter (no se va a ver nada): "
 read -s -r PK
 echo
 [ -n "$PK" ] || { echo "   no escribiste nada. cancelado."; exit 1; }
-case "$PK" in 0x*) ;; *) PK="0x$PK" ;; esac   # tolera que la pegues sin el 0x
+
+# LIMPIEZA Y DIAGNOSTICO ANTES DE PASARSELA A FOUNDRY.
+#
+# Pegar en una terminal de Windows arrastra basura invisible: un `` del portapapeles, un espacio
+# al final, comillas si la copiaste de un JSON. Foundry entonces tira "Failed to decode private
+# key", que no dice NADA sobre que arreglar — y como la llave no se ve mientras se pega, no hay
+# forma de darse cuenta mirando.
+#
+# Aca se limpia lo limpiable y, si igual no cierra, se dice EXACTAMENTE que se recibio SIN mostrar
+# la llave: cuantos caracteres y si son todos hexadecimales.
+PK="$(printf '%s' "$PK" | tr -d '[:space:]"'"'"'`')"
+case "$PK" in 0x*|0X*) PK="0x${PK#0[xX]}" ;; *) PK="0x$PK" ;; esac
+HEX="${PK#0x}"
+if [ "${#HEX}" -ne 64 ]; then
+  echo "   ESA NO PARECE UNA PRIVATE KEY."
+  echo "     recibi ${#HEX} caracteres (sin contar el 0x); una private key tiene 64."
+  if [ "${#HEX}" -gt 64 ]; then
+    echo "     de mas: puede que hayas pegado dos veces, o que se colara algo del portapapeles."
+  elif [ "${#HEX}" -eq 0 ]; then
+    echo "     vacio: en Git Bash el pegado NO es Ctrl+V. Usa CLICK DERECHO o Shift+Insert."
+  else
+    echo "     de menos: se pego cortada. En Git Bash pega con CLICK DERECHO o Shift+Insert."
+  fi
+  echo "     (si lo que tenes es una frase de 12/24 palabras, eso es una SEED, no una private key:"
+  echo "      exporta la private key desde tu wallet)"
+  unset PK HEX; exit 1
+fi
+case "$HEX" in
+  *[!0-9a-fA-F]*)
+    echo "   ESA NO PARECE UNA PRIVATE KEY."
+    echo "     tiene 64 caracteres pero alguno no es hexadecimal (solo valen 0-9 y a-f)."
+    unset PK HEX; exit 1 ;;
+esac
+unset HEX
 
 # Que la llave sea la del deployer que el preflight acaba de aprobar. Sin esto, una llave
 # equivocada deploya una factory perfecta desde la wallet equivocada — y hay que redeployar.
