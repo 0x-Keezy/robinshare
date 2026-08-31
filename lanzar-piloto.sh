@@ -82,6 +82,22 @@ fi
 BAL=$(cast balance "$DIR" --rpc-url "$RPC")
 echo "   llave ok: $DIR ($(cast from-wei "$BAL") ETH)"
 
+if [ "$FASE" = "2" ]; then
+  echo
+  echo "   ============================================================"
+  echo "   ESTA CORRIDA LANZA LA MONEDA. Es IRREVERSIBLE."
+  echo "     nombre:  $NAME  ($SYMBOL)"
+  echo "     vault:   $VAULTS  (identidad github:$IDENTITY_VALUE)"
+  echo "     tax:     $CREATOR_TAX_BPS bps al vault"
+  echo "     recovery: $RECOVERY_DAYS dias (0 = irrevocable)"
+  echo "   El nombre, el ticker y el tax quedan congelados para siempre, y el vault queda"
+  echo "   CONSUMIDO: attachToken es de una sola vez, no se le puede atar otra moneda."
+  echo "   ============================================================"
+  printf "   Escribi LANZAR para continuar: "
+  read -r OK2
+  [ "$OK2" = "LANZAR" ] || { echo "   cancelado."; exit 1; }
+fi
+
 echo
 echo "== 3/3 - fase $FASE =="
 cd "$RAIZ/contracts"
