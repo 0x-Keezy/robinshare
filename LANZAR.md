@@ -30,8 +30,9 @@ export PATH="$HOME/.foundry/bin:$PATH"
 cast wallet new     # ésta es la del ATTESTER. Guardá la PK. NO le mandes fondos.
 ```
 
-Y necesitás una **wallet deployer** con al menos **0,02 ETH en Robinhood Chain (4663)**. Puede ser
-una que ya tengas. **Tiene que ser distinta de la del attester.**
+Y necesitás una **wallet deployer** con ETH en Robinhood Chain (4663). Medido: el deploy + el
+piloto son **~0,0065 ETH**; con **0,02** vas cómodo. Puede ser una que ya tengas, pero **tiene que
+ser distinta de la del attester**.
 
 > ⚠️ La llave del attester **es una llave de custodia**, no de firma: quien la tenga puede bindear
 > cualquier vault de GitHub a la wallet que quiera. Tratala como tal (`PENDIENTES.md` §2).
@@ -57,10 +58,10 @@ No manda nada y no necesita ninguna private key. Si sale con **LISTO PARA LANZAR
 
 ---
 
-## Paso 2 · Deploy de la factory (~0,002 ETH)
+## Paso 2 · Deploy de la factory (~0,0022 ETH)
 
 ```bash
-cd contracts
+cd ../contracts     # (venís de web/)
 
 # ensayo: sin --broadcast no firma ni manda nada
 ATTESTER_ADDRESS=0x... ATTESTER_ADMIN=0x... \
@@ -95,11 +96,15 @@ fallar** — el preflight del paso 1 también lo caza.
 
 ---
 
-## Paso 4 · El piloto, con tu propia plata (~0,0005 ETH + gas)
+## Paso 4 · El piloto, con tu propia plata (~0,0042 ETH)
+
+> El launch fee son 0,0005, pero el gas es ~7× eso: `launchToken` despliega el token **y** la
+> curva (8,26M de gas). Medido en fork.
 
 ```bash
-cd contracts
+cd ../contracts
 export FACTORY=0x...                  # el del paso 2
+export DESCRIPTION="fees routed to a builder"    # queda en el token, para siempre
 export NAME="RobinShare Pilot"  SYMBOL=RSHARE
 export IDENTITY_TYPE=1                # 1 = github
 export IDENTITY_VALUE=0x-keezy
@@ -107,14 +112,21 @@ export RECOVERY_DAYS=0                # 0 = irrevocable, el default del producto
 export CREATOR_TAX_BPS=1000           # 10%
 export LOGO=https://github.com/0x-keezy.png
 
-# ensayo
-forge script script/LaunchPons.s.sol --rpc-url robinhood --compute-units-per-second 40
+# ensayo (--sender para que también valide que tenés con qué pagar)
+forge script script/LaunchPons.s.sol --rpc-url robinhood --compute-units-per-second 40 \
+  --sender $(cast wallet address $DEPLOYER_PK)
 # real
 forge script script/LaunchPons.s.sol --rpc-url robinhood --broadcast --private-key $DEPLOYER_PK
+
+# y DESPUÉS, verificando contra la cadena (no contra la simulación):
+VERIFY_VAULT=0x... VERIFY_TOKEN=0x... forge script script/LaunchPons.s.sol --rpc-url robinhood
 ```
 
-Hace las tres transacciones, se niega antes de gastar si algo está mal, y verifica solo las cinco
-condiciones post-launch. Al final imprime la URL de claim del builder.
+Hace las tres transacciones y se niega **antes de gastar** si algo está mal: la factory
+equivocada, el tax fuera de rango, pons con el launch cerrado, o **un vault que ya existe para esa
+identidad** (`ALLOW_SECOND_VAULT=true` para forzarlo — sin esa guarda, un reintento tras un
+timeout del RPC lanza una segunda moneda con el mismo ticker). Al final imprime la URL de claim
+del builder.
 
 **Después**: comprá una pizca de tu propia moneda, entrá a `/claim/<vault>`, y cobrá con el flujo
 de GitHub. Ahí es donde el producto deja de ser código y pasa a existir.

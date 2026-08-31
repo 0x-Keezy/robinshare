@@ -34,9 +34,9 @@ alguien que todavía no tiene wallet.
 - **55 tests unitarios del rail nuevo + 10 de fork contra los contratos reales de pons**,
   incluido el ciclo completo de plata, la graduación real cruzando 4,2 ETH, los tres rechazos (par
   ERC-20, buyback activo, launch ajeno) y las regresiones de las dos rondas adversariales.
-  (`forge test` reporta **149**, pero 94 de esos son del rail de Flap que **no** se porta — el
-  número que hay que mirar para juzgar la cobertura de `RobinShareVault` /
-  `RobinShareVaultFactory` es **55**, más los 10 de fork.)
+  (`forge test` reporta **150 passed / 11 skipped**, pero la mayoría son del rail de Flap que
+  **no** se porta — el número que hay que mirar para juzgar la cobertura de `RobinShareVault` /
+  `RobinShareVaultFactory` es **56**, más los 10 de fork.)
 - Una ronda de review con **tres agentes frescos** (seguridad · conformidad al spec · "¿esto
   funcionaría en la cadena real?"), con todo lo bloqueante y alto ya cerrado. Los hallazgos y sus
   fixes están en los commits de `feat/pons-web`; el auditor humano debería empezar por ahí.
@@ -161,7 +161,7 @@ y `x-prove`. Hoy el gas del claim lo paga quien reclama. El copy ya se corrigió
 verdad, pero la promesa original —"no necesita wallet ni ETH"— era la más vendible que teníamos.
 
 > **ACTUALIZADO 2026-08-31 — YA ESTÁ CONSTRUIDO.** `POST /api/relay/claim` + la política
-> anti-abuso en `web/lib/relay.ts` (18 tests). La UI pregunta por el estado del relayer y sólo
+> anti-abuso en `web/lib/relay.ts` (22 tests). La UI pregunta por el estado del relayer y sólo
 > ofrece el botón sin gas si contesta que está prendido; si no, cae al camino de siempre.
 >
 > **Lo único que falta es tuyo: fondear la wallet.** Poné `RELAYER_PK` en Vercel y queda vivo;

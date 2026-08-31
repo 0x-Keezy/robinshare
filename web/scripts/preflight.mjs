@@ -60,6 +60,23 @@ const factoryAbi = [
 const client = createPublicClient({ chain: robinhood, transport: http(RPC) });
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
+/**
+ * Todo lo que toca la red pasa por aca: espaciado y con el error atrapado.
+ *
+ * El RPC publico esta detras de Cloudflare y corta las rafagas. Antes los `getBalance` de las
+ * secciones 3 y 6 no estaban envueltos, asi que un 403 mataba el proceso con 30 lineas de stack
+ * de viem, SIN veredicto y sin el hint de Cloudflare — justo lo contrario de lo que un preflight
+ * tiene que hacer.
+ */
+async function balanceOf(address) {
+  try {
+    await sleep(200);
+    return await client.getBalance({ address });
+  } catch {
+    return null;
+  }
+}
+
 let blockers = 0;
 let warnings = 0;
 const ok = (m) => console.log(`  ✅  ${m}`);
@@ -73,8 +90,17 @@ const bad = (m) => {
 };
 const section = (t) => console.log(`\n${t}`);
 
-/** El deploy son ~0,00192 ETH; cada launch 0,0005 + gas de 2 tx más. Con esto sobra. */
-const NEEDED_DEPLOYER_WEI = 20_000_000_000_000_000n; // 0,02 ETH
+/**
+ * Medido en fork: deploy ~0,00215 + launch (fee 0,0005 + ~0,0037 de gas) ≈ 0,0065 ETH. La
+ * transaccion cara es `launchToken`, que despliega el token Y la curva (8,26M de gas) — el gas
+ * es ~7x la fee, no un redondeo.
+ *
+ * Se separan dos umbrales a proposito: por debajo del MINIMO no alcanza y es bloqueante; entre el
+ * minimo y el COMODO alcanza pero sin margen si pons sube la fee o el gas pica, y eso es una
+ * advertencia. Antes 0,02 era bloqueante y rechazaba una wallet con 0,01, que habria alcanzado.
+ */
+const MIN_DEPLOYER_WEI = 8_000_000_000_000_000n; // 0,008 ETH — lo medido, con poco margen
+const COMFY_DEPLOYER_WEI = 20_000_000_000_000_000n; // 0,02 ETH
 
 async function main() {
   console.log("PREFLIGHT — RobinShare sobre pons v2 (Robinhood Chain 4663)");
@@ -89,6 +115,9 @@ async function main() {
   } catch (e) {
     bad(`no pude hablar con el RPC: ${String(e).split("\n")[0]}`);
     console.log("\n(si devuelve HTML es el rate-limit de Cloudflare — esperá y reintentá)");
+    // El `return` salteaba el bloque de veredicto, que es donde vive el unico
+    // `process.exitCode = 1` — asi que el script salia con 0 diciendo que no pudo conectarse.
+    process.exitCode = 1;
     return;
   }
 
@@ -105,8 +134,24 @@ async function main() {
     await sleep(200);
     const configs = await client.readContract({ address: PONS, abi: ponsAbi, functionName: "launchConfigCount" });
 
-    if (enabled) ok("el launch público de pons está ABIERTO");
-    else bad("pons tiene el launch público CERRADO — sólo direcciones whitelisteadas pueden lanzar");
+    if (enabled) {
+      ok("el launch público de pons está ABIERTO");
+    } else {
+      // `canLaunch` = launchEnabled || whitelistedLaunchers[addr]. Con el gate cerrado, un
+      // deployer whitelisteado SI puede lanzar: declararlo bloqueante seria un falso bloqueo.
+      const d = process.env.DEPLOYER_ADDRESS;
+      let whitelisted = false;
+      if (d && isAddress(d)) {
+        try {
+          await sleep(200);
+          whitelisted = await client.readContract({
+            address: PONS, abi: ponsAbi, functionName: "canLaunch", args: [d],
+          });
+        } catch { /* se trata como no whitelisteado */ }
+      }
+      if (whitelisted) warn("pons tiene el launch público CERRADO, pero tu deployer está whitelisteado");
+      else bad("pons tiene el launch público CERRADO — sólo direcciones whitelisteadas pueden lanzar");
+    }
 
     if (fee === 500000000000000n) ok(`launchFee ${formatEther(fee)} ETH (igual a lo medido)`);
     else warn(`launchFee CAMBIÓ: ahora ${formatEther(fee)} ETH (lo medido era 0.0005)`);
@@ -127,10 +172,13 @@ async function main() {
   if (!deployer || !isAddress(deployer)) {
     bad("falta DEPLOYER_ADDRESS — es la wallet que deploya y lanza");
   } else {
-    await sleep(200);
-    const bal = await client.getBalance({ address: deployer });
-    if (bal >= NEEDED_DEPLOYER_WEI) ok(`deployer ${deployer} · ${formatEther(bal)} ETH`);
-    else if (bal > 0n) bad(`deployer tiene ${formatEther(bal)} ETH — hacen falta al menos ${formatEther(NEEDED_DEPLOYER_WEI)}`);
+    const bal = await balanceOf(deployer);
+    if (bal === null) warn(`no pude leer el saldo del deployer (RPC)`);
+    else if (bal >= COMFY_DEPLOYER_WEI) ok(`deployer ${deployer} · ${formatEther(bal)} ETH`);
+    else if (bal >= MIN_DEPLOYER_WEI)
+      warn(`deployer ${deployer} · ${formatEther(bal)} ETH — alcanza (hace falta ~0.0065) pero sin margen`);
+    else if (bal > 0n)
+      bad(`deployer tiene ${formatEther(bal)} ETH — hacen falta al menos ${formatEther(MIN_DEPLOYER_WEI)}`);
     else bad(`deployer ${deployer} NO TIENE ETH en 4663`);
   }
 
@@ -138,10 +186,9 @@ async function main() {
   if (!attester || !isAddress(attester)) {
     bad("falta ATTESTER_ADDRESS — wallet nueva y dedicada (`cast wallet new`), SIN fondos");
   } else {
-    await sleep(200);
-    const bal = await client.getBalance({ address: attester });
+    const bal = await balanceOf(attester);
     ok(`attester ${attester}`);
-    if (bal > 0n) warn(`el attester tiene ${formatEther(bal)} ETH — debería estar vacío, sólo firma`);
+    if (bal !== null && bal > 0n) warn(`el attester tiene ${formatEther(bal)} ETH — debería estar vacío, sólo firma`);
     if (deployer && attester.toLowerCase() === deployer.toLowerCase()) {
       bad("ATTESTER_ADDRESS == DEPLOYER_ADDRESS. Tienen que ser wallets DISTINTAS: el attester es una llave de custodia sobre los vaults de GitHub");
     }
@@ -159,14 +206,18 @@ async function main() {
       if (!code || code === "0x") {
         bad(`no hay contrato en ${factory}`);
       } else {
-        await sleep(200);
-        const [onchainAttester, esc, pf, xv, n] = await Promise.all([
-          client.readContract({ address: factory, abi: factoryAbi, functionName: "attester" }),
-          client.readContract({ address: factory, abi: factoryAbi, functionName: "feeEscrow" }),
-          client.readContract({ address: factory, abi: factoryAbi, functionName: "ponsFactory" }),
-          client.readContract({ address: factory, abi: factoryAbi, functionName: "xVerifier" }),
-          client.readContract({ address: factory, abi: factoryAbi, functionName: "allVaultsLength" }),
-        ]);
+        // En serie, no en `Promise.all`: era la UNICA rafaga del script y contradecia el
+        // `sleep(200)` de todo el resto — justo la forma que dispara el challenge de Cloudflare,
+        // y encima sobre la verificacion mas importante (un fallo aca marcaba BLOQUEANTE).
+        const read = async (fn) => {
+          await sleep(200);
+          return client.readContract({ address: factory, abi: factoryAbi, functionName: fn });
+        };
+        const onchainAttester = await read("attester");
+        const esc = await read("feeEscrow");
+        const pf = await read("ponsFactory");
+        const xv = await read("xVerifier");
+        const n = await read("allVaultsLength");
         ok(`factory ${factory} · ${n} vault(s) creados`);
         if (esc.toLowerCase() === ESCROW.toLowerCase()) ok("feeEscrow correcto");
         else bad(`feeEscrow apunta a ${esc} — NO es el de pons`);
@@ -195,11 +246,47 @@ async function main() {
     try {
       const res = await fetch(`${base.replace(/\/$/, "")}/api/health`);
       const j = await res.json();
-      if (j.ok) ok(`${base} respondiendo 200 y con el attester coincidiendo`);
-      else {
+      const c = j.checks ?? {};
+
+      // NO alcanza con mirar `j.ok`. `/api/health` calcula su `ok` contra SU PROPIA
+      // NEXT_PUBLIC_FACTORY_ADDRESS: si Vercel tiene una factory distinta de la que estamos por
+      // usar, devuelve ok:true porque su factory y su attester coinciden ENTRE SI — y el
+      // preflight decia "LISTO" mientras cada vault que lancemos seria desconocido para esa web
+      // (`/claim/<vault>` la rechaza con `isVault`). Hay que comparar los dos lados.
+      if (!j.ok) {
         bad(`${base}/api/health da ${res.status}`);
-        console.log(`      ${JSON.stringify(j.checks ?? j)}`);
+        console.log(`      ${JSON.stringify(c)}`);
+      } else {
+        ok(`${base} respondiendo 200`);
       }
+
+      if (factory && typeof c.factory === "string" && c.factory.startsWith("0x")) {
+        if (c.factory.toLowerCase() === factory.toLowerCase()) {
+          ok("la web apunta a la MISMA factory que vas a usar");
+        } else {
+          bad(
+            `la web apunta a la factory ${c.factory}, pero vos vas a usar ${factory} — ` +
+              `los vaults que lances no van a existir para /claim`,
+          );
+        }
+      } else if (factory) {
+        bad(`la web no tiene NEXT_PUBLIC_FACTORY_ADDRESS configurada (${c.factory})`);
+      }
+
+      if (attester && typeof c.factoryAttester === "string" && c.factoryAttester.startsWith("0x")) {
+        if (c.factoryAttester.toLowerCase() !== attester.toLowerCase()) {
+          bad(`el attester que ve la web es ${c.factoryAttester}, distinto de ATTESTER_ADDRESS`);
+        }
+      }
+
+      // Estos se reportan en /api/health pero NO afectan su `ok`, asi que el health puede dar
+      // 200 con el OAuth sin configurar — y sin OAuth el claim de GitHub es imposible, que es
+      // justo el paso siguiente del runbook.
+      const env = c.env ?? {};
+      if (env.githubOAuth === false) bad("la web NO tiene el OAuth de GitHub configurado — el claim va a ser imposible");
+      else if (env.githubOAuth) ok("OAuth de GitHub configurado");
+      if (env.stateSecret === false) bad("falta ATTESTER_STATE_SECRET en la web");
+      if (env.appBaseUrl === "MISSING") bad("falta APP_BASE_URL en la web");
     } catch (e) {
       bad(`no pude consultar ${base}: ${String(e).split("\n")[0]}`);
     }
@@ -216,9 +303,9 @@ async function main() {
       warn(`${label}: sin fondear — ${why}`);
       continue;
     }
-    await sleep(200);
-    const bal = await client.getBalance({ address: addr });
-    if (bal >= 2000000000000000n) ok(`${label} ${addr} · ${formatEther(bal)} ETH`);
+    const bal = await balanceOf(addr);
+    if (bal === null) warn(`${label} ${addr}: no pude leer el saldo (RPC)`);
+    else if (bal >= 2000000000000000n) ok(`${label} ${addr} · ${formatEther(bal)} ETH`);
     else warn(`${label} ${addr} tiene ${formatEther(bal)} ETH — por debajo del piso de 0.002, se declara apagado`);
   }
 
@@ -227,11 +314,12 @@ async function main() {
   if (blockers === 0) {
     console.log(`LISTO PARA LANZAR${warnings ? `  (con ${warnings} advertencia(s) — leelas)` : ""}`);
     console.log("\nsiguiente paso:");
+    // `cd ../contracts` y no `cd contracts`: esto se corre desde `web/`.
     if (!factory) {
-      console.log("  cd contracts && ATTESTER_ADDRESS=$ATTESTER_ADDRESS \\");
+      console.log("  cd ../contracts && ATTESTER_ADDRESS=$ATTESTER_ADDRESS \\");
       console.log("    forge script script/DeployPons.s.sol --rpc-url robinhood --broadcast --private-key $DEPLOYER_PK");
     } else {
-      console.log("  cd contracts && FACTORY=$NEXT_PUBLIC_FACTORY_ADDRESS ... \\");
+      console.log("  cd ../contracts && FACTORY=$NEXT_PUBLIC_FACTORY_ADDRESS ... \\");
       console.log("    forge script script/LaunchPons.s.sol --rpc-url robinhood --broadcast --private-key $DEPLOYER_PK");
     }
   } else {

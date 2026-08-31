@@ -14,7 +14,7 @@ describe("chequeo de existencia del handle de GitHub", () => {
   // convierte el clawback opcional del launcher en uno garantizado.
 
   it("una cuenta que existe da exists:true", async () => {
-    vi.stubGlobal("fetch", vi.fn(async () => ({ status: 302 })));
+    vi.stubGlobal("fetch", vi.fn(async () => ({ status: 200 })));
     expect(await (await call("torvalds")).json()).toEqual({ exists: true });
   });
 
@@ -23,11 +23,28 @@ describe("chequeo de existencia del handle de GitHub", () => {
     expect(await (await call("zzq-nonexistent-abc-9x")).json()).toEqual({ exists: false });
   });
 
+  it("pregunta a la API de usuarios, NO al avatar", async () => {
+    // El avatar (`github.com/<x>.png`) devuelve 301/302 para rutas RESERVADAS como `apps`,
+    // `new` o `sponsors`, asi que afirmaba que esas cuentas EXISTEN — peor que no saber. Medido:
+    // de 19 nombres reservados, 11 pasaban. La API de usuarios da 404 limpio para los 19.
+    const spy = vi.fn(async (_url: string, _init?: unknown) => ({ status: 404 }));
+    vi.stubGlobal("fetch", spy);
+    await call("apps");
+    expect(spy.mock.calls[0][0]).toBe("https://api.github.com/users/apps");
+  });
+
+  it("un rate limit de GitHub da null, no false (fail-open a proposito)", async () => {
+    for (const status of [403, 429]) {
+      vi.stubGlobal("fetch", vi.fn(async () => ({ status })));
+      expect((await (await call(`h${status}`)).json()).exists).toBeNull();
+    }
+  });
+
   it("si GitHub no contesta da null, NO false", async () => {
     // Es la distincion que importa: bloquear un launch legitimo porque GitHub esta caido seria
     // peor que el riesgo que esto mitiga.
     vi.stubGlobal("fetch", vi.fn(async () => { throw new Error("network"); }));
-    const j = await (await call("torvalds")).json();
+    const j = await (await call("handle-sin-red")).json();
     expect(j.exists).toBeNull();
   });
 
@@ -41,9 +58,17 @@ describe("chequeo de existencia del handle de GitHub", () => {
   });
 
   it("normaliza el @ y las mayusculas igual que el contrato", async () => {
-    const spy = vi.fn(async () => ({ status: 302 }));
+    const spy = vi.fn(async (_url: string, _init?: unknown) => ({ status: 200 }));
     vi.stubGlobal("fetch", spy);
-    await call("@Torvalds");
-    expect(spy).toHaveBeenCalledWith("https://github.com/torvalds.png", expect.anything());
+    await call("@NormalizaMe");
+    expect(spy.mock.calls[0][0]).toBe("https://api.github.com/users/normalizame");
+  });
+
+  it("cachea, para no quemar el rate limit de GitHub (que desactivaria la mitigacion)", async () => {
+    const spy = vi.fn(async () => ({ status: 200 }));
+    vi.stubGlobal("fetch", spy);
+    await call("cacheme");
+    await call("cacheme");
+    expect(spy).toHaveBeenCalledTimes(1);
   });
 });

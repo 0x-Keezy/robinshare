@@ -43,18 +43,36 @@ contract LaunchPons is Script {
     function run() external {
         require(block.chainid == PonsAddresses.CHAIN_ID, "wrong chain (expected 4663)");
 
+        // Modo verify-only: no lanza nada, solo verifica un launch que YA ocurrio, contra la
+        // cadena real. Es la contraparte honesta del `_verify` de la simulacion.
+        address vv = vm.envOr("VERIFY_VAULT", address(0));
+        if (vv != address(0)) {
+            address vt = vm.envAddress("VERIFY_TOKEN");
+            RobinShareVault vc = RobinShareVault(payable(vv));
+            _verify(vv, vt, vc.curve(), vc.recoveryAfter() == 0 ? 0 : 30, _taxOf(vt));
+            return;
+        }
+
         RobinShareVaultFactory factory = RobinShareVaultFactory(vm.envAddress("FACTORY"));
         IPonsV2Launchpad pons = IPonsV2Launchpad(PonsAddresses.LAUNCH_FACTORY);
 
-        uint8 identityType = uint8(vm.envUint("IDENTITY_TYPE"));
+        // Los rangos se validan ANTES del cast. `uint16(vm.envUint(...))` trunca en SILENCIO:
+        // `CREATOR_TAX_BPS=66036` pasaba como 500 (5%, no 10%) y el launch quedaba con la mitad
+        // del take del creador para siempre, con el checklist post-launch en verde.
+        uint256 rawType = vm.envUint("IDENTITY_TYPE");
+        require(rawType <= 2, "IDENTITY_TYPE tiene que ser 0, 1 o 2");
+        uint256 rawTax = vm.envUint("CREATOR_TAX_BPS");
+        require(rawTax <= type(uint16).max, "CREATOR_TAX_BPS fuera de rango");
+
+        uint8 identityType = uint8(rawType);
         string memory identityValue = vm.envOr("IDENTITY_VALUE", string(""));
         address identityWallet = vm.envOr("IDENTITY_WALLET", address(0));
         uint256 recoveryDays = vm.envOr("RECOVERY_DAYS", uint256(0));
-        uint16 creatorTaxBps = uint16(vm.envUint("CREATOR_TAX_BPS"));
+        uint16 creatorTaxBps = uint16(rawTax);
         string memory name = vm.envString("NAME");
         string memory symbol = vm.envString("SYMBOL");
 
-        _preflight(factory, pons, identityType, creatorTaxBps, recoveryDays);
+        _preflight(factory, pons, identityType, identityValue, identityWallet, creatorTaxBps, recoveryDays);
 
         uint256 fee = pons.launchFee();
         // El pin de la economia se lee JUSTO antes de lanzar: si el owner de pons re-pegara los
@@ -77,7 +95,19 @@ contract LaunchPons is Script {
         p.symbol = symbol;
         p.logo = vm.envOr("LOGO", string(""));
         p.description = vm.envOr("DESCRIPTION", string(""));
-        p.socials = PonsSocials("", "", "", "", "");
+        // Socials. La via "recomendada" lanzaba el token MAS PELADO de las tres —sin website,
+        // sin twitter— mientras la opcion a mano del runbook si mandaba el github del dev. Para
+        // una moneda cuyo pitch es "las fees van a este builder", la pagina de pons sin un solo
+        // link es un defecto de producto, y `TokenParams` se congela en el launch.
+        string memory website = vm.envOr("WEBSITE", string(""));
+        if (bytes(website).length == 0 && identityType == 1 && bytes(identityValue).length > 0) {
+            website = string.concat("https://github.com/", identityValue);
+        }
+        string memory twitter = vm.envOr("TWITTER", string(""));
+        if (bytes(twitter).length == 0 && identityType == 2 && bytes(identityValue).length > 0) {
+            twitter = string.concat("https://x.com/", identityValue);
+        }
+        p.socials = PonsSocials(twitter, vm.envOr("TELEGRAM", string("")), "", website, "");
         p.creatorFeeRecipient = vault;
         p.creatorTaxBps = creatorTaxBps;
         p.buybackEnabled = false; // NUNCA true: `attachToken` lo rechaza y el launch quedaria huerfano
@@ -97,7 +127,13 @@ contract LaunchPons is Script {
 
         vm.stopBroadcast();
 
-        _verify(vault, token, curve, recoveryDays);
+        _verify(vault, token, curve, recoveryDays, creatorTaxBps);
+    }
+
+    /// @dev El creatorTaxBps que quedo registrado, para que el modo verify-only se compare
+    ///      contra la cadena y no contra un env que puede haber cambiado.
+    function _taxOf(address token) internal view returns (uint16) {
+        return IPonsV2LaunchFactory(PonsAddresses.LAUNCH_FACTORY).getLaunchedToken(token).creatorTaxBps;
     }
 
     /// @dev Todo lo que se puede saber ANTES de gastar. Cada `require` de aca es un launch que no
@@ -106,6 +142,8 @@ contract LaunchPons is Script {
         RobinShareVaultFactory factory,
         IPonsV2Launchpad pons,
         uint8 identityType,
+        string memory identityValue,
+        address identityWallet,
         uint16 creatorTaxBps,
         uint256 recoveryDays
     ) internal view {
@@ -131,9 +169,29 @@ contract LaunchPons is Script {
             "la factory apunta a OTRO rail: no es la del launch de pons"
         );
 
+        // ¿YA HAY UN VAULT PARA ESTA IDENTIDAD?
+        //
+        // `createVault` no deduplica (es el producto: cualquiera puede crear vaults para
+        // cualquiera), y el salt incluye el vault fresco, asi que dos corridas identicas lanzan
+        // DOS monedas con el mismo nombre y ticker, sin una sola advertencia. El disparador
+        // realista es el que el runbook documenta: el RPC devuelve HTML de Cloudflare mientras
+        // forge espera un recibo, el operador ve un error y reintenta. Ahora hay dos $RSHARE
+        // "para 0x-keezy", la liquidez partida, y hay que explicar publicamente cual es la buena.
+        bytes32 idHash = factory.identityHashFor(identityType, identityValue, identityWallet);
+        uint256 existing = factory.getVaults(idHash).length;
+        if (existing > 0) {
+            console2.log("  !! YA EXISTEN", existing, "vault(s) para esta identidad:");
+            address[] memory vs = factory.getVaults(idHash);
+            for (uint256 i = 0; i < vs.length; i++) console2.log("     ", vs[i]);
+            require(
+                vm.envOr("ALLOW_SECOND_VAULT", false),
+                "Ya hay un vault para esta identidad. Si el launch anterior fallo a mitad de camino, revisalo antes de lanzar otra moneda. Para lanzar igual: ALLOW_SECOND_VAULT=true"
+            );
+            console2.log("  (ALLOW_SECOND_VAULT=true - sigo igual)");
+        }
+
         require(pons.launchEnabled(), "pons tiene el launch publico CERRADO ahora mismo");
         require(creatorTaxBps <= pons.maxCreatorTaxBps(), "CREATOR_TAX_BPS por encima del tope de pons");
-        require(identityType <= 2, "IDENTITY_TYPE tiene que ser 0, 1 o 2");
         require(
             recoveryDays == 0 || (recoveryDays >= 30 && recoveryDays <= 3650),
             "RECOVERY_DAYS: 0 (nunca) o entre 30 y 3650"
@@ -151,9 +209,24 @@ contract LaunchPons is Script {
     }
 
     /// @dev Los chequeos post-launch que el runbook pedia hacer a mano, en el mismo comando.
-    ///      Si alguno falla, el launch ya ocurrio — pero al menos se entera ahora y no en el
-    ///      primer claim.
-    function _verify(address vault, address token, address curve, uint256 recoveryDays) internal view {
+    ///
+    ///      ⚠️ OJO CON LO QUE ESTO ES Y NO ES. En `forge script`, `run()` corre UNA vez en el EVM
+    ///      de simulacion; `vm.startBroadcast()` solo GRABA las llamadas para mandarlas despues.
+    ///      O sea que esto verifica el estado SIMULADO, y se imprime ANTES de que exista la
+    ///      primera transaccion real. La simulacion corre contra estado fresco de la cadena y
+    ///      forge aborta el broadcast entero si `run()` revierte, asi que cubre casi todo — pero
+    ///      NO cubre una divergencia entre la simulacion y la inclusion (ej: el owner de pons
+    ///      re-pega la fee en el medio). Foundry no tiene hook post-broadcast.
+    ///
+    ///      Para verificar contra la cadena DE VERDAD, despues del broadcast:
+    ///        VERIFY_VAULT=0x... VERIFY_TOKEN=0x... forge script script/LaunchPons.s.sol --rpc-url robinhood
+    function _verify(
+        address vault,
+        address token,
+        address curve,
+        uint256 recoveryDays,
+        uint16 creatorTaxBps
+    ) internal view {
         console2.log("--- verificacion post-launch ---");
 
         IPonsV2LaunchFactory.LaunchedToken memory info =
@@ -163,6 +236,9 @@ contract LaunchPons is Script {
         require(info.creatorFeeRecipient == vault, "las fees NO apuntan al vault");
         require(info.pairToken == address(0), "el launch quedo pareado contra un ERC-20");
         require(!info.buybackEnabled, "el buyback quedo prendido");
+        // El unico parametro economico que eligio el operador, y no se verificaba: un
+        // `CREATOR_TAX_BPS` truncado dejaba el launch con la mitad del take y todo en verde.
+        require(info.creatorTaxBps == creatorTaxBps, "el creatorTaxBps registrado NO es el que pediste");
 
         // El que de verdad importa: si la curva no reconoce al vault, `sweepCurve()` revierte
         // para siempre y las fees quedan fuera de alcance.
@@ -172,7 +248,13 @@ contract LaunchPons is Script {
         require(v.token() == token, "el vault no quedo atado al token");
         require(v.curve() == curve, "el vault no quedo atado a la curva");
         require((recoveryDays == 0) == (v.recoveryAfter() == 0), "recoveryAfter no coincide");
+        console2.log("  recoveryAfter:  ", v.recoveryAfter());
 
+        // La identidad NORMALIZADA, que es la que va a tener que probar el builder. `_normalize`
+        // strippea el `@` y baja a minusculas: si quedo distinta de lo que el operador creia,
+        // este es el unico lugar donde se ve antes de compartir el link.
+        console2.log("  identidad:      ", v.identityValue());
+        console2.log("  creatorTaxBps:  ", info.creatorTaxBps);
         console2.log("  fees -> vault:   OK");
         console2.log("  par nativo:      OK");
         console2.log("  buyback off:     OK");

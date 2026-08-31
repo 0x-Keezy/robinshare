@@ -6,7 +6,8 @@
 > ensayado de punta a punta contra un anvil que forkea la cadena.
 >
 > **El contrato NO esta auditado**, y Jose decidio lanzar igual (`PENDIENTES.md` §1). Lo que falta
-> son las cuatro llaves del §0 y fondear dos wallets.
+> son las llaves del §0 y fondear dos wallets. La version corta esta en
+> [`LANZAR.md`](../LANZAR.md).
 >
 > **Diferencia con `RUNBOOK-launch.md`**: aquel es el rail de **Flap** (`VaultPortal`, vanity
 > `0x7777`, badge de Flap, Guardian). Sigue vivo en la rama `flap-rail` + tag `audited-v3`. Este es
@@ -29,7 +30,8 @@
       riesgo de liveness y uno de custodia. Leer `PENDIENTES.md` §2 y §3 antes de elegir.
 - [ ] **GitHub OAuth app** (`GITHUB_CLIENT_ID` / `GITHUB_CLIENT_SECRET`) — paso a paso en
       `docs/DEPLOY-WEB.md` (callback: `https://<dominio>/api/attest/github/callback`).
-- [ ] **Auditoria del contrato nuevo** — `PENDIENTES.md` §1. **Este es el gate real.**
+- [x] ~~**Auditoria del contrato nuevo**~~ — **DECIDIDO: va sin auditar** (`PENDIENTES.md` §1,
+      decision de Jose del 2026-08-31). No es un pendiente; es un riesgo aceptado.
 - [ ] **Identidad piloto + recoveryDays** (propuesta: `github:0x-keezy`, `recoveryDays = 0`).
       Validos: **0 (nunca, el default del producto) o entre 30 y 3650**. 1..29 revierte
       `RecoveryWindowTooShort`.
@@ -63,10 +65,13 @@ revierte en silencio.
 Todo esto es **estado mutable** del owner de pons (Safe 2-de-3
 `0x263ed295dAFaE1d9AAdD6E56c4B6F9f38eE019Dd`), no constantes del protocolo.
 
+> **Estas tres variables se usan en TODO el documento.** Un launch-day cruza varias sesiones de
+> shell: si abris una terminal nueva, volve a exportarlas.
+
 ```bash
 export PATH="$HOME/.foundry/bin:$PATH"
-R=https://rpc.mainnet.chain.robinhood.com
-PONS=0x7eD598BcEf8bd9Edd8C97A195C6d13f40801EC7e
+export R=https://rpc.mainnet.chain.robinhood.com
+export PONS=0x7eD598BcEf8bd9Edd8C97A195C6d13f40801EC7e
 
 cast call $PONS "launchEnabled()(bool)"        --rpc-url $R   # esperado: true
 cast call $PONS "launchFee()(uint256)"         --rpc-url $R   # esperado: 500000000000000
@@ -172,8 +177,12 @@ export CREATOR_TAX_BPS=1000           # 10,00%
 export LOGO=https://github.com/0x-keezy.png
 export DESCRIPTION="fees routed to a builder"
 
-# 1) ENSAYO — sin --broadcast no firma ni manda nada
-forge script script/LaunchPons.s.sol --rpc-url robinhood --compute-units-per-second 40
+# 1) ENSAYO — sin --broadcast no firma ni manda nada.
+#    OJO: sin --sender, forge simula con su cuenta por defecto y la fondea SOLO, asi que el
+#    ensayo pasa verde aunque tu wallet este vacia. Pasale --sender para que el ensayo tambien
+#    pruebe que tenes con que pagar.
+forge script script/LaunchPons.s.sol --rpc-url robinhood --compute-units-per-second 40 \
+  --sender $(cast wallet address $DEPLOYER_PK)
 
 # 2) REAL
 forge script script/LaunchPons.s.sol --rpc-url robinhood --broadcast --private-key $DEPLOYER_PK
@@ -184,8 +193,24 @@ Se niega ANTES de gastar si: la FACTORY no es una RobinShareVaultFactory, apunta
 son invalidos. Y despues del launch verifica solo las cinco cosas que el runbook pedia chequear a
 mano — incluida la unica que de verdad importa, que `curve.deployer()` sea el vault.
 
+Y **se niega si ya existe un vault para esa identidad** — el caso realista es que el RPC devuelva
+HTML de Cloudflare mientras forge espera un recibo, el operador vea un error y reintente: sin la
+guarda, eso lanza una SEGUNDA moneda con el mismo nombre y ticker. Para lanzar igual (varias
+monedas para el mismo dev es legitimo): `ALLOW_SECOND_VAULT=true`.
+
+> ⚠️ **La verificacion que imprime el script corre sobre la SIMULACION, no sobre la cadena.** En
+> `forge script`, `run()` se ejecuta una vez en el EVM local y `vm.startBroadcast()` solo graba
+> las llamadas; el checklist verde se imprime ANTES de que exista la primera transaccion. Cubre
+> casi todo (la simulacion usa estado fresco y forge aborta el broadcast si revierte), pero no una
+> divergencia entre simular e incluir. Para verificar contra la cadena de verdad, despues:
+>
+> ```bash
+> VERIFY_VAULT=0x... VERIFY_TOKEN=0x... forge script script/LaunchPons.s.sol --rpc-url robinhood
+> ```
+
 **Probado end-to-end contra un anvil que forkea la cadena**: deploy + las tres transacciones + la
-verificacion, todo verde, y los rechazos del preflight disparando.
+verificacion + el modo verify-only, todo verde, y los rechazos disparando uno por uno (tax fuera
+de rango, factory equivocada, identidad repetida).
 
 **Opcion C — los tres `cast send` a mano.** El orden NO es negociable: el vault va primero porque
 la creation code de la curva de pons incluye el `creatorFeeRecipient`, asi que la direccion del
@@ -332,6 +357,7 @@ los barrió, y el vault quedó con 0,107 ETH. Gas: **0,000114 ETH**.
 A mano, para un solo vault:
 
 ```bash
+export KEEPER_PK=0x...   # la wallet que paga el gas; no necesita ningun privilegio
 cast send $VAULT "harvest()" --rpc-url $R --private-key $KEEPER_PK   # sweepCurve + pull
 ```
 
