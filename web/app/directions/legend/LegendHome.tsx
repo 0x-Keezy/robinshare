@@ -405,10 +405,10 @@ export function LegendHome() {
                   read &ldquo;zero keys&rdquo; and find out later. pons — the launchpad the coin
                   lives on — can point a coin&apos;s creator fees somewhere else: a 2-of-3
                   multisig, behind a public 3-day timelock anyone can watch on-chain before it
-                  lands, and it applies retroactively to anything not yet swept. That is why we
-                  sweep is permissionless — anyone can pay for it, including the builder, with the button on
-                  their claim page. And on a GitHub vault, our attester signature is what
-                  proves the identity — so that key is trusted, by construction. X and wallet
+                  lands, and it applies retroactively to anything not yet swept. Sweeping is permissionless: anyone can shrink that
+                  window, and the builder can do it from their own claim page with one click.
+                  And on a GitHub vault, our attester signature is what
+                  proves the identity — so that key is trusted, by construction. Wallet
                   vaults never touch it.
                 </p>
                 <div className="mt-6 flex flex-wrap gap-2.5" style={{ fontFamily: "var(--f-mono)" }}>

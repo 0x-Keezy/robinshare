@@ -497,8 +497,8 @@ export function SherwoodHome() {
                 </Reveal>
                 <Reveal delay={140}>
                   <p className="mt-7 max-w-md text-lg leading-relaxed" style={{ color: "rgba(242,239,230,0.75)" }}>
-                    The vault is sworn to a single identity. A wallet signs. A GitHub logs in. An X
-                    handle proves itself through the on-chain oracle. Nothing else opens it — not us,
+                    The vault is sworn to a single identity. A wallet signs. A GitHub logs in. Nothing
+                    else opens it — not us,
                     not the launcher, not Robinhood.
                   </p>
                 </Reveal>

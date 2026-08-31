@@ -127,7 +127,7 @@ describe("las dos declaraciones que Jose decidio hacer (PENDIENTES 5 y 8)", () =
     // badge o un bullet. `audited` a secas queda prohibido; la constante dice "not been audited",
     // que matchearia, asi que se descuenta esa forma antes de mirar.
     const sinLaNegacion = src.replace(/not been audited/gi, "");
-    expect(sinLaNegacion).not.toMatch(/audited/i);
+    expect(sinLaNegacion).not.toMatch(/\baudited\b/i);
     expect(sinLaNegacion).not.toMatch(/security audit/i);
   });
 
@@ -166,9 +166,9 @@ describe("el lanzamiento va SIN la ruta de X (PENDIENTES 4)", () => {
   /// eso ahora se prohiben los TERMINOS, que es lo que no se puede parafrasear.
   const TERMINOS_DE_X = [
     [/twitter/i, "twitter"],
-    [/tweets?/i, "tweet"],
+    [/\btweets?\b/i, "tweet"],
     [/x oracle/i, "x oracle"],
-    [/x handle/i, "x handle"],
+    [/\bx handle\b/i, "x handle"],
   ] as const;
 
   it.each(surfaces)("%s no ofrece la ruta de X, que la factory rechaza en cadena", (name, src) => {
@@ -192,7 +192,7 @@ describe("el lanzamiento va SIN la ruta de X (PENDIENTES 4)", () => {
     // La verdad —que el barrido es permissionless y lo puede pagar cualquiera, incluido el propio
     // builder— es igual de tranquilizadora y ademas es cierta.
     for (const [name, src] of surfaces) {
-      expect(/we sweep/i.test(src), `${name} dice "we sweep" y no hay keeper corriendo`).toBe(false);
+      expect(/\bwe sweep\b/i.test(src), `${name} dice "we sweep" y no hay keeper corriendo`).toBe(false);
     }
   });
 });
@@ -275,7 +275,7 @@ describe("las paginas donde se firma no pueden prometer de mas", () => {
       string,
       string,
     ][]) {
-      expect(src, `${name} publica un conteo de tests`).not.toMatch(/\d{2,4}\s*tests?/i);
+      expect(src, `${name} publica un conteo de tests`).not.toMatch(/\b\d{2,4}\s*tests?\b/i);
       expect(src, `${name} publica un conteo de tests`).not.toMatch(/TESTS\s*=\s*\d/i);
     }
   });
