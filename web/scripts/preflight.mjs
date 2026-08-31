@@ -68,6 +68,24 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
  * de viem, SIN veredicto y sin el hint de Cloudflare — justo lo contrario de lo que un preflight
  * tiene que hacer.
  */
+/**
+ * Diagnostico preciso de una direccion. `isAddress` de viem valida el CHECKSUM, asi que rechaza
+ * una direccion con el casing mezclado mal — lo cual esta bien (casi siempre es un typo o un
+ * paste corrupto), pero "no es una direccion valida" a secas no le dice a nadie que hacer.
+ * Minusculas y checksum correcto pasan las dos, que es como llega una direccion pegada.
+ */
+function addressProblem(value) {
+  if (!value) return "falta";
+  const v = value.trim();
+  if (!/^0x[0-9a-fA-F]{40}$/.test(v)) {
+    return `no tiene la forma de una direccion (0x + 40 hex). Recibi: "${v}"`;
+  }
+  if (!isAddress(v)) {
+    return `el checksum no cierra — suele ser un typo o un caracter perdido al copiar. Probá pegarla en MINÚSCULAS: ${v.toLowerCase()}`;
+  }
+  return null;
+}
+
 async function balanceOf(address) {
   try {
     await sleep(200);
@@ -169,8 +187,9 @@ async function main() {
   section("3 · las wallets (se pasan como DIRECCIONES, nunca como private keys)");
 
   const deployer = process.env.DEPLOYER_ADDRESS;
-  if (!deployer || !isAddress(deployer)) {
-    bad("falta DEPLOYER_ADDRESS — es la wallet que deploya y lanza");
+  const deployerProblem = addressProblem(deployer);
+  if (deployerProblem) {
+    bad(`DEPLOYER_ADDRESS (la wallet que deploya y lanza): ${deployerProblem}`);
   } else {
     const bal = await balanceOf(deployer);
     if (bal === null) warn(`no pude leer el saldo del deployer (RPC)`);
@@ -183,14 +202,34 @@ async function main() {
   }
 
   const attester = process.env.ATTESTER_ADDRESS;
-  if (!attester || !isAddress(attester)) {
-    bad("falta ATTESTER_ADDRESS — wallet nueva y dedicada (`cast wallet new`), SIN fondos");
+  const attesterProblem = addressProblem(attester);
+  if (attesterProblem) {
+    bad(`ATTESTER_ADDRESS (wallet nueva de \`cast wallet new\`, SIN fondos): ${attesterProblem}`);
   } else {
     const bal = await balanceOf(attester);
     ok(`attester ${attester}`);
     if (bal !== null && bal > 0n) warn(`el attester tiene ${formatEther(bal)} ETH — debería estar vacío, sólo firma`);
-    if (deployer && attester.toLowerCase() === deployer.toLowerCase()) {
+    if (deployer && !deployerProblem && attester.toLowerCase() === deployer.toLowerCase()) {
       bad("ATTESTER_ADDRESS == DEPLOYER_ADDRESS. Tienen que ser wallets DISTINTAS: el attester es una llave de custodia sobre los vaults de GitHub");
+    }
+  }
+
+  // Decision de Jose (PENDIENTES §3): `attesterAdmin` = wallet FRIA distinta del deployer y del
+  // attester. Se verifica que sea asi, y despues del deploy que la de la cadena sea esa misma.
+  const admin = process.env.ATTESTER_ADMIN;
+  if (!admin) {
+    warn("sin ATTESTER_ADMIN no puedo verificar la decisión de PENDIENTES §3");
+  } else if (admin === "0" || /^0x0{40}$/.test(admin)) {
+    warn("ATTESTER_ADMIN = 0x0 (sin sucesor). Ojo: PENDIENTES §3 decidió una wallet fría distinta");
+  } else if (addressProblem(admin)) {
+    bad(`ATTESTER_ADMIN: ${addressProblem(admin)}`);
+  } else {
+    ok(`attesterAdmin ${admin}`);
+    if (deployer && admin.toLowerCase() === deployer.toLowerCase()) {
+      bad("ATTESTER_ADMIN == DEPLOYER_ADDRESS — concentra deployar, lanzar y alcanzar los vaults de GitHub en una sola llave");
+    }
+    if (attester && admin.toLowerCase() === attester.toLowerCase()) {
+      bad("ATTESTER_ADMIN == ATTESTER_ADDRESS — no da ninguna sucesión: si se pierde esa llave, se pierden las dos");
     }
   }
 
@@ -225,6 +264,12 @@ async function main() {
         else bad(`ponsFactory apunta a ${pf} — NO es pons`);
         if (xv.toLowerCase() === XVER.toLowerCase()) ok("xVerifier correcto");
         else warn(`xVerifier es ${xv} (los vaults de X dependen de esto)`);
+
+        if (admin && isAddress(admin)) {
+          const onchainAdmin = await read("attesterAdmin");
+          if (onchainAdmin.toLowerCase() === admin.toLowerCase()) ok("attesterAdmin on-chain coincide");
+          else bad(`el attesterAdmin de la factory es ${onchainAdmin}, distinto del que elegiste (${admin}) — es INMUTABLE, habría que redeployar`);
+        }
 
         if (attester && onchainAttester.toLowerCase() !== attester.toLowerCase()) {
           bad(`el attester de la factory es ${onchainAttester}, pero ATTESTER_ADDRESS es ${attester} — TODO claim de GitHub va a fallar`);

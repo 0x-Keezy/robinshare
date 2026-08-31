@@ -37,13 +37,13 @@ ser distinta de la del attester**.
 > ⚠️ La llave del attester **es una llave de custodia**, no de firma: quien la tenga puede bindear
 > cualquier vault de GitHub a la wallet que quiera. Tratala como tal (`PENDIENTES.md` §2).
 
-**Decidí también `ATTESTER_ADMIN`** (`PENDIENTES.md` §3). Es la elección entre dos riesgos:
-- una dirección → hay sucesión si perdés la llave del attester, pero es un segundo actor con
-  alcance de custodia sobre los vaults de GitHub;
-- `0x0` → nadie más puede rotar, y una llave perdida **congela para siempre** el ETH de todos los
-  vaults de GitHub.
+**`ATTESTER_ADMIN` — ya decidido**: una **wallet fría distinta** del deployer y del attester
+(`PENDIENTES.md` §3). Cubre el riesgo de perder la llave del attester —que congelaría el ETH de
+todos los vaults de GitHub— aceptando un segundo actor con alcance de custodia, pero en frío.
 
-Si dudás: una hardware wallet fría, distinta del deployer.
+O sea que necesitás **tres direcciones distintas**: deployer, attester y admin. El preflight
+verifica que lo sean, y después del deploy que el `attesterAdmin` on-chain sea el correcto — es
+**inmutable**, así que equivocarse ahí obliga a redeployar.
 
 ---
 

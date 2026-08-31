@@ -74,7 +74,17 @@ congelado para siempre. Es el finding 5 (High) del audit v3, por otra puerta.
 
 ---
 
-## 3. Qué dirección va como `attesterAdmin` (o si va en `0x0`)
+## 3. ~~Qué dirección va como `attesterAdmin`~~ — DECIDIDO: una wallet fría distinta
+
+> **DECISIÓN DE JOSE, 2026-08-31: `attesterAdmin` = una wallet fría, distinta del deployer y del
+> attester.** Se elige cubrir el riesgo de *liveness* (perder la llave del attester congelaría el
+> ETH de todos los vaults de GitHub) aceptando un segundo actor con alcance de custodia, y
+> manteniéndolo en frío para que ese alcance sea difícil de ejercer.
+>
+> El preflight verifica que las tres direcciones sean distintas, y después del deploy que el
+> `attesterAdmin` on-chain sea exactamente la que se eligió.
+
+### El razonamiento, conservado
 
 `attesterAdmin` es un co-gate cuya única función es rotar el attester. No firma vouchers ni tiene
 ninguna otra potestad **directa** — pero leé §2 antes de elegir la dirección: rotar el attester a
