@@ -42,5 +42,6 @@ export const CUSTODY_LINE_SHORT =
 /// pague el gas (probado en fork), pero el producto no tiene relayer, asi que hoy el gas lo paga
 /// quien reclama.
 export const CLAIM_REQUIREMENTS =
-  "They don't need a wallet for you to launch it. To collect, they connect one and pay the gas " +
-  "for a single transaction.";
+  "They don't need a wallet for you to launch it. To collect, they connect one — and if the " +
+  "relayer is funded, they don't need any ETH either: we send the claim and pay the gas. " +
+  "Otherwise they pay for one transaction.";

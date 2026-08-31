@@ -156,9 +156,11 @@ ECON=$(cast call $PONS "previewLaunchEconomics(uint256,address)(bytes32)" \
 #      creatorTaxBps <= maxCreatorTaxBps (1000 = 10%). SALT: cualquier valor no usado por esta
 #      wallet — pons NO exige vanity, no hay nada que minar.
 #
-#      ⚠️ LAS COMILLAS DE LOS STRINGS VACIOS DEL TUPLE `socials` NO SON OPCIONALES.
-#      Sin ellas `cast` tira `parser error` apuntando al primer campo vacio. Este comando esta
-#      VERIFICADO con `cast calldata`: encodea y da el selector 0xf35abbcf.
+#      ⚠️ TODO STRING VACIO DEL TUPLE VA ENTRE COMILLAS — no solo los de `socials`, tambien
+#      `logo` y `description` si los dejas en blanco. Sin las comillas `cast` tira
+#      `parser error` apuntando al primer campo vacio. (Cazado dos veces: una en el review y
+#      otra corriendolo de verdad contra un anvil forkeado.) Este comando esta VERIFICADO con
+#      `cast calldata`: encodea y da el selector 0xf35abbcf.
 SALT=$(cast keccak "robinshare/piloto/1")
 # OJO: `cast call` imprime `500000000000000 [5e14]`, o sea DOS palabras. Metido directo en
 # `--value $(...)` la sustitucion se parte y `cast send` recibe `[5e14]` como argumento suelto.
@@ -248,7 +250,29 @@ un solo instante. Ademas el owner de pons puede redirigir el `creatorFeeRecipien
 aviso, y el cambio es **retroactivo sobre todo lo que no se haya barrido**. Barrer seguido es lo que
 achica esa ventana.
 
-Es permissionless — lo puede correr cualquiera, incluido un cron:
+Es permissionless — lo puede correr cualquiera, incluido un cron. **Hay un keeper escrito** que
+recorre todos los vaults de la factory y barre sólo los que valen la pena:
+
+```bash
+cd web
+# dry-run: dice qué barrería y no manda nada
+NEXT_PUBLIC_FACTORY_ADDRESS=$FACTORY node scripts/keeper.mjs
+
+# de verdad, y cada 15 minutos
+KEEPER_PK=0x... NEXT_PUBLIC_FACTORY_ADDRESS=$FACTORY node scripts/keeper.mjs --send --watch 900
+```
+
+Decide simulando `harvest()` en cada vault (un `eth_call`, gratis), que devuelve **exactamente**
+cuánto saldría incluyendo lo que está en la curva — que es justo lo que `pendingAmount()` no ve.
+Sólo manda si supera `MIN_HARVEST_WEI` (default 0,0002 ETH), para no gastar gas moviendo polvo.
+
+**Probado end-to-end** contra un anvil que forkea la cadena: con 1 ETH de volumen real,
+`pendingAmount()` mostraba **0** mientras la curva tenía las fees; el keeper detectó **0,107 ETH**,
+los barrió, y el vault quedó con 0,107 ETH. Gas: **0,000114 ETH**.
+
+`KEEPER_PK` no necesita ningún privilegio: si se pierde, sólo se pierde la automatización.
+
+A mano, para un solo vault:
 
 ```bash
 cast send $VAULT "harvest()" --rpc-url $R --private-key $KEEPER_PK   # sweepCurve + pull
@@ -256,6 +280,40 @@ cast send $VAULT "harvest()" --rpc-url $R --private-key $KEEPER_PK   # sweepCurv
 
 Sin saldo es un **no-op**, no un revert (el `claim()` de pons revierte `NoBalance()`; el vault
 consulta el balance antes).
+
+## 8.b El relayer del claim (opcional, pero es la promesa del producto)
+
+Sin relayer, para cobrar el dev necesita ETH en 4663 — una cadena de la que nunca oyó hablar. O
+sea que tiene que bridgear plata **antes** de poder cobrar plata. Con relayer, el server manda su
+`claimAndBind` y paga el gas.
+
+El contrato ya lo permitía (`claimAndBind` valida la **firma** del attester, no `msg.sender`;
+probado en fork con un dev de 0 ETH). Lo que faltaba era la ruta, que ya está:
+
+```bash
+# prenderlo: una env var en Vercel
+RELAYER_PK=0x<wallet dedicada, con poco saldo, sólo para esto>
+
+# ver el estado en vivo
+curl https://<dominio>/api/relay/claim
+# → { "enabled": true, "address": "0x…", "balanceWei": "…" }
+```
+
+Si `RELAYER_PK` no está, la ruta responde 503, la UI **no ofrece** el botón sin gas y el dev firma
+él mismo. O sea: se puede deployar sin relayer y prenderlo después, sin tocar código.
+
+**Lo que lo protege de que te vacíen el saldo** (todo en `web/lib/relay.ts`, con 18 tests):
+
+1. sólo se relayan vouchers firmados por **nuestro** attester vigente, sobre un digest que el
+   server recalcula — y el attester sólo firma tras un OAuth real que matchea la identidad;
+2. un vault ya bindeado no se relaya (límite natural por vault, sin estado nuestro);
+3. el vault tiene que estar **atado a una moneda real**: para hacernos gastar gas hay que haber
+   pagado un launch de pons (0,0005 ETH), que cuesta más que el gas;
+4. piso de saldo y **simulación antes de firmar**: un claim que revertiría no se paga.
+
+Lo que **no** cubre, dicho claro: alguien con una cuenta real de GitHub que pague launches de
+verdad puede hacernos pagar el gas de sus propios claims. Es gasto acotado por launch y no le da
+acceso a fondos ajenos.
 
 ## 9. Rollback / incidentes
 

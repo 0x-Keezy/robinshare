@@ -146,9 +146,27 @@ describe("las paginas donde se firma no pueden prometer de mas", () => {
     }
   });
 
-  it("la frase honesta sobre lo que hace falta para cobrar existe y dice 'gas'", () => {
+  it("si dice que no hace falta ETH, tiene que ser CONDICIONAL al relayer", () => {
+    // La version anterior de esta regla prohibia "any ETH" a secas, porque la frase original
+    // ("they don't need a wallet or any ETH to collect") era falsa: no habia relayer. Ahora si
+    // lo hay, y la frase honesta es la condicional. Prohibir la mencion sin mas convertiria el
+    // gate en un impedimento para decir la verdad — asi que la regla pasa a exigir el SI:
+    // cualquier promesa de "sin ETH" tiene que nombrar de que depende.
     expect(CLAIM_REQUIREMENTS).toMatch(/gas/i);
-    expect(CLAIM_REQUIREMENTS).not.toMatch(/any ETH/i);
+    if (/any ETH|no ETH|without ETH/i.test(CLAIM_REQUIREMENTS)) {
+      expect(CLAIM_REQUIREMENTS, "la promesa de 'sin ETH' tiene que decir de que depende").toMatch(
+        /relayer/i,
+      );
+    }
+  });
+
+  it("el boton sin gas solo aparece si el relayer contesta que esta prendido", () => {
+    // Es el mecanismo que hace verdadera la frase de arriba: la UI pregunta por el estado del
+    // relayer y, si no esta, ofrece el camino de siempre en vez de prometer algo que no puede
+    // cumplir. Sin este gate, la frase y la realidad podrian divergir en silencio.
+    expect(claimPage).toMatch(/relayerReady/);
+    expect(claimPage).toMatch(/api\/relay\/claim/);
+    expect(claimPage).toMatch(/no gas needed/);
   });
 
   it("ninguna superficie publica un conteo de tests", () => {

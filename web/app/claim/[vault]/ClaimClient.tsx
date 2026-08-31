@@ -99,6 +99,9 @@ export function ClaimClient({ vault }: { vault: Address }) {
   const [attachAddr, setAttachAddr] = useState("");
   /// null = todavia no se sabe; false = la direccion de la URL no es un vault nuestro.
   const [isKnownVault, setIsKnownVault] = useState<boolean | null>(null);
+  /// Si el relayer esta prendido y con saldo, el dev cobra SIN pagar gas — que es la promesa
+  /// central del producto. Si no, cae solo al camino de siempre (firma el su propia tx).
+  const [relayerReady, setRelayerReady] = useState(false);
 
   const refresh = useCallback(async () => {
     const [identityType, identityValue, pending, bound, totalPaid, recoveryAfter, token] =
@@ -187,6 +190,15 @@ export function ClaimClient({ vault }: { vault: Address }) {
   useEffect(() => {
     if (s?.identityType === 2 && isConnected) loadTweetText().catch(() => {});
   }, [s?.identityType, isConnected, loadTweetText]);
+
+  // ¿hay relayer? Se pregunta una vez; si no lo hay, la UI no promete lo que no puede cumplir.
+  useEffect(() => {
+    if (isDemo) return;
+    fetch("/api/relay/claim")
+      .then((r) => r.json())
+      .then((j) => setRelayerReady(!!j?.enabled))
+      .catch(() => setRelayerReady(false));
+  }, [isDemo]);
 
   // voucher de retorno del OAuth de GitHub (viene en el fragment #)
   useEffect(() => {
@@ -302,6 +314,45 @@ export function ClaimClient({ vault }: { vault: Address }) {
       return;
     }
     await sendTx("claimAndBind", [voucher.payout, BigInt(voucher.deadline), voucher.signature]);
+  }
+
+  /// Claim SIN gas: el server manda la transaccion y la paga.
+  ///
+  /// El contrato ya lo permitia — `claimAndBind` valida la FIRMA del attester, no `msg.sender`
+  /// (probado en fork con un dev de 0 ETH). Lo que faltaba era esta ruta. Si falla por lo que
+  /// sea, se cae al camino de siempre en vez de dejar al usuario sin salida.
+  async function claimViaRelayer() {
+    if (!voucher) return;
+    setMsg("Sending your claim — we're paying the gas…");
+    try {
+      const res = await fetch("/api/relay/claim", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          vault,
+          payout: voucher.payout,
+          deadline: voucher.deadline,
+          signature: voucher.signature,
+        }),
+      });
+      const j = await res.json();
+      if (!res.ok || !j.relayed) {
+        setMsg(
+          `${j.error ?? "the relayer could not send it"} — you can still claim it yourself below.`,
+        );
+        setRelayerReady(false); // que aparezca el boton normal
+        return;
+      }
+      setTxHash(j.hash as Hex);
+      setMsg("Sent — waiting for confirmation…");
+      await publicClient.waitForTransactionReceipt({ hash: j.hash as Hex });
+      setMsg("Done.");
+      setVoucher(null);
+      await refresh();
+    } catch (e) {
+      setMsg(`${e instanceof Error ? e.message : String(e)} — you can still claim it yourself below.`);
+      setRelayerReady(false);
+    }
   }
 
   async function proveAndClaimTwitter() {
@@ -529,14 +580,37 @@ export function ClaimClient({ vault }: { vault: Address }) {
 
                 {/* Social: hay voucher listo -> Claim; si no, verificar */}
                 {!isBound && s.identityType !== 0 && voucher && (isDemo || voucherPaysConnectedWallet) && (
-                  <button
-                    onClick={handleClaimClick}
-                    disabled={effectivePending}
-                    className={ctaCls}
-                    style={ctaStyle}
-                  >
-                    Claim to {voucher.payout.slice(0, 6)}…{voucher.payout.slice(-4)}
-                  </button>
+                  <>
+                    {relayerReady && !isDemo ? (
+                      <>
+                        <button
+                          onClick={claimViaRelayer}
+                          disabled={effectivePending}
+                          className={ctaCls}
+                          style={ctaStyle}
+                        >
+                          Claim to {voucher.payout.slice(0, 6)}…{voucher.payout.slice(-4)} — no gas needed
+                        </button>
+                        <button
+                          onClick={handleClaimClick}
+                          disabled={effectivePending}
+                          className="text-xs underline decoration-1 underline-offset-4 hover:opacity-70"
+                          style={{ color: RS.FAINT, fontFamily: "var(--f-mono)" }}
+                        >
+                          or send it yourself and pay the gas
+                        </button>
+                      </>
+                    ) : (
+                      <button
+                        onClick={handleClaimClick}
+                        disabled={effectivePending}
+                        className={ctaCls}
+                        style={ctaStyle}
+                      >
+                        Claim to {voucher.payout.slice(0, 6)}…{voucher.payout.slice(-4)}
+                      </button>
+                    )}
+                  </>
                 )}
                 {!isDemo && voucherForSomeoneElse && (
                   <div

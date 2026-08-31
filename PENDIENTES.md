@@ -160,10 +160,16 @@ Pero **el producto no tiene relayer**: `web/app/api/` sólo tiene `attest`, `hea
 y `x-prove`. Hoy el gas del claim lo paga quien reclama. El copy ya se corrigió para decir la
 verdad, pero la promesa original —"no necesita wallet ni ETH"— era la más vendible que teníamos.
 
-**Qué hace falta decidir:** si se construye. Implica una wallet caliente fondeada (plata de Jose),
-un endpoint que firme y mande transacciones, y una defensa contra abuso — cualquiera podría
-quemarle el saldo pidiendo claims. Alternativa barata: dejarlo así y que el copy lo diga, que es
-donde está hoy.
+> **ACTUALIZADO 2026-08-31 — YA ESTÁ CONSTRUIDO.** `POST /api/relay/claim` + la política
+> anti-abuso en `web/lib/relay.ts` (18 tests). La UI pregunta por el estado del relayer y sólo
+> ofrece el botón sin gas si contesta que está prendido; si no, cae al camino de siempre.
+>
+> **Lo único que falta es tuyo: fondear la wallet.** Poné `RELAYER_PK` en Vercel y queda vivo;
+> sin esa env var la ruta responde 503 y no pasa nada. Detalle y defensas en
+> `docs/RUNBOOK-launch-pons.md` §8.b.
+
+**Qué queda por decidir:** con cuánto saldo la fondeás y quién la vigila. El gasto está acotado
+por las defensas, pero es una wallet caliente y eso no lo decide un agente.
 
 ---
 
@@ -191,9 +197,19 @@ barrió 15.
 Pero hoy eso existe sólo como una línea de `cast send` en el runbook con un `$KEEPER_PK` que no está
 definido en ninguna parte. **No hay keeper.**
 
-**Qué hace falta decidir:** si corre (un cron en algún lado, un bot, o a mano), con qué wallet, y
-quién le pone el gas. Es plata caliente, como §7. Es barato — el ciclo completo son ~270k gas — pero
-alguien lo tiene que pagar y alguien lo tiene que vigilar.
+> **ACTUALIZADO 2026-08-31 — YA ESTÁ CONSTRUIDO.** `web/scripts/keeper.mjs`. Recorre los vaults
+> de la factory, simula `harvest()` en cada uno (gratis) para saber cuánto saldría —incluido lo
+> que está en la curva, que `pendingAmount()` no ve— y sólo manda los que superan un piso.
+> Dry-run por default; hay que pedir `--send`.
+>
+> **Probado end-to-end** contra un anvil forkeando la cadena: con 1 ETH de volumen,
+> `pendingAmount()` mostraba **0** y el keeper barrió **0,107 ETH** por **0,000114 ETH** de gas.
+>
+> `KEEPER_PK` **no necesita ningún privilegio** — `harvest()` es permissionless. Si se pierde, se
+> pierde la automatización y nada más.
+
+**Qué queda por decidir:** dónde corre el cron (VPS, GitHub Actions, tu máquina) y con qué wallet.
+Es barato, pero alguien lo tiene que pagar y mirar.
 
 ---
 
