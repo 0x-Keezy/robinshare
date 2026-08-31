@@ -364,7 +364,7 @@ export default function CreatePage() {
               </Link>
             </div>
             <p className="mt-4 text-sm leading-relaxed" style={{ color: RS.DIM }}>
-              Fees now accrue to the {type === "twitter" ? "X" : type === "github" ? "GitHub" : "wallet"} identity.
+              Fees now accrue to the {type === "github" ? "GitHub" : "wallet"} identity.
               Send them the claim page. They didn&apos;t need a wallet for you to launch this, and
               <strong> you can never redirect the fees away from them</strong>. To collect, they
               connect a wallet and pay the gas for one transaction. (Two powers are not ours to
