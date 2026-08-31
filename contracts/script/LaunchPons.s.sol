@@ -72,6 +72,51 @@ contract LaunchPons is Script {
         string memory name = vm.envString("NAME");
         string memory symbol = vm.envString("SYMBOL");
 
+        // ── DE QUE FASE ES ESTA CORRIDA ────────────────────────────────────────
+        //
+        // El vault NO se predice: se LEE de la cadena. Antes este script hacia las tres
+        // transacciones de un saque y tomaba la direccion del vault del RETORNO de
+        // `factory.createVault(...)` — pero en `forge script` ese retorno sale de la SIMULACION, y
+        // `vm.startBroadcast()` solo graba las llamadas con la calldata ya encodeada. La direccion
+        // de un vault es CREATE(factory, nonce_de_la_factory) —`createVault` hace `new
+        // RobinShareVault(...)`, sin CREATE2— asi que cualquier `createVault` ajeno que se mine en
+        // la ventana entre simular e incluir corre el nonce y desplaza la direccion.
+        //
+        // Lo que pasaba entonces era lo peor posible: el `creatorFeeRecipient` que viaja adentro
+        // de `launchToken` apuntaba al vault del EXTRANO. Ese launch es definitivo y esta pago; el
+        // extrano podia llamar `attachToken` (su `launcher` es el mismo que llama) y quedarse con
+        // las fees de nuestra moneda, mientras nuestra tx 3 revertia `LaunchedByStranger`. Y no
+        // hay vuelta atras: `transferCreatorFeeRecipient` de pons existe, pero esta gateado al
+        // recipient VIGENTE — o sea, al extrano.
+        //
+        // La ventana no era teorica: LANZAR.md publicaba `/create` (Paso 3) ANTES del piloto
+        // (Paso 4), asi que cualquiera podia correr el nonce apretando un boton.
+        //
+        // Ahora son dos corridas del MISMO comando:
+        //   1a corrida -> no hay vault para esta identidad -> solo `createVault`, y para.
+        //   2a corrida -> lo encuentra en la cadena (`getVaults`), lo verifica, y lanza.
+        // La direccion que entra en la calldata de la 2a corrida se leyo del estado real.
+        bytes32 idHash = factory.identityHashFor(identityType, identityValue, identityWallet);
+        address[] memory yaExisten = factory.getVaults(idHash);
+        address vaultOverride = vm.envOr("VAULT", address(0));
+        bool forzarOtro = vm.envOr("ALLOW_SECOND_VAULT", false);
+
+        address vault;
+        if (vaultOverride != address(0)) {
+            vault = vaultOverride;
+        } else if (forzarOtro || yaExisten.length == 0) {
+            _preflight(factory, pons, identityType, identityValue, identityWallet, creatorTaxBps, recoveryDays);
+            _fase1(factory, identityType, identityValue, identityWallet, recoveryDays, yaExisten.length);
+            return;
+        } else if (yaExisten.length == 1) {
+            vault = yaExisten[0];
+        } else {
+            console2.log("Hay", yaExisten.length, "vaults para esta identidad:");
+            for (uint256 i = 0; i < yaExisten.length; i++) console2.log("   ", yaExisten[i]);
+            revert("Mas de un vault para esta identidad: elegi cual con VAULT=0x...");
+        }
+
+        _assertVaultUsable(factory, vault, idHash, recoveryDays);
         _preflight(factory, pons, identityType, identityValue, identityWallet, creatorTaxBps, recoveryDays);
 
         uint256 fee = pons.launchFee();
@@ -83,13 +128,8 @@ contract LaunchPons is Script {
 
         vm.startBroadcast();
 
-        // ── 1/3 · el vault va PRIMERO ───────────────────────────────────────────
-        // La creation code de la curva de pons incluye el `creatorFeeRecipient`, asi que la
-        // direccion del token depende de la del vault: el orden no es negociable.
-        address vault = factory.createVault(identityType, identityValue, identityWallet, recoveryDays);
-        console2.log("1/3  vault:", vault);
-
-        // ── 2/3 · el launch ─────────────────────────────────────────────────────
+        // ── 1/2 · el launch ─────────────────────────────────────────────────────
+        // El vault ya existe y ya se verifico contra la cadena; su direccion NO se predice.
         PonsTokenParams memory p;
         p.name = name;
         p.symbol = symbol;
@@ -118,16 +158,103 @@ contract LaunchPons is Script {
 
         (address token, address curve) =
             pons.launchToken{value: fee}(p, PonsAddresses.LAUNCH_CONFIG_ID, address(0));
-        console2.log("2/3  token:", token);
+        console2.log("1/2  token:", token);
         console2.log("     curve:", curve);
 
-        // ── 3/3 · atar vault <-> token ──────────────────────────────────────────
+        // ── 2/2 · atar vault <-> token ──────────────────────────────────────────
+        //
+        // `token` SI viene de la simulacion, y eso esta bien: pons lo deriva por CREATE2 del
+        // `salt` que viaja en la calldata, y el `creatorFeeRecipient` de ese salt es NUESTRO vault
+        // ya verificado. Si aun asi la direccion difiriera, esta tx revierte y no se pierde nada
+        // irreversible: el token quedaria lanzado apuntando igual a nuestro vault, y `attachToken`
+        // se puede llamar despues a mano. Es un riesgo recuperable, a diferencia del del vault.
         RobinShareVault(payable(vault)).attachToken(token);
-        console2.log("3/3  atado");
+        console2.log("2/2  atado");
 
         vm.stopBroadcast();
 
         _verify(vault, token, curve, recoveryDays, creatorTaxBps);
+    }
+
+    /// @dev FASE 1 — crear el vault y NADA MAS.
+    ///
+    ///      Se corta aca a proposito. La direccion que devuelve `createVault` en la simulacion no
+    ///      es de fiar (ver el comentario largo en `run`), asi que no se usa para nada: la 2a
+    ///      corrida la lee del estado real con `getVaults`.
+    function _fase1(
+        RobinShareVaultFactory factory,
+        uint8 identityType,
+        string memory identityValue,
+        address identityWallet,
+        uint256 recoveryDays,
+        uint256 yaHabia
+    ) internal {
+        vm.startBroadcast();
+        address predicha = factory.createVault(identityType, identityValue, identityWallet, recoveryDays);
+        vm.stopBroadcast();
+
+        console2.log("");
+        console2.log("=== FASE 1 de 2 - vault creado ===");
+        console2.log("  (direccion predicha en simulacion, NO la uses:", predicha, ")");
+        if (yaHabia > 0) console2.log("  ATENCION: ya habia", yaHabia, "vault(s); creaste otro por ALLOW_SECOND_VAULT");
+        console2.log("");
+        console2.log("  Ahora corre EL MISMO comando otra vez (sin ALLOW_SECOND_VAULT).");
+        console2.log("  La 2a corrida lee el vault real de la cadena, lo verifica, y lanza la moneda.");
+        console2.log("");
+    }
+
+    /// @dev Todo lo que hay que ser cierto del vault ANTES de pagar un launch irreversible.
+    ///      Corre pre-broadcast, o sea contra el estado REAL de la cadena.
+    function _assertVaultUsable(
+        RobinShareVaultFactory factory,
+        address vault,
+        bytes32 idHash,
+        uint256 recoveryDays
+    ) internal view {
+        require(vault.code.length > 0, "VAULT no tiene codigo en esta red");
+        require(factory.isVault(vault), "VAULT no salio de esta factory");
+
+        // Pertenencia al indice de la identidad: prueba que el vault es de ESTA identidad y no de
+        // otra. Cubre el caso de un VAULT=0x... pegado a mano de otro launch.
+        address[] memory vs = factory.getVaults(idHash);
+        bool esta;
+        for (uint256 i = 0; i < vs.length; i++) {
+            if (vs[i] == vault) {
+                esta = true;
+                break;
+            }
+        }
+        require(esta, "VAULT no corresponde a la identidad de IDENTITY_TYPE/IDENTITY_VALUE");
+
+        RobinShareVault v = RobinShareVault(payable(vault));
+        require(v.token() == address(0), "ese vault YA tiene una moneda atada: lanzarle otra la dejaria huerfana");
+        require(
+            v.launcher() == msg.sender,
+            "ese vault lo creo OTRA wallet: `attachToken` revertiria despues de pagar el launch. (En el ensayo pasa `--sender <tu address>`)"
+        );
+
+        // Coherencia con el env: el recovery se fijo al CREAR el vault, asi que cambiar
+        // RECOVERY_DAYS entre las dos corridas no hace nada y el checklist final mentiria.
+        if (recoveryDays == 0) {
+            require(v.recoveryAfter() == 0, "el vault se creo CON recovery pero RECOVERY_DAYS=0");
+        } else {
+            require(v.recoveryAfter() != 0, "el vault se creo SIN recovery pero RECOVERY_DAYS>0");
+        }
+
+        _logVault(vault);
+    }
+
+    /// @dev Separado de `_assertVaultUsable` solo por el stack: juntos daban "stack too deep".
+    function _logVault(address vault) internal view {
+        RobinShareVault v = RobinShareVault(payable(vault));
+        console2.log("--- fase 2: vault verificado contra la cadena ---");
+        console2.log("  vault:          ", vault);
+        console2.log("  launcher:       ", v.launcher());
+        // Dos logs y no uno: `console2.log(string,string)` con una string de storage hacia
+        // "stack too deep" en esta funcion.
+        console2.log("  identityValue:");
+        console2.log(v.identityValue());
+        console2.log("-----------------");
     }
 
     /// @dev El creatorTaxBps que quedo registrado, para que el modo verify-only se compare
@@ -169,26 +296,16 @@ contract LaunchPons is Script {
             "la factory apunta a OTRO rail: no es la del launch de pons"
         );
 
-        // ¿YA HAY UN VAULT PARA ESTA IDENTIDAD?
+        // La guarda anti-duplicados ya NO vive aca: la estructura de dos fases la absorbio, y
+        // mejor. Antes se contaban los vaults de la identidad y se exigia ALLOW_SECOND_VAULT si
+        // habia alguno — pero ese contador tambien se dispara en la 2a corrida legitima, donde
+        // encontrar el vault es justamente el punto.
         //
-        // `createVault` no deduplica (es el producto: cualquiera puede crear vaults para
-        // cualquiera), y el salt incluye el vault fresco, asi que dos corridas identicas lanzan
-        // DOS monedas con el mismo nombre y ticker, sin una sola advertencia. El disparador
-        // realista es el que el runbook documenta: el RPC devuelve HTML de Cloudflare mientras
-        // forge espera un recibo, el operador ve un error y reintenta. Ahora hay dos $RSHARE
-        // "para 0x-keezy", la liquidez partida, y hay que explicar publicamente cual es la buena.
-        bytes32 idHash = factory.identityHashFor(identityType, identityValue, identityWallet);
-        uint256 existing = factory.getVaults(idHash).length;
-        if (existing > 0) {
-            console2.log("  !! YA EXISTEN", existing, "vault(s) para esta identidad:");
-            address[] memory vs = factory.getVaults(idHash);
-            for (uint256 i = 0; i < vs.length; i++) console2.log("     ", vs[i]);
-            require(
-                vm.envOr("ALLOW_SECOND_VAULT", false),
-                "Ya hay un vault para esta identidad. Si el launch anterior fallo a mitad de camino, revisalo antes de lanzar otra moneda. Para lanzar igual: ALLOW_SECOND_VAULT=true"
-            );
-            console2.log("  (ALLOW_SECOND_VAULT=true - sigo igual)");
-        }
+        // Ahora el caso que se queria atajar (el RPC devuelve HTML de Cloudflare mientras forge
+        // espera un recibo, el operador ve un error y reintenta, y salen DOS $RSHARE "para
+        // 0x-keezy") lo corta `_assertVaultUsable` con `token() == address(0)`, que es una guarda
+        // ESTRICTAMENTE mas precisa: no pregunta "¿ya hay un vault?" sino "¿este vault ya tiene
+        // una moneda?", que es la condicion que realmente importa.
 
         require(pons.launchEnabled(), "pons tiene el launch publico CERRADO ahora mismo");
         require(creatorTaxBps <= pons.maxCreatorTaxBps(), "CREATOR_TAX_BPS por encima del tope de pons");

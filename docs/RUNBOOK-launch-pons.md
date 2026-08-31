@@ -21,7 +21,8 @@
 - [ ] **Wallet ATTESTER** nueva y dedicada (`cast wallet new`), SIN fondos. Su address va al
       constructor; su PK va SOLO al env de Vercel (`ATTESTER_PK`). Si no matchean, `/api/health` lo
       delata (`attesterMatches:false`).
-- [ ] **`ATTESTER_ADMIN`** — decision abierta, ver `PENDIENTES.md` §3. Su unica funcion es rotar
+- [ ] **`ATTESTER_ADMIN`** — **DECIDIDO: una wallet fria distinta** del deployer y del attester
+      (`PENDIENTES.md` §3, decision de Jose del 2026-08-31). Su unica funcion es rotar
       el attester. ⚠️ **Eso NO es inocuo**: rotar el attester a una llave propia y firmarse un
       voucher alcanza los fondos de cualquier vault de **GitHub** (probado en
       `ReviewRound2.t.sol::test_attesterAdmin_SI_alcanzaLosFondosDeUnVaultGithub`). No alcanza los
@@ -302,10 +303,10 @@ cast call $PONS "getLaunchedToken(address)((address,address,address,address,addr
   con un relayer pagando el gas** (`ForkPons.t.sol::test_fork_fullCycle_nativePair`).
 - Despues: mas trades → `withdraw()` desde la payout wallet. Probado en fork (0,0321 ETH).
 
-> ⚠️ **El relayer del fork test NO existe en el producto.** El contrato acepta que un tercero
-> mande el `claimAndBind` (por eso el test lo prueba con un dev de 0 ETH), pero la web no tiene
-> ninguna ruta que lo haga: hoy el gas del claim lo paga quien reclama. Construirlo necesita una
-> wallet caliente fondeada → `PENDIENTES.md`.
+> ℹ️ **El relayer YA existe** (`web/app/api/relay/claim/route.ts`, politica anti-abuso en
+> `web/lib/relay.ts`), pero esta APAGADO hasta que se ponga `RELAYER_PK` en Vercel. Sin esa env
+> var la ruta responde 503 y la UI ofrece el camino normal, en el que el gas del claim lo paga
+> quien reclama. Prenderlo es una env var y una wallet caliente con poco saldo → §8.b.
 
 ### El take del creador: dos regimenes, y no hay que confundirlos
 
@@ -379,7 +380,9 @@ RELAYER_PK=0x<wallet dedicada, con poco saldo, sólo para esto>
 
 # ver el estado en vivo
 curl https://<dominio>/api/relay/claim
-# → { "enabled": true, "address": "0x…", "balanceWei": "…" }
+# → { "enabled": true }
+#   (solo eso: la direccion y el saldo del relayer NO se publican a proposito — es una wallet
+#    caliente y no hay razon para que un endpoint publico diga cuanto tiene)
 ```
 
 Si `RELAYER_PK` no está, la ruta responde 503, la UI **no ofrece** el botón sin gas y el dev firma

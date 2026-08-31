@@ -73,4 +73,28 @@ describe("la costura con el contrato", () => {
   it("el vector es de la cadena del producto (el chainId entra en el dominio)", () => {
     expect(vector.chainId).toBe(4663);
   });
+
+  /// LA TERCERA IMPLEMENTACION.
+  ///
+  /// `scripts/attest-manual.mjs` es el escape hatch para cuando OAuth esta caido, y firma con la
+  /// MISMA llave del attester. Es un .mjs que corre con node suelto, asi que no puede importar
+  /// `@/lib/bind` (TypeScript) y construye el typed-data por su cuenta.
+  ///
+  /// Eso lo vuelve la tercera copia del mismo dominio EIP-712, y la de peor mantenimiento: si
+  /// divergiera, no se rompe nada visible — las firmas manuales simplemente serian rechazadas por
+  /// el contrato el dia que alguien las necesite, que es el peor dia posible para descubrirlo.
+  /// Anclarla al MISMO vector golden hace imposible la divergencia silenciosa.
+  it("attest-manual.mjs calcula el MISMO digest que el contrato", async () => {
+    const { bindDigestManual } = await import("../scripts/attest-manual.mjs");
+    expect(
+      bindDigestManual(vector.vault, vector.payout, BigInt(vector.nonce), BigInt(vector.deadline)),
+    ).toBe(vector.digest);
+  });
+
+  it("el digest de attest-manual.mjs esta scopeado al vault (no vale contra otro)", async () => {
+    const { bindDigestManual } = await import("../scripts/attest-manual.mjs");
+    const propio = bindDigestManual(VAULT, PAYOUT, 0n, 1000n);
+    const ajeno = bindDigestManual(EVIL, PAYOUT, 0n, 1000n);
+    expect(propio).not.toBe(ajeno);
+  });
 });

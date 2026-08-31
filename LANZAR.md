@@ -16,6 +16,15 @@ la versión corta.
 git checkout feat/pons-web
 ```
 
+Y definí de una vez las variables que se usan en todos los pasos (en cada terminal nueva):
+
+```bash
+export PATH="$HOME/.foundry/bin:$PATH"
+export DEPLOYER_PK=0x...        # la PK de la wallet que paga. NUNCA la pegues en un chat.
+export ATTESTER_ADDRESS=0x1E047B17BF45aE7D29287bd6389De4982C343f0A
+export ATTESTER_ADMIN=0x53C4656E84999960daE7f7C39513BfF3C8057E5C
+```
+
 Todo esto vive en `feat/pons-web`. En `main` no existen ni `DeployPons.s.sol` ni `LaunchPons.s.sol`
 ni este archivo, así que si te equivocás de rama los comandos fallan solos — pero los scripts del
 rail **viejo** (`Deploy.s.sol`, `LaunchPilot.s.sol`) sí están, y deployarían el rail de Flap. Por
@@ -83,8 +92,26 @@ Anotá la dirección de la factory. El script imprime los `constructor-args` par
 
 ## Paso 3 · Conectar la web
 
-Crear la **GitHub OAuth App** (github.com/settings/developers → New OAuth App; el callback exacto
-está en `docs/DEPLOY-WEB.md`) y poner en Vercel:
+Antes que nada, **agregá `robinshareapp.com` al proyecto en Vercel** (Settings → Domains). El
+dominio ya está registrado y delegado a `ns1/ns2.vercel-dns.com`, pero Vercel responde `REFUSED` a
+cualquier consulta porque no tiene la zona: hasta que el dominio esté dentro del proyecto, no
+resuelve. Configurá también que `www` redirija al dominio pelado — el flujo de claim guarda una
+cookie de un solo uso atada al host, y si el usuario arranca en `www` y GitHub lo devuelve al
+apex, la cookie no viaja y el claim falla con «oauth session mismatch».
+
+Después crear la **GitHub OAuth App** (github.com/settings/developers → New OAuth App):
+
+| Campo | Valor |
+|---|---|
+| Application name | `RobinShare` |
+| Homepage URL | `https://robinshareapp.com` |
+| Authorization callback URL | `https://robinshareapp.com/api/attest/github/callback` |
+
+El callback tiene que coincidir **carácter por carácter** con lo que arma el server
+(`APP_BASE_URL` + `/api/attest/github/callback`), o GitHub corta con `redirect_uri_mismatch`. El
+scope va vacío: sólo se pide el username público.
+
+Y poner en Vercel:
 
 | Variable | De dónde sale |
 |---|---|
@@ -92,9 +119,9 @@ está en `docs/DEPLOY-WEB.md`) y poner en Vercel:
 | `ATTESTER_PK` | la PK del `cast wallet new` del paso 0 |
 | `ATTESTER_STATE_SECRET` | `openssl rand -hex 32` |
 | `GITHUB_CLIENT_ID` / `GITHUB_CLIENT_SECRET` | la OAuth App |
-| `APP_BASE_URL` | tu dominio, exacto |
+| `APP_BASE_URL` | `https://robinshareapp.com` (sin barra final) |
 
-Verificá: `curl https://<dominio>/api/health` tiene que dar **200** con `attesterMatches: true`.
+Verificá: `curl https://robinshareapp.com/api/health` tiene que dar **200** con `attesterMatches: true`.
 Si da `false`, la PK no corresponde al attester de la factory y **todo claim de GitHub va a
 fallar** — el preflight del paso 1 también lo caza.
 
@@ -119,18 +146,29 @@ export LOGO=https://github.com/0x-keezy.png
 # ensayo (--sender para que también valide que tenés con qué pagar)
 forge script script/LaunchPons.s.sol --rpc-url robinhood --compute-units-per-second 40 \
   --sender $(cast wallet address $DEPLOYER_PK)
-# real
+# EL MISMO COMANDO, DOS VECES:
 forge script script/LaunchPons.s.sol --rpc-url robinhood --broadcast --private-key $DEPLOYER_PK
+#   1a corrida -> crea el vault y para.
+forge script script/LaunchPons.s.sol --rpc-url robinhood --broadcast --private-key $DEPLOYER_PK
+#   2a corrida -> encuentra el vault en la cadena, lo verifica, y lanza la moneda.
 
 # y DESPUÉS, verificando contra la cadena (no contra la simulación):
 VERIFY_VAULT=0x... VERIFY_TOKEN=0x... forge script script/LaunchPons.s.sol --rpc-url robinhood
 ```
 
-Hace las tres transacciones y se niega **antes de gastar** si algo está mal: la factory
-equivocada, el tax fuera de rango, pons con el launch cerrado, o **un vault que ya existe para esa
-identidad** (`ALLOW_SECOND_VAULT=true` para forzarlo — sin esa guarda, un reintento tras un
-timeout del RPC lanza una segunda moneda con el mismo ticker). Al final imprime la URL de claim
-del builder.
+**Por qué dos corridas y no una.** La dirección de un vault es `CREATE(factory, nonce)` — sin
+CREATE2 — así que se mueve si cualquier otra persona llama `createVault` en el medio. Si el script
+hiciera todo de un saque tomaría esa dirección de la **simulación**, y `forge` congela la calldata
+ahí: bastaba con que alguien apretara «create» en la web durante esos segundos para que el
+`creatorFeeRecipient` de tu moneda apuntara al vault de un extraño. Ese launch es definitivo, y
+`transferCreatorFeeRecipient` de pons está gateado al recipient vigente — o sea, al extraño. Con
+dos fases la dirección se **lee del estado real** antes de gastar. Probado en fork reproduciendo
+el ataque: con un tercero corriendo el nonce en el medio, las fees siguen llegando a tu vault.
+
+Se niega **antes de gastar** si algo está mal: la factory equivocada, el tax fuera de rango, pons
+con el launch cerrado, un vault de otra identidad, uno creado por otra wallet, o **uno que ya
+tiene moneda atada** — ésa es la guarda contra el reintento tras un timeout del RPC, que antes
+dejaba dos monedas con el mismo ticker. Al final imprime la URL de claim del builder.
 
 **Después**: comprá una pizca de tu propia moneda, entrá a `/claim/<vault>`, y cobrá con el flujo
 de GitHub. Ahí es donde el producto deja de ser código y pasa a existir.

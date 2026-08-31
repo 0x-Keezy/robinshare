@@ -76,7 +76,7 @@ npx vercel --prod
 curl https://<tu-dominio>/api/health
 ```
 Debe devolver `{"ok": true, ...}` con:
-- `checks.attesterMatches: true` — si da `false`, el `ATTESTER_PK` no corresponde al attester inmutable de la factory: arreglá la key en Vercel o redesplegá la factory (no hay otra salida, es inmutable).
+- `checks.attesterMatches: true` — si da `false`, el `ATTESTER_PK` de Vercel no corresponde al attester que la factory tiene registrado. Arreglá la key en Vercel; si la que perdiste es la key y no el env, se **rota**: `rotateAttester(nuevo)` — no hay que redesplegar nada.
 - `checks.env.githubOAuth: true` — confirma que `GITHUB_CLIENT_ID`/`GITHUB_CLIENT_SECRET` están seteadas (Twitter no necesita entrada acá, no requiere env).
 
 Después, a mano:
@@ -87,5 +87,7 @@ Después, a mano:
 ## Notas
 
 - El `APP_BASE_URL` tiene que ser el dominio real exacto (el redirect del OAuth de GitHub vuelve ahí). Sin `https://` de más ni `/` final.
-- El attester del server y el de la factory son lo mismo por diseño: una sola wallet oráculo. Guardá su PK bien; perderla = redesplegar factory.
+- El attester del server y el de la factory son lo mismo por diseño: una sola wallet oráculo. Guardá su PK bien.
+- **El attester es ROTABLE, no inmutable.** `RobinShareVaultFactory.rotateAttester(address)` lo acepta del attester vigente **o** del `attesterAdmin`. O sea que perder la PK del attester **no** obliga a redesplegar la factory: el `attesterAdmin` (la wallet fría, `PENDIENTES.md` §3) rota a una llave nueva y el servicio sigue. Ésa es exactamente la razón de existir de esa wallet — si `attesterAdmin` fuera `0x0`, ahí sí una PK perdida congelaría el ETH de todos los vaults de GitHub para siempre.
+- Lo que **sí** es inmutable es el `attesterAdmin`: se fija en el constructor y no hay setter. Equivocarse ahí obliga a redesplegar y abandonar los vaults ya creados.
 - `scripts/attest-manual.mjs` (usa `ATTESTER_PK` + opcionalmente `RPC_URL`, distinto de `NEXT_PUBLIC_RPC_URL`) es el escape hatch manual del piloto — no hace falta configurarlo en Vercel, es un script local para cuando el flujo automático está caído.
