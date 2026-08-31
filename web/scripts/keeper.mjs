@@ -33,6 +33,7 @@
 import {
   createPublicClient,
   createWalletClient,
+  decodeEventLog,
   defineChain,
   formatEther,
   http,
@@ -61,8 +62,20 @@ const factoryAbi = [
 
 const vaultAbi = [
   { type: "function", name: "token", stateMutability: "view", inputs: [], outputs: [{ type: "address" }] },
+  { type: "function", name: "curve", stateMutability: "view", inputs: [], outputs: [{ type: "address" }] },
   { type: "function", name: "harvest", stateMutability: "nonpayable", inputs: [], outputs: [{ type: "uint256" }] },
   { type: "function", name: "pendingAmount", stateMutability: "view", inputs: [], outputs: [{ type: "uint256" }] },
+  // El vault emite esto en `_pull()` SOLO si movio algo. Es la unica fuente honesta de "cuanto
+  // se barrio de verdad": la simulacion previa es una prediccion, no un hecho.
+  {
+    type: "event",
+    name: "Harvested",
+    inputs: [{ name: "amount", type: "uint256", indexed: false }],
+  },
+];
+
+const curveAbi = [
+  { type: "function", name: "deployer", stateMutability: "view", inputs: [], outputs: [{ type: "address" }] },
 ];
 
 const ZERO = "0x0000000000000000000000000000000000000000";
@@ -70,14 +83,66 @@ const ZERO = "0x0000000000000000000000000000000000000000";
 const args = process.argv.slice(2);
 const SEND = args.includes("--send");
 const watchIdx = args.indexOf("--watch");
-const WATCH_S = watchIdx >= 0 ? Number(args[watchIdx + 1] ?? 900) : 0;
+let WATCH_S = 0;
+if (watchIdx >= 0) {
+  const raw = args[watchIdx + 1];
+  // `--watch --send` (los flags al reves) hacia `Number("--send")` = NaN, `while (NaN > 0)` es
+  // falso, y el proceso corria UNA pasada y salia con codigo 0 — el operador creia haber dejado
+  // un daemon y tenia un one-shot, sin ninguna advertencia.
+  if (raw === undefined) {
+    WATCH_S = 900;
+  } else if (/^\d+$/.test(raw)) {
+    WATCH_S = Number(raw);
+  } else {
+    console.error(`--watch necesita segundos, recibi: "${raw}". Uso: --send --watch 900`);
+    process.exit(1);
+  }
+  if (WATCH_S <= 0) {
+    console.error("--watch tiene que ser mayor que cero");
+    process.exit(1);
+  }
+}
 
-/** Piso: no gastar ~0,00004 ETH de gas para mover menos que eso. */
-const MIN_HARVEST_WEI = BigInt(process.env.MIN_HARVEST_WEI ?? "200000000000000"); // 0,0002 ETH
+/** Piso: un harvest cuesta ~0,000116 ETH de gas (medido), asi que no vale mover menos que esto. */
+const MIN_HARVEST_WEI = parseWeiEnv("MIN_HARVEST_WEI", "200000000000000"); // 0,0002 ETH
+
+/**
+ * `??` no cubre la cadena VACIA, y `BigInt("")` es 0n: con `MIN_HARVEST_WEI=` en el env (que es
+ * lo que pasa si alguien descomenta la linea del .env.example sin pegar el valor) el piso caia a
+ * cero y el keeper mandaba una transaccion por vault en cada ciclo, quemando gas para siempre.
+ * Y si alguien lo escribe en ETH (`0.0002`, que es como lo describe el propio comentario),
+ * `BigInt` tiraba SyntaxError al cargar el modulo. Las dos entradas ahora se validan.
+ */
+function parseWeiEnv(name, fallback) {
+  const raw = (process.env[name] ?? "").trim();
+  if (raw === "") return BigInt(fallback);
+  if (!/^\d+$/.test(raw)) {
+    console.error(`${name} tiene que ser un entero EN WEI (no ETH, no decimales). Recibi: "${raw}"`);
+    process.exit(1);
+  }
+  return BigInt(raw);
+}
+
+/** Piso de gas del propio keeper: por debajo de esto no vale la pena ni intentar. */
+const MIN_KEEPER_BALANCE_WEI = parseWeiEnv("MIN_KEEPER_BALANCE_WEI", "2000000000000000"); // 0,002 ETH
 
 /** El RPC público está detrás de Cloudflare y corta las ráfagas. Hay que espaciar. */
 const RPC_GAP_MS = Number(process.env.RPC_GAP_MS ?? 250);
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+
+/** Suma los `Harvested(amount)` que emitio el vault en esta transaccion. Sin evento: cero. */
+function harvestedFromReceipt(receipt) {
+  let total = 0n;
+  for (const log of receipt.logs ?? []) {
+    try {
+      const ev = decodeEventLog({ abi: vaultAbi, data: log.data, topics: log.topics });
+      if (ev.eventName === "Harvested") total += ev.args.amount;
+    } catch {
+      // logs de otros contratos en la misma tx (el escrow de pons, la curva)
+    }
+  }
+  return total;
+}
 
 function requireEnv(name) {
   const v = process.env[name];
@@ -127,8 +192,11 @@ async function pass() {
   if (SEND) {
     const bal = await publicClient.getBalance({ address: account.address });
     console.log(`keeper ${account.address} · saldo ${formatEther(bal)} ETH`);
-    if (bal === 0n) {
-      console.error("el keeper no tiene gas — no hay nada que hacer");
+    // Antes se comparaba contra CERO, que 1 wei ya pasa. Un harvest cuesta ~0,000116 ETH.
+    if (bal < MIN_KEEPER_BALANCE_WEI) {
+      console.error(
+        `el keeper no tiene gas suficiente (piso ${formatEther(MIN_KEEPER_BALANCE_WEI)} ETH) — no mando nada`,
+      );
       return;
     }
   }
@@ -137,7 +205,12 @@ async function pass() {
   let sent = 0;
   let skipped = 0;
 
+  let failed = 0;
   for (let i = 0n; i < total; i++) {
+    // Un try POR VAULT: antes, una falla a mitad de pasada abortaba todos los vaults restantes
+    // de ese ciclo y ni siquiera imprimia el resumen. Como `allVaults` esta ordenado por
+    // antiguedad, la COLA —los vaults mas nuevos— era sistematicamente la que no se barria.
+    try {
     await sleep(RPC_GAP_MS);
     const vault = await publicClient.readContract({
       address: FACTORY,
@@ -151,6 +224,26 @@ async function pass() {
     if (token.toLowerCase() === ZERO) {
       // sin moneda atada, `sweepCurve()` es un no-op: no hay curva que barrer
       skipped++;
+      continue;
+    }
+
+    // CANARIO DEL REDIRECT. `curve.deployer()` es el `creatorFeeRecipient` vigente. Si deja de
+    // ser este vault, el owner de pons redirigio las fees — que es exactamente el evento contra
+    // el que este keeper existe para defender. Sin este chequeo se veria igual que "no hay nada
+    // que barrer": el `try/catch` vacio de `_sweepCurve()` se traga el revert y el vault se
+    // contaria como `skipped`, en silencio.
+    await sleep(RPC_GAP_MS);
+    const recipient = await publicClient.readContract({
+      address: await publicClient.readContract({ address: vault, abi: vaultAbi, functionName: "curve" }),
+      abi: curveAbi,
+      functionName: "deployer",
+    });
+    if (recipient.toLowerCase() !== vault.toLowerCase()) {
+      console.error(
+        `  ${vault}  !! ALERTA: las creator fees ya NO apuntan a este vault (ahora: ${recipient}).\n` +
+          `     Es el redirect del owner de pons. Este keeper ya no puede barrer esa curva.`,
+      );
+      failed++;
       continue;
     }
 
@@ -177,8 +270,8 @@ async function pass() {
       continue;
     }
 
-    harvested += would;
     if (!SEND) {
+      harvested += would;
       console.log(`  ${vault}  →  barrería ${formatEther(would)} ETH`);
       continue;
     }
@@ -190,26 +283,59 @@ async function pass() {
         functionName: "harvest",
         chain: robinhood,
       });
-      console.log(`  ${vault}  →  ${formatEther(would)} ETH   tx ${hash}`);
-      sent++;
-      await publicClient.waitForTransactionReceipt({ hash });
+      const receipt = await publicClient.waitForTransactionReceipt({ hash });
+
+      // SOLO SE CUENTA LO QUE SE MOVIO DE VERDAD.
+      //
+      // La version anterior sumaba `would` (la SIMULACION) antes de intentar la transaccion, asi
+      // que un keeper que fallaba todo igual imprimia un total saludable en ETH. Y habia un caso
+      // peor y silencioso: una tx EXITOSA que mueve cero, porque entre la simulacion y el envio
+      // otro barrio la curva — muy alcanzable, el operador de pons barre en concurrencia. El
+      // log salia impecable.
+      //
+      // El vault emite `Harvested(amount)` solo si movio algo: sin evento, se movio cero.
+      if (receipt.status !== "success") {
+        console.error(`  ${vault}  FALLO: la transaccion revirtio (tx ${hash})`);
+        failed++;
+        continue;
+      }
+      const moved = harvestedFromReceipt(receipt);
+      harvested += moved;
+      if (moved === 0n) {
+        console.log(`  ${vault}  →  0 ETH (otro barrio primero)   tx ${hash}`);
+      } else {
+        console.log(`  ${vault}  →  ${formatEther(moved)} ETH   tx ${hash}`);
+        sent++;
+      }
     } catch (e) {
       console.error(`  ${vault}  FALLO: ${String(e).split("\n")[0]}`);
+      failed++;
+    }
+    } catch (e) {
+      console.error(`  vault #${i}  FALLO (sigo con los demas): ${String(e).split("\n")[0]}`);
+      failed++;
     }
   }
 
   console.log(
     `resumen: ${SEND ? `${sent} barrido(s)` : "dry-run"} · ${formatEther(harvested)} ETH ` +
-      `· ${skipped} sin nada que hacer`,
+      `${SEND ? "movidos DE VERDAD" : "estimados"} · ${skipped} sin nada que hacer` +
+      (failed ? ` · ⚠️ ${failed} con problemas` : ""),
   );
 }
 
-await pass();
-while (WATCH_S > 0) {
-  await sleep(WATCH_S * 1000);
+// La PRIMERA pasada tambien va dentro del try. Antes estaba afuera, asi que un rate-limit en
+// rafaga la mataba con exit 1 y un stack crudo de viem — sin haber entrado nunca al modo watch,
+// o sea con el barrido apagado. Y barrer seguido es la unica mitigacion del redirect retroactivo
+// de pons, asi que un keeper que se apaga solo no es un bug de tooling.
+let first = true;
+do {
+  if (!first) await sleep(WATCH_S * 1000);
+  first = false;
   try {
     await pass();
   } catch (e) {
     console.error("pasada fallida:", String(e).split("\n")[0]);
+    if (WATCH_S === 0) process.exitCode = 1;
   }
-}
+} while (WATCH_S > 0);

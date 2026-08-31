@@ -302,14 +302,23 @@ curl https://<dominio>/api/relay/claim
 Si `RELAYER_PK` no está, la ruta responde 503, la UI **no ofrece** el botón sin gas y el dev firma
 él mismo. O sea: se puede deployar sin relayer y prenderlo después, sin tocar código.
 
-**Lo que lo protege de que te vacíen el saldo** (todo en `web/lib/relay.ts`, con 18 tests):
+**Lo que lo protege de que te vacíen el saldo** (todo en `web/lib/relay.ts`, con 22 tests):
 
 1. sólo se relayan vouchers firmados por **nuestro** attester vigente, sobre un digest que el
    server recalcula — y el attester sólo firma tras un OAuth real que matchea la identidad;
 2. un vault ya bindeado no se relaya (límite natural por vault, sin estado nuestro);
 3. el vault tiene que estar **atado a una moneda real**: para hacernos gastar gas hay que haber
    pagado un launch de pons (0,0005 ETH), que cuesta más que el gas;
-4. piso de saldo y **simulación antes de firmar**: un claim que revertiría no se paga.
+4. piso de saldo y **simulación antes de firmar**: un claim que revertiría no se paga;
+5. **techo de precio de gas** (`RELAYER_MAX_FEE_WEI`, default 2 gwei). La defensa 3 es en
+   realidad una afirmación sobre el gas price — a 0,25 gwei el launch fee es 17× el gas, pero por
+   encima de ~4,2 gwei se invierte y el ataque se vuelve rentable. El techo la ancla;
+6. **sólo firmas canónicas**. Para toda firma existe una gemela malleada que recupera la misma
+   dirección; el `ECDSA` de OpenZeppelin la rechaza en el contrato, así que aceptarla en el server
+   sólo servía para pagar gas de transacciones que iban a revertir;
+7. **un candado por vault tomado de forma síncrona**, antes de tocar la red. Con el chequeo al
+   entrar y la marca cuatro round-trips después, 25 pedidos concurrentes conseguían 25
+   transacciones firmadas — un doble click alcanzaba.
 
 Lo que **no** cubre, dicho claro: alguien con una cuenta real de GitHub que pague launches de
 verdad puede hacernos pagar el gas de sus propios claims. Es gasto acotado por launch y no le da

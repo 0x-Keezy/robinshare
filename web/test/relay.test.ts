@@ -47,8 +47,16 @@ vi.mock("@/lib/chain", () => ({
   robinhoodChain: { id: 4663 },
 }));
 
-const { parseRelayRequest, isRefusal, assertRelayable, claimInFlight, markInFlight, clearInFlight } =
-  await import("@/lib/relay");
+const {
+  parseRelayRequest,
+  isRefusal,
+  assertRelayable,
+  acquireClaimLock,
+  releaseClaimLock,
+  isClaimLocked,
+  isCanonicalSignature,
+  __resetClaimLocksForTests,
+} = await import("@/lib/relay");
 const { bindDigestLocal } = await import("@/lib/bind");
 
 const NOW = 1_800_000_000;
@@ -71,7 +79,7 @@ beforeEach(() => {
   token = TOKEN;
   bindNonce = 0n;
   attester = attesterAddress;
-  clearInFlight(VAULT);
+  __resetClaimLocksForTests();
 });
 
 describe("parseRelayRequest — nada del cliente se cree", () => {
@@ -188,17 +196,67 @@ describe("assertRelayable — la politica anti-abuso", () => {
   });
 });
 
-describe("dedupe en vuelo", () => {
-  it("marca y limpia", () => {
-    expect(claimInFlight(VAULT, NOW * 1000)).toBe(false);
-    markInFlight(VAULT, NOW * 1000);
-    expect(claimInFlight(VAULT, NOW * 1000)).toBe(true);
-    clearInFlight(VAULT);
-    expect(claimInFlight(VAULT, NOW * 1000)).toBe(false);
+describe("firmas canonicas (malleabilidad)", () => {
+  // Para toda firma (r,s,v) existe la gemela (r, n-s, v invertido) que recupera la MISMA
+  // direccion. `recoverAddress` acepta las dos; el ECDSA de OpenZeppelin que corre en el
+  // contrato rechaza la de `s` alto. Sin este filtro el server aprobaba variantes que la cadena
+  // despues rechaza, y lo unico que evitaba pagar ese gas era el simulate — o sea que la defensa
+  // declarada no era la que estaba funcionando.
+  const N = 0xfffffffffffffffffffffffffffffffebaaedce6af48a03bbfd25e8cd0364141n;
+
+  function malleate(sig: string): Hex {
+    const r = sig.slice(2, 66);
+    const s = BigInt(`0x${sig.slice(66, 130)}`);
+    const v = parseInt(sig.slice(130, 132), 16);
+    const flipped = (N - s).toString(16).padStart(64, "0");
+    const newV = (v === 27 ? 28 : 27).toString(16).padStart(2, "0");
+    return `0x${r}${flipped}${newV}` as Hex;
+  }
+
+  it("acepta la firma canonica", async () => {
+    expect(isCanonicalSignature(await voucher(ATTESTER_PK))).toBe(true);
   });
 
-  it("expira sola, para que una tx colgada no bloquee el vault para siempre", () => {
-    markInFlight(VAULT, NOW * 1000);
-    expect(claimInFlight(VAULT, NOW * 1000 + 91_000)).toBe(false);
+  it("RECHAZA la gemela malleada, que es la que el contrato rechazaria", async () => {
+    const good = await voucher(ATTESTER_PK);
+    const evil = malleate(good);
+    expect(evil).not.toBe(good);
+    expect(isCanonicalSignature(evil)).toBe(false);
+  });
+
+  it("la politica completa tambien la rechaza, sin llegar a la cadena", async () => {
+    const evil = malleate(await voucher(ATTESTER_PK));
+    const r = await assertRelayable(
+      { vault: VAULT, payout: PAYOUT, deadline: DEADLINE, signature: evil },
+      NOW,
+    );
+    expect(r?.status).toBe(400);
+    expect(r?.reason).toMatch(/non-canonical/i);
+  });
+});
+
+describe("el candado de concurrencia", () => {
+  it("lo toma UNO solo: N pedidos simultaneos no pueden pasar todos", () => {
+    // El bug que esto cierra: el chequeo estaba al entrar y la marca cuatro round-trips de RPC
+    // despues, asi que 25 POST en paralelo conseguian 25 transacciones firmadas. Tomarlo de
+    // forma SINCRONA es lo que lo arregla: Node no interrumpe entre `await`s.
+    const tokens = Array.from({ length: 25 }, (_, i) => NOW * 1000 + i);
+    const ganadores = tokens.filter((t) => acquireClaimLock(VAULT, t));
+    expect(ganadores).toHaveLength(1);
+  });
+
+  it("solo lo suelta el que lo tomo", () => {
+    const mio = NOW * 1000;
+    expect(acquireClaimLock(VAULT, mio)).toBe(true);
+    releaseClaimLock(VAULT, mio + 999); // un hermano intentando soltarlo
+    expect(isClaimLocked(VAULT, mio)).toBe(true);
+    releaseClaimLock(VAULT, mio);
+    expect(isClaimLocked(VAULT, mio)).toBe(false);
+  });
+
+  it("expira solo, para que una tx colgada no bloquee el vault para siempre", () => {
+    acquireClaimLock(VAULT, NOW * 1000);
+    expect(isClaimLocked(VAULT, NOW * 1000 + 91_000)).toBe(false);
+    expect(acquireClaimLock(VAULT, NOW * 1000 + 91_000)).toBe(true);
   });
 });
