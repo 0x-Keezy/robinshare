@@ -175,6 +175,28 @@ export default function CreatePage() {
       return setMsg("Recovery must be 0 (never) or between 30 and 3650 days.");
     }
 
+    // Con recovery habilitado, un handle que NADIE puede reclamar convierte el clawback
+    // opcional del launcher en uno garantizado — el ataque que el producto existe para impedir.
+    // El contrato valida el charset pero no puede saber si la cuenta existe. Sólo se bloquea con
+    // un "no existe" DEFINITIVO: si GitHub no contesta, se deja pasar (bloquear por un GitHub
+    // caído sería peor que el riesgo). Con `recoveryDays = 0`, que es el default, ni se consulta.
+    if (days > 0 && type === "github") {
+      setBusy("Checking the handle exists…");
+      try {
+        const r = await fetch(`/api/github-handle?login=${encodeURIComponent(handle.trim())}`);
+        const j = await r.json();
+        if (j.exists === false) {
+          setBusy(null);
+          return setMsg(
+            `github.com/${handle.trim()} does not exist. With a recovery window set, a coin launched for a name nobody can claim becomes a guaranteed clawback for you — which is exactly what this product exists to prevent. Fix the handle, or set recovery to 0.`,
+          );
+        }
+      } catch {
+        // no se pudo averiguar: se sigue
+      }
+      setBusy(null);
+    }
+
     // El tope se valida contra el valor VIVO, no contra la constante: si pons lo baja, los
     // botones de preset se esconden pero el estado por default seguiria mandando 300 bps y la
     // transaccion revertiria CreatorTaxTooHigh DESPUES de que `createVault` ya gasto gas.

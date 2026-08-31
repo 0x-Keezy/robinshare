@@ -1,9 +1,12 @@
 # RUNBOOK — Launch de RobinShare sobre pons v2 (Robinhood Chain 4663)
 
-> **Estado: LISTO PARA AUDITAR, NO PARA DEPLOYAR.** El ciclo entero esta probado contra los
-> contratos REALES de pons en fork (`contracts/test/ForkPons.t.sol`, 10 tests verdes) y el script de
-> deploy esta ensayado en SIMULACION contra la cadena real. Lo que falta **no** es tecnico: el
-> contrato es nuevo, custodia ETH de terceros y **no esta auditado**. Ver `PENDIENTES.md`.
+> **Estado: LISTO PARA LANZAR, esperando las llaves de Jose.** El ciclo entero esta probado
+> contra los contratos REALES de pons en fork (`contracts/test/ForkPons.t.sol`, 10 tests verdes),
+> y el camino completo de launch-day —deploy + las tres transacciones + la verificacion— esta
+> ensayado de punta a punta contra un anvil que forkea la cadena.
+>
+> **El contrato NO esta auditado**, y Jose decidio lanzar igual (`PENDIENTES.md` §1). Lo que falta
+> son las cuatro llaves del §0 y fondear dos wallets.
 >
 > **Diferencia con `RUNBOOK-launch.md`**: aquel es el rail de **Flap** (`VaultPortal`, vanity
 > `0x7777`, badge de Flap, Guardian). Sigue vivo en la rama `flap-rail` + tag `audited-v3`. Este es
@@ -35,11 +38,30 @@
 > (`0xccDaB0d5Bc6E0aCb8B157cffFA062688Aa849c17`). Es infra de un competidor, sin auth ni SLA — ver
 > `PENDIENTES.md` §4 antes de promocionar esa ruta.
 
-## 1. Verificar que el rail sigue donde lo dejamos
+## 1. Preflight: un comando que dice si se puede lanzar hoy
 
-Todo lo de abajo es **estado mutable** del owner de pons (Safe 2-de-3
-`0x263ed295dAFaE1d9AAdD6E56c4B6F9f38eE019Dd`), no constantes del protocolo. Correr esto ANTES de
-deployar y ANTES de cada launch.
+**Corre esto primero, siempre.** Chequea la cadena, el estado mutable de pons, tus wallets, la
+factory (si ya existe) y la web. No manda ninguna transaccion y **no necesita ninguna private
+key**: se le pasan direcciones. Sale con codigo 1 si falta algo bloqueante.
+
+```bash
+cd web
+DEPLOYER_ADDRESS=0x... ATTESTER_ADDRESS=0x... node scripts/preflight.mjs
+
+# despues del deploy, sumando lo que ya exista:
+DEPLOYER_ADDRESS=0x... ATTESTER_ADDRESS=0x... \
+NEXT_PUBLIC_FACTORY_ADDRESS=0x... APP_BASE_URL=https://<dominio> \
+RELAYER_ADDRESS=0x... KEEPER_ADDRESS=0x... node scripts/preflight.mjs
+```
+
+Entre otras cosas caza el error mas caro posible: que el `attester` on-chain de la factory **no
+coincida** con el `ATTESTER_ADDRESS` que va al env de Vercel. Si eso pasa, todo claim de GitHub
+revierte en silencio.
+
+### Lo que hay debajo, si lo queres a mano
+
+Todo esto es **estado mutable** del owner de pons (Safe 2-de-3
+`0x263ed295dAFaE1d9AAdD6E56c4B6F9f38eE019Dd`), no constantes del protocolo.
 
 ```bash
 export PATH="$HOME/.foundry/bin:$PATH"
@@ -130,9 +152,44 @@ van las fees → creator tax → firmar **tres** transacciones. La pagina lee `l
 launch revierte en vez de aterrizar bajo otras reglas. Si una de las tres firmas falla, volver a
 apretar el boton **retoma donde quedo**: no se rehace lo ya hecho.
 
-**Opcion B — CLI.** El orden NO es negociable: el vault va primero porque la creation code de la
-curva de pons incluye el `creatorFeeRecipient`, asi que la direccion del token depende de la del
-vault y no se puede predecir al reves.
+**Opcion B — el script `LaunchPons.s.sol` (la via recomendada para el piloto).**
+
+Hace las **tres transacciones en un solo comando**, con los parametros tipados, el preflight
+adentro y la verificacion post-launch adentro. Reemplaza a los `cast send` a mano, que es donde
+estaban TODOS los errores: el comando escrito a mano fallo dos veces por comillas del shell, y un
+`cast send` que parsea MAL manda 0,0005 ETH con los campos corridos.
+
+```bash
+cd contracts
+export FACTORY=0x...                  # la RobinShareVaultFactory ya deployada
+export NAME="RobinShare Pilot"
+export SYMBOL=RSHARE
+export IDENTITY_TYPE=1                # 0 wallet · 1 github · 2 x
+export IDENTITY_VALUE=0x-keezy
+export IDENTITY_WALLET=0x0000000000000000000000000000000000000000
+export RECOVERY_DAYS=0                # 0 = nunca (el default del producto)
+export CREATOR_TAX_BPS=1000           # 10,00%
+export LOGO=https://github.com/0x-keezy.png
+export DESCRIPTION="fees routed to a builder"
+
+# 1) ENSAYO — sin --broadcast no firma ni manda nada
+forge script script/LaunchPons.s.sol --rpc-url robinhood --compute-units-per-second 40
+
+# 2) REAL
+forge script script/LaunchPons.s.sol --rpc-url robinhood --broadcast --private-key $DEPLOYER_PK
+```
+
+Se niega ANTES de gastar si: la FACTORY no es una RobinShareVaultFactory, apunta a otro rail, el
+`creatorTaxBps` supera el tope vivo de pons, pons tiene el launch cerrado, o los `recoveryDays`
+son invalidos. Y despues del launch verifica solo las cinco cosas que el runbook pedia chequear a
+mano — incluida la unica que de verdad importa, que `curve.deployer()` sea el vault.
+
+**Probado end-to-end contra un anvil que forkea la cadena**: deploy + las tres transacciones + la
+verificacion, todo verde, y los rechazos del preflight disparando.
+
+**Opcion C — los tres `cast send` a mano.** El orden NO es negociable: el vault va primero porque
+la creation code de la curva de pons incluye el `creatorFeeRecipient`, asi que la direccion del
+token depende de la del vault y no se puede predecir al reves.
 
 ```bash
 # 5.1 · el vault. (uint8 identityType, string handle, address wallet, uint256 recoveryDays)

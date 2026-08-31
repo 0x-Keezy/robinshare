@@ -230,9 +230,19 @@ Con `recoveryDays > 0` cualquiera de las dos convierte el clawback **opcional** 
 **Por qué no se "arregló" en el contrato:** la lista de nombres reservados cambia y no se puede
 mantener on-chain, y la existencia de una cuenta no es verificable desde Solidity.
 
-**Qué hace falta decidir:** una de estas, y es de producto, no técnica.
-1. Dejar `recoveryDays = 0` como el **único** valor permitido en la UI (el default ya lo es), y
-   ofrecer recovery sólo por CLI para quien sepa lo que hace.
-2. Chequear en `/create` que el handle exista en GitHub antes de permitir `recoveryDays > 0`.
-   Mitiga el caso realista sin tocar el contrato; es bypasseable por CLI.
-3. Aceptarlo y decirlo (hoy `/create` ya avisa en el texto de ayuda del campo).
+> **ACTUALIZADO 2026-08-31 — la opción 2 YA ESTÁ IMPLEMENTADA** (`/api/github-handle` +
+> el chequeo en `/create`, con 5 tests). Con `recoveryDays > 0` y una identidad de GitHub, la
+> página consulta si la cuenta existe y **se niega a lanzar** ante un "no existe" definitivo,
+> explicando por qué. Si GitHub no contesta, deja pasar: bloquear un launch legítimo porque
+> GitHub está caído sería peor que el riesgo. Con `recoveryDays = 0` —el default— ni se consulta.
+>
+> Se eligió la 2 porque es la única que mitiga el caso realista sin tocar el contrato ni quitarle
+> una opción al producto. **Sigue siendo bypasseable por CLI**, y las otras dos siguen
+> disponibles si querés endurecerlo más.
+
+**Qué queda por decidir:** si además querés la opción 1 (prohibir `recoveryDays > 0` en la UI por
+completo). Las opciones eran:
+1. Dejar `recoveryDays = 0` como el **único** valor permitido en la UI, y ofrecer recovery sólo
+   por CLI para quien sepa lo que hace.
+2. ~~Chequear en `/create` que el handle exista~~ — **hecho**.
+3. Aceptarlo y decirlo (hoy `/create` además avisa en el texto de ayuda del campo).
