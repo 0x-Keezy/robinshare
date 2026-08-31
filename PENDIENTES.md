@@ -21,10 +21,13 @@ Y custodian ETH de terceros — el modelo del producto es que la plata espere *i
 alguien que todavía no tiene wallet.
 
 **Lo que ya se hizo para que la auditoría sea barata:**
-- El vault pesa **9.014 B** y la factory **14.731 B** (la versión Flap pesaba 22–24 KB).
-- **147 tests unitarios + 10 de fork contra los contratos reales de pons**, incluido el ciclo
-  completo de plata, la graduación real cruzando 4,2 ETH, los tres rechazos (par ERC-20, buyback
-  activo, launch ajeno) y las regresiones de la ronda adversarial.
+- El vault pesa **9.034 B** y la factory **14.751 B** (la versión Flap pesaba 22–24 KB).
+- **55 tests unitarios del rail nuevo + 10 de fork contra los contratos reales de pons**,
+  incluido el ciclo completo de plata, la graduación real cruzando 4,2 ETH, los tres rechazos (par
+  ERC-20, buyback activo, launch ajeno) y las regresiones de las dos rondas adversariales.
+  (`forge test` reporta **149**, pero 94 de esos son del rail de Flap que **no** se porta — el
+  número que hay que mirar para juzgar la cobertura de `RobinShareVault` /
+  `RobinShareVaultFactory` es **55**, más los 10 de fork.)
 - Una ronda de review con **tres agentes frescos** (seguridad · conformidad al spec · "¿esto
   funcionaría en la cadena real?"), con todo lo bloqueante y alto ya cerrado. Los hallazgos y sus
   fixes están en los commits de `feat/pons-web`; el auditor humano debería empezar por ahí.
@@ -165,3 +168,46 @@ externa?**
 Decirlo es lo más honesto y cuesta conversiones. No decirlo no es mentir —la página no afirma lo
 contrario— pero se apoya en que nadie pregunte. **Es decisión de Jose**, y depende de §1: si la
 auditoría se contrata antes del launch, la pregunta desaparece sola.
+
+---
+
+## 9. ¿Quién corre y quién fondea el keeper de `sweepCurve()`?
+
+El repo trata el barrido como **obligatorio** y no como una optimización: el runbook §8 dice
+literalmente *"`sweepCurve()` no es opcional"*, y el spec §12.1 lo pone como la **única** mitigación
+del redirect retroactivo de pons (el owner puede reapuntar las fees con 3 días de aviso, y el cambio
+alcanza todo lo que no se haya barrido). Medido: en 404 s tradearon 118 curvas de pons y el operador
+barrió 15.
+
+Pero hoy eso existe sólo como una línea de `cast send` en el runbook con un `$KEEPER_PK` que no está
+definido en ninguna parte. **No hay keeper.**
+
+**Qué hace falta decidir:** si corre (un cron en algún lado, un bot, o a mano), con qué wallet, y
+quién le pone el gas. Es plata caliente, como §7. Es barato — el ciclo completo son ~270k gas — pero
+alguien lo tiene que pagar y alguien lo tiene que vigilar.
+
+---
+
+## 10. Handles que nadie puede reclamar: el arreglo del contrato no cierra la clase
+
+La ronda de review cerró tres formas *sintácticas* de handle imposible (`-torvalds`, `torvalds-`,
+`tor--valds` — las reglas reales de GitHub). Pero un revisor mostró en fork que la **clase** sigue
+abierta por dos puertas que el contrato no puede ver:
+
+- **nombres reservados de GitHub** (`settings`, `about`, `login`, `security`…) pasan la validación y
+  no son perfiles de nadie;
+- más simple todavía: un handle **válido y no registrado** (`zzq-nonexistent-abc-9x`). El atacante lo
+  registra él mismo y cobra como "la identidad", o espera el recovery.
+
+Con `recoveryDays > 0` cualquiera de las dos convierte el clawback **opcional** del launcher en uno
+**garantizado**, que es justo el ataque que el producto existe para impedir.
+
+**Por qué no se "arregló" en el contrato:** la lista de nombres reservados cambia y no se puede
+mantener on-chain, y la existencia de una cuenta no es verificable desde Solidity.
+
+**Qué hace falta decidir:** una de estas, y es de producto, no técnica.
+1. Dejar `recoveryDays = 0` como el **único** valor permitido en la UI (el default ya lo es), y
+   ofrecer recovery sólo por CLI para quien sepa lo que hace.
+2. Chequear en `/create` que el handle exista en GitHub antes de permitir `recoveryDays > 0`.
+   Mitiga el caso realista sin tocar el contrato; es bypasseable por CLI.
+3. Aceptarlo y decirlo (hoy `/create` ya avisa en el texto de ayuda del campo).

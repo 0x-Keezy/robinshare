@@ -268,6 +268,7 @@ const REVERT_HINTS: [RegExp, string][] = [
   [/PairMustBeNative/, "RobinShare only supports launches paired against native ETH."],
   [/BuybackMustBeDisabled/, "The launch has pons' buyback enabled, which would divert half the builder's fees into a 5-year vest. The vault refuses to attach to it."],
   [/NotOurLaunch/, "That launch does not route its creator fees to this vault."],
+  [/LaunchedByStranger/, "That coin was launched by a different wallet than the one that created this vault. Send this last step from the wallet that created it, or launch the coin from that same wallet."],
   [/TokenAlreadyAttached/, "This vault is already attached to a token."],
   [/BadHandleCharset/, "That handle has characters no real account can have (only a-z, 0-9 and - or _)."],
   [/BadHandleLength/, "That handle is too long or empty."],

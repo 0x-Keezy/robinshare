@@ -32,7 +32,21 @@ const labelStyle = { fontFamily: "var(--f-mono)", color: RS.FAINT, letterSpacing
 /// Progreso del launch. Se guarda en estado a proposito: el flujo son TRES transacciones y si
 /// una falla no hay que rehacer las anteriores. Un vault sin token es inofensivo (nunca recibe
 /// fees), pero volver a crearlo seria tirar gas y dejar un vault huerfano de mas.
-type Progress = { vault?: Address; token?: Address; curve?: Address; attached?: boolean };
+type Progress = {
+  vault?: Address;
+  token?: Address;
+  curve?: Address;
+  attached?: boolean;
+  /// A QUE IDENTIDAD pertenece el vault guardado. Sin esto, retomar un launch a medias con otro
+  /// handle en el formulario lanzaba la moneda nueva apuntando al vault de la identidad ANTERIOR
+  /// — o sea, las fees de la moneda de Alice cobrables por Bob, de forma irreversible.
+  identityKey?: string;
+};
+
+/// Clave estable de una identidad, para comparar el formulario contra lo que quedo guardado.
+function identityKeyOf(type: IdentityType, handle: string, wallet: string): string {
+  return type === "wallet" ? `wallet:${wallet.toLowerCase()}` : `${type}:${handle.trim().toLowerCase()}`;
+}
 
 /// El progreso se guarda TAMBIEN en localStorage, no solo en estado de React.
 ///
@@ -181,6 +195,15 @@ export default function CreatePage() {
       // La creation code de la curva de pons incluye el `creatorFeeRecipient`, asi que la
       // direccion del token depende de la del vault: no se puede predecir al reves. Por eso el
       // orden es fijo y no hay un orquestador de una sola transaccion.
+      const currentKey = identityKeyOf(type, handle, recipientWallet);
+      if (step.vault && step.identityKey && step.identityKey !== currentKey) {
+        // El vault guardado es de OTRA identidad. Seguir lanzaria la moneda nueva apuntandole
+        // las fees a esa otra persona, y `attachToken` es de una sola vez: irreversible.
+        return setMsg(
+          `You have an unfinished launch for "${step.identityKey}", but the form now says "${currentKey}". Finish the old one with its original details, or discard it below — otherwise the new coin would pay the previous identity.`,
+        );
+      }
+
       if (!step.vault) {
         setBusy("1/3 · Creating the vault…");
         const vaultTx = await writeContractAsync({
@@ -193,7 +216,7 @@ export default function CreatePage() {
         const receipt = await publicClient.waitForTransactionReceipt({ hash: vaultTx });
         const vault = vaultFromReceiptLogs(receipt.logs, factory);
         if (!vault) throw new Error("The vault transaction confirmed but emitted no VaultCreated event.");
-        step = { ...step, vault };
+        step = { ...step, vault, identityKey: currentKey };
         setProgress(step);
       }
 
@@ -315,8 +338,9 @@ export default function CreatePage() {
             <p className="mt-4 text-sm leading-relaxed" style={{ color: RS.DIM }}>
               Fees now accrue to the {type === "twitter" ? "X" : type === "github" ? "GitHub" : "wallet"} identity.
               Send them the claim page. They didn&apos;t need a wallet for you to launch this, and
-              nobody — not you, not us — can redirect the fees away from them. To collect, they
-              connect a wallet and pay the gas for one transaction.
+              <strong> you can never redirect the fees away from them</strong>. To collect, they
+              connect a wallet and pay the gas for one transaction. (Two powers are not ours to
+              disclaim — pons, and on GitHub vaults our attester key. The footer spells both out.)
             </p>
           </div>
         ) : (
@@ -428,7 +452,9 @@ export default function CreatePage() {
               <p className="mt-3 text-xs leading-relaxed" style={{ color: RS.FAINT }}>
                 {type === "wallet"
                   ? "Fees are bound to this wallet from launch. It just withdraws them."
-                  : "They claim by proving the handle is theirs. You can't redirect it — neither can we."}
+                  : type === "github"
+                    ? "They claim by proving the handle is theirs, through GitHub. You can never redirect it — though a GitHub claim is only as good as our attester key, which is why the footer says so."
+                    : "They claim by posting from the handle. You can never redirect it, and the proof comes from an on-chain oracle, not from us."}
               </p>
 
               <div className="mt-6 border-t pt-5" style={{ borderColor: RS.HAIR }}>
@@ -467,15 +493,28 @@ export default function CreatePage() {
               <span className="text-xs leading-relaxed" style={{ color: RS.FAINT }}>
                 {Number(recoveryDays) === 0
                   ? "Irrevocable: the fees wait for the builder forever. You can never take them back."
-                  : `You could reclaim the unclaimed balance after ${recoveryDays} days — but only if nobody has proved the identity by then. Minimum 30 days.`}
+                  : `You could reclaim the unclaimed balance — repeatedly, as more fees arrive — any time after ${recoveryDays} days, for as long as nobody has proved the identity. Minimum 30 days. Double-check the handle actually exists: a coin launched for a name nobody can claim turns this into a guaranteed clawback, which is exactly what the product exists to prevent.`}
               </span>
             </label>
 
             {(progress.vault || progress.token) && !done && (
               <div className="rounded-xl border p-4 text-xs leading-relaxed" style={{ borderColor: RS.HAIR, fontFamily: "var(--f-mono)", color: RS.DIM }}>
-                <div>Partial progress — press launch again to resume, nothing is lost:</div>
-                {progress.vault && <div className="mt-1.5 break-all">vault · {progress.vault}</div>}
+                <div>Unfinished launch — press launch again to resume, nothing is lost:</div>
+                {progress.identityKey && (
+                  <div className="mt-1.5" style={{ color: RS.INK }}>for · {progress.identityKey}</div>
+                )}
+                {progress.vault && <div className="mt-1 break-all">vault · {progress.vault}</div>}
                 {progress.token && <div className="mt-1 break-all">token · {progress.token}</div>}
+                <button
+                  onClick={() => {
+                    setProgress({});
+                    setMsg(null);
+                  }}
+                  className="mt-3 rounded-full border px-4 py-1.5 text-[10px] uppercase tracking-[0.12em]"
+                  style={{ borderColor: RS.HAIR, color: RS.DIM }}
+                >
+                  Discard it
+                </button>
               </div>
             )}
 

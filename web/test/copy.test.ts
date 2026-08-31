@@ -151,6 +151,46 @@ describe("las paginas donde se firma no pueden prometer de mas", () => {
     expect(CLAIM_REQUIREMENTS).not.toMatch(/any ETH/i);
   });
 
+  it("ninguna superficie publica un conteo de tests", () => {
+    // Se pudren en cuanto alguien agrega un test, y ya habian llegado a TRES numeros distintos
+    // y contradictorios entre paginas (95, 71, 51) con el suite real en otro valor.
+    for (const [name, src] of [...surfaces, ["create", createPage], ["claim", claimPage]] as [
+      string,
+      string,
+    ][]) {
+      expect(src, `${name} publica un conteo de tests`).not.toMatch(/\d{2,4}\s*tests?/i);
+      expect(src, `${name} publica un conteo de tests`).not.toMatch(/TESTS\s*=\s*\d/i);
+    }
+  });
+
+  it("nada afirma que las fees no las puede redirigir NADIE", () => {
+    // El launcher no puede, y eso es cierto y vendible. Pero "ni nosotros" es falso en la ruta
+    // GitHub (la firma del attester ES la prueba de identidad) y en el rail (pons puede, con
+    // timelock). Estas dos frases estaban vivas en /create, que es donde se compromete plata, y
+    // el gate anterior no miraba esa pagina.
+    for (const [name, src] of [...surfaces, ["create", createPage], ["claim", claimPage]] as [
+      string,
+      string,
+    ][]) {
+      expect(src, `${name}: "neither can we"`).not.toMatch(/neither can we/i);
+      expect(src, `${name}: "not you, not us"`).not.toMatch(/not you,? not us/i);
+    }
+  });
+
+  it("/claim no ejecuta un voucher que le paga a otra wallet", () => {
+    // La cookie de /start ata el flujo al navegador, pero el atacante puede hacer que la VICTIMA
+    // arranque el flujo con el payout del atacante — el servidor no puede distinguirlo. La
+    // defensa que si funciona es negarse a usar un voucher que no le paga a quien esta mirando.
+    expect(claimPage).toMatch(/voucherPaysConnectedWallet/);
+    expect(claimPage).toMatch(/voucherForSomeoneElse/);
+  });
+
+  it("/create no puede retomar un launch de OTRA identidad", () => {
+    // Sin esto, retomar un launch a medias con otro handle en el formulario lanzaba la moneda
+    // nueva apuntandole las fees al vault de la identidad anterior. Irreversible.
+    expect(createPage).toMatch(/identityKey/);
+  });
+
   it("/create y /claim guardan la cadena antes de firmar", () => {
     // Sin esto, una wallet parada en Ethereum manda la transaccion igual, a una direccion que
     // ahi no tiene codigo: no revierte, se come el gas, y la pagina espera un receipt en 4663

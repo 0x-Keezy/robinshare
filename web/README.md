@@ -1,5 +1,16 @@
 # FLEDGE web (attester + dApp de claim)
 
+> ⚠️ **ESTE README DESCRIBE EL RAIL DE FLAP, QUE YA NO ES LA LINEA VIVA.**
+>
+> RobinShare se porto al launchpad **pons v2** (misma cadena, Robinhood Chain 4663). En el rail
+> nuevo no hay `VaultPortal`, ni vanity `0x7777`, ni Guardian, y los contratos son
+> `RobinShareVault` + `RobinShareVaultFactory`. Lo de abajo sigue siendo correcto **para la rama
+> `flap-rail` y el tag `audited-v3`**, y se conserva por eso.
+>
+> Para el rail vivo: [`docs/superpowers/specs/2026-08-29-robinshare-pons-port-design.md`](../docs/superpowers/specs/2026-08-29-robinshare-pons-port-design.md)
+> (diseno), [`docs/RUNBOOK-launch-pons.md`](../docs/RUNBOOK-launch-pons.md) (operacion) y
+> [`PENDIENTES.md`](../PENDIENTES.md) (lo que falta decidir). **El contrato nuevo no esta auditado.**
+
 App Next.js 16 que contiene **el attester** (API routes que verifican GitHub/X y firman vouchers EIP-712) y **el dApp de claim** (lookup de vaults por identidad, prueba de identidad, cobro).
 
 ## Cómo funciona
@@ -22,7 +33,7 @@ anvil --fork-url https://rpc.mainnet.chain.robinhood.com
 #    NEXT_PUBLIC_FACTORY_ADDRESS=<factory deployada en el fork>
 #    ATTESTER_PK / ATTESTER_STATE_SECRET / GITHUB_*
 npm run dev
-npx vitest run        # 15 tests: state HMAC, firma bindDigest, gates de identidad de las rutas
+npx vitest run        # la suite completa: state HMAC, firma bindDigest, gates de identidad de las rutas
 npm run build
 ```
 

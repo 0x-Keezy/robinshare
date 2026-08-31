@@ -171,8 +171,8 @@ export function MangaHome() {
             </div>
             <p className="mt-4 max-w-lg text-[11px] leading-relaxed" style={{ fontFamily: "var(--f-mono)", color: DIM }}>
               Small print, said out loud: pons — the launchpad — can redirect a coin&apos;s creator
-              fees behind a public 3-day timelock. We can&apos;t, and neither can whoever launched
-              it.
+              fees behind a public 3-day timelock, and a GitHub claim trusts our attester key.
+              Whoever launched the coin can never redirect it. Full version in the footer.
             </p>
           </div>
 

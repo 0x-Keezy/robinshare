@@ -264,4 +264,42 @@ contract ReviewRound2Test is Test {
         v.withdrawToken(address(weird));
         assertEq(weird.balanceOf(dev), 3e18);
     }
+
+    /// @notice El fix del squat no puede BRICKEAR un vault legitimo.
+    /// @dev Hallazgo de la segunda ronda: si el vault lo crea una wallet y la moneda la lanza
+    ///      otra (equipo, multisig, script con otra key, o el orquestador de 1 tx de §4 cuando
+    ///      exista), `attachToken` revertia PARA SIEMPRE — `token` solo se escribe ahi, no hay
+    ///      setter ni admin — y las fees quedaban en una curva que el vault jamas podria barrer.
+    ///      Medido contra la curva real: `sweepFees` solo lo puede llamar el `creatorFeeRecipient`.
+    function test_attachToken_elLauncherPuedeBendecirUnLaunchDeOtraWallet() public {
+        RobinShareVault v = _github();
+        MockCurve c = new MockCurve(address(v), escrow);
+        address coLanzador = makeAddr("multisig-del-equipo");
+        pons.setLaunchFull(REAL_TOKEN, address(c), address(v), address(0), false);
+        pons.setLaunchDeployer(REAL_TOKEN, coLanzador);
+
+        // un tercero sigue sin poder
+        vm.prank(stranger);
+        vm.expectRevert(RobinShareVault.LaunchedByStranger.selector);
+        v.attachToken(REAL_TOKEN);
+
+        // pero el launcher del vault si puede bendecirlo
+        vm.prank(launcher);
+        v.attachToken(REAL_TOKEN);
+        assertEq(v.token(), REAL_TOKEN, "el launcher tiene que poder rescatar su propio vault");
+    }
+
+    /// @notice El happy path, con el `deployer` puesto A MANO y no derivado del recipient.
+    /// @dev El mock deriva `deployer` del launcher del vault, asi que el test del camino feliz
+    ///      era CIRCULAR: el mock construia justo la condicion que el contrato despues chequea.
+    ///      Aca el valor se fija explicito.
+    function test_attachToken_happyPath_conDeployerExplicito() public {
+        RobinShareVault v = _github();
+        MockCurve c = new MockCurve(address(v), escrow);
+        pons.setLaunchFull(REAL_TOKEN, address(c), address(v), address(0), false);
+        pons.setLaunchDeployer(REAL_TOKEN, launcher); // explicito, no derivado
+        vm.prank(makeAddr("tercero-cualquiera"));
+        v.attachToken(REAL_TOKEN);
+        assertEq(v.token(), REAL_TOKEN);
+    }
 }

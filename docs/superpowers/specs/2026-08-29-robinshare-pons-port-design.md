@@ -278,7 +278,7 @@ no aplican. Se cierran de otra forma, sin llaves:
 | Escenario | Antes | Ahora |
 |---|---|---|
 | `boundWallet` no puede recibir | `emergencyWithdrawNative` (Guardian) | **Payout pull** (§5.4) |
-| Attester perdido | co-gate del Guardian en `rotateAttester` | Rotación por el attester vigente + otras dos rutas |
+| Attester perdido | co-gate del Guardian en `rotateAttester` | Rotación por el attester vigente, **o** por `attesterAdmin` si se fijó uno. Con `attesterAdmin = 0x0` **no hay sucesor** y una llave perdida congela los vaults de GitHub para siempre — es una decisión abierta, PENDIENTES §3. *(Corregido 2026-08-30: esta celda decía "otras dos rutas" y hay una sola.)* |
 | Tax en vuelo durante un incidente | `setRescueForward` | No aplica: en pons el dinero se acredita, no se empuja |
 | Beneficiary que nunca aparece | Rescate del Guardian | **No es un defecto**: con `recoveryDays = 0` la plata espera indefinidamente. Esperar a su dueño **es el producto** |
 
@@ -292,7 +292,12 @@ vault a una dirección que no sea `boundWallet` o el destino de `recoverUnclaime
 >
 > - vaults de **wallet**: sólo la identidad original, vía `rebindWallet`. Cerrado.
 > - vaults de **X**: sólo quien produzca una prueba del oráculo con el substring exacto, que ata la
->   wallet y el vault. Cerrado *si el oráculo se comporta* (§12.3).
+>   wallet y el vault. Cerrado *si el oráculo se comporta* (§12.3) — **con una salvedad medida
+>   2026-08-30**: el binding es por **handle**, no por `xId`. `claimByProof` lee `proof.xId` y lo
+>   descarta, así que si el handle se libera y otra persona lo registra, el nuevo dueño puede
+>   probarlo y cobrar el vault del anterior. No hay arreglo limpio (el vault no conoce el `xId`
+>   correcto al crearse, porque el launcher tipea un handle); un pin al primer claim cerraría la
+>   mitad del re-bind. Queda para el auditor y para PENDIENTES §4.
 > - vaults de **GitHub**: quien tenga la llave del **attester**, que es nuestra. En esa ruta la firma
 >   ES la prueba de identidad, así que la llave puede bindear cualquier vault de GitHub a cualquier
 >   wallet — probado en `ReviewRound2.t.sol::test_attesterAdmin_SI_alcanzaLosFondosDeUnVaultGithub`.

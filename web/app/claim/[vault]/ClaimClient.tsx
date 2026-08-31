@@ -332,6 +332,40 @@ export function ClaimClient({ vault }: { vault: Address }) {
     }
   }
 
+  // Una direccion que no salio de nuestra factory, o un RPC caido, dejaban esta pagina en
+  // "Loading vault…" PARA SIEMPRE, con un stack de viem por consola y nada en pantalla. El
+  // chequeo de procedencia ya existia pero su resultado no se leia en ningun lado: era codigo
+  // muerto. Ahora tiene su propia rama.
+  if (isKnownVault === false)
+    return (
+      <RSShell>
+        <main className="mx-auto w-full max-w-2xl px-6 py-14">
+          <h1
+            style={{ fontFamily: "var(--f-display)", lineHeight: 1 }}
+            className="text-[clamp(1.6rem,5vw,2.4rem)] uppercase tracking-tight"
+          >
+            Not a RobinShare vault.
+          </h1>
+          <p className="mt-4 max-w-md text-sm leading-relaxed" style={{ color: RS.DIM }}>
+            {msg ??
+              "This address was not created by the RobinShare factory, so there is nothing to claim here. Check the link you were sent."}
+          </p>
+          <p className="mt-6 break-all text-xs" style={{ fontFamily: "var(--f-mono)", color: RS.FAINT }}>
+            {vault}
+          </p>
+          <p className="mt-8">
+            <Link
+              href="/"
+              className="text-sm font-medium underline decoration-1 underline-offset-4 hover:opacity-70"
+              style={{ color: RS.DIM }}
+            >
+              ← Look up a vault by identity
+            </Link>
+          </p>
+        </main>
+      </RSShell>
+    );
+
   if (!s)
     return (
       <RSShell>
@@ -351,6 +385,20 @@ export function ClaimClient({ vault }: { vault: Address }) {
   // rail de Flap, y lo que permitio borrar el Guardian entero — si la wallet no puede recibir ETH
   // en una llamada push, simplemente no llama.
   const isPayoutWallet = !!address && address.toLowerCase() === s.bound.toLowerCase();
+  /// EL CHEQUEO QUE CIERRA EL CSRF DEL OAUTH.
+  ///
+  /// La cookie de `/api/attest/github/start` ata el flujo al navegador que lo empezo, pero eso
+  /// NO alcanza: al atacante le basta con mandarle a la victima un link a NUESTRO propio
+  /// `/start?vault=<el de la victima>&payout=<wallet del atacante>`. Ahi el navegador de la
+  /// victima se auto-emite la cookie, va a GitHub, vuelve con ella puesta, el login matchea la
+  /// identidad del vault (es el dev de verdad) y el server firma un voucher que paga al atacante.
+  /// El servidor no puede distinguir ese caso: la request la hace la victima.
+  ///
+  /// Lo que si se puede es negarse a USAR un voucher que no le paga a quien esta mirando. La
+  /// wallet conectada es del usuario; un voucher a nombre de otro no se ejecuta y se avisa.
+  const voucherPaysConnectedWallet =
+    !!voucher && !!address && voucher.payout.toLowerCase() === address.toLowerCase();
+  const voucherForSomeoneElse = !!voucher && !!address && !voucherPaysConnectedWallet;
   const isAttached = s.token !== ZERO;
   const badge = recoveryBadge(s.recoveryAfter, Math.floor(Date.now() / 1000), isBound);
 
@@ -480,7 +528,7 @@ export function ClaimClient({ vault }: { vault: Address }) {
                 )}
 
                 {/* Social: hay voucher listo -> Claim; si no, verificar */}
-                {!isBound && s.identityType !== 0 && voucher && (
+                {!isBound && s.identityType !== 0 && voucher && (isDemo || voucherPaysConnectedWallet) && (
                   <button
                     onClick={handleClaimClick}
                     disabled={effectivePending}
@@ -489,6 +537,27 @@ export function ClaimClient({ vault }: { vault: Address }) {
                   >
                     Claim to {voucher.payout.slice(0, 6)}…{voucher.payout.slice(-4)}
                   </button>
+                )}
+                {!isDemo && voucherForSomeoneElse && (
+                  <div
+                    className="rounded-xl border p-4 text-sm leading-relaxed"
+                    style={{ borderColor: "#c0392b", color: "#c0392b" }}
+                  >
+                    <strong>Stop.</strong> This verification would send the fees to{" "}
+                    <span style={{ fontFamily: "var(--f-mono)" }}>
+                      {voucher!.payout.slice(0, 10)}…{voucher!.payout.slice(-8)}
+                    </span>
+                    , which is not the wallet you have connected. That happens when the
+                    verification link was started by someone else. Nothing has been signed on-chain
+                    — start the verification again from this page.
+                    <button
+                      onClick={() => setVoucher(null)}
+                      className="mt-3 block rounded-full border px-4 py-1.5 text-xs uppercase tracking-[0.12em]"
+                      style={{ borderColor: "#c0392b", color: "#c0392b", fontFamily: "var(--f-mono)" }}
+                    >
+                      Discard it
+                    </button>
+                  </div>
                 )}
                 {!isBound && s.identityType === 1 && !voucher && !demoVerified && !demoClaimed && (
                   <button onClick={handleVerifyGithubClick} disabled={effectivePending} className={ctaCls} style={ctaStyle}>
@@ -595,12 +664,11 @@ export function ClaimClient({ vault }: { vault: Address }) {
                     </button>
                   </div>
                 )}
-                {!isBound && s.identityType === 0 && (
-                  <p className="text-sm leading-relaxed" style={{ color: RS.FAINT }}>
-                    This is a wallet vault — its fees can only ever go to the wallet it was bound to
-                    at launch, and only that wallet can withdraw them.
-                  </p>
-                )}
+                {/* Antes habia aca un bloque para `!isBound && identityType === 0`. Es
+                    INALCANZABLE: el constructor del vault fija `boundWallet = identityWallet` y
+                    exige que no sea 0, asi que un vault de wallet nace bindeado. Ademas su copy
+                    era inexacto ("solo puede ir a la wallet del launch" — `rebindWallet` la
+                    rota). Codigo muerto, borrado. */}
               </>
             )}
           </div>

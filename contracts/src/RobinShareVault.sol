@@ -186,7 +186,15 @@ contract RobinShareVault is EIP712, ReentrancyGuard {
         //
         // Que `deployer` sea quien LANZO (y no el recipient vigente) esta probado contra la
         // cadena real en ForkPons.t.sol::test_fork_fullCycle_nativePair.
-        if (info.deployer != launcher) revert LaunchedByStranger();
+        //
+        // La segunda mitad (`msg.sender == launcher`) NO debilita nada y evita un brick: sin
+        // ella, si el vault lo crea una wallet y la moneda la lanza otra (un equipo, un multisig,
+        // un script con otra key, o el orquestador de 1 tx de §4 cuando exista), el vault
+        // quedaba inservible PARA SIEMPRE — `token` solo se escribe aca y no hay setter ni
+        // admin, asi que las fees se acumulaban en una curva que el vault nunca podria barrer.
+        // Que el propio launcher bendiga explicitamente ese launch no le da al atacante ninguna
+        // capacidad nueva: un launcher hostil ya puede lanzar su propia moneda y atarla.
+        if (info.deployer != launcher && msg.sender != launcher) revert LaunchedByStranger();
         // SOLO PARES NATIVOS. El camino del dinero de este vault es ETH: con un par ERC-20 las
         // fees se acreditan en el ledger POR TOKEN del escrow de pons y `pull()`/`withdraw()`
         // entregarian CERO, con la UI mostrando un vault vacio. El spec §2 ya declaraba fuera de
@@ -408,10 +416,6 @@ contract RobinShareVault is EIP712, ReentrancyGuard {
 
     // ───────────────────────── recovery ─────────────────────────
 
-    /// @notice Si la identidad nunca aparecio Y el launcher fijo un plazo, devuelve el balance.
-    /// @dev `recoveryAfter == 0` (el DEFAULT del producto) lo deshabilita para siempre. Hacerlo
-    ///      obligatorio le daria al launcher un clawback garantizado: lanzar "para" un dev conocido,
-    ///      farmear fees y quedarse con todo si la persona no aparece a tiempo.
     /// @notice Gemelo de `recoverUnclaimed` para ERC-20 que hayan llegado sin aviso.
     /// @dev Sin esto, un token que aterriza en un vault que nunca se bindeo queda encerrado para
     ///      siempre: `withdrawToken` exige un boundWallet que por hipotesis no existe.
@@ -428,6 +432,26 @@ contract RobinShareVault is EIP712, ReentrancyGuard {
         IERC20(erc20).safeTransfer(to, amount);
     }
 
+    /// @notice Si la identidad nunca aparecio Y el launcher fijo un plazo, devuelve el balance.
+    ///
+    /// @dev `recoveryAfter == 0` (el DEFAULT del producto) lo deshabilita para siempre. Hacerlo
+    ///      obligatorio le daria al launcher un clawback garantizado: lanzar "para" un dev conocido,
+    ///      farmear fees y quedarse con todo si la persona no aparece a tiempo.
+    ///
+    ///      DOS PROPIEDADES QUE HAY QUE LEER ANTES DE FIJAR UN PLAZO, senaladas por un review y
+    ///      dejadas asi a proposito:
+    ///
+    ///      1. **No es de un solo uso.** Pasado `recoveryAfter`, y mientras nadie haya probado la
+    ///         identidad, el launcher puede llamar esto una y otra vez a medida que entran fees
+    ///         nuevas. O sea que "recovery" no es un rescate puntual: es un derecho PERMANENTE
+    ///         sobre el flujo, hasta que alguien bindee. Se deja asi porque la alternativa —un
+    ///         flag de un solo uso— dejaria encerrado para siempre todo lo que entre despues.
+    ///      2. **Se puede front-runear.** El chequeo `boundWallet != 0` se evalua al ejecutar, asi
+    ///         que un launcher mirando el mempool puede meter su `recoverUnclaimed` delante del
+    ///         `claimAndBind` del dev y vaciar el vault; el claim del dev entra igual pero bindea
+    ///         un vault en cero. Es inherente a cualquier recovery por reloj.
+    ///
+    ///      Las dos desaparecen con `recoveryDays = 0`, que es el default y el modo promocionado.
     function recoverUnclaimed(address to) external nonReentrant {
         if (msg.sender != launcher) revert OnlyLauncher();
         if (to == address(0)) revert ZeroPayout();

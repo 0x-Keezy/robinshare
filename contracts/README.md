@@ -1,5 +1,16 @@
 # FLEDGE contracts
 
+> ⚠️ **ESTE README DESCRIBE EL RAIL DE FLAP, QUE YA NO ES LA LINEA VIVA.**
+>
+> RobinShare se porto al launchpad **pons v2** (misma cadena, Robinhood Chain 4663). En el rail
+> nuevo no hay `VaultPortal`, ni vanity `0x7777`, ni Guardian, y los contratos son
+> `RobinShareVault` + `RobinShareVaultFactory`. Lo de abajo sigue siendo correcto **para la rama
+> `flap-rail` y el tag `audited-v3`**, y se conserva por eso.
+>
+> Para el rail vivo: [`docs/superpowers/specs/2026-08-29-robinshare-pons-port-design.md`](../docs/superpowers/specs/2026-08-29-robinshare-pons-port-design.md)
+> (diseno), [`docs/RUNBOOK-launch-pons.md`](../docs/RUNBOOK-launch-pons.md) (operacion) y
+> [`PENDIENTES.md`](../PENDIENTES.md) (lo que falta decidir). **El contrato nuevo no esta auditado.**
+
 `SocialFeeEscrow` + `SocialFeeEscrowFactory` — el motor on-chain de FLEDGE sobre Flap × Robinhood Chain (4663).
 
 ## Qué es cada contrato
@@ -19,7 +30,7 @@
 ```bash
 export PATH="$HOME/.foundry/bin:$PATH"
 forge build --sizes                                              # AMBOS contratos deben quedar bajo 24,576 B (EIP-170)
-forge test                                                        # 95 tests; el fork test skipea (vm.skip) sin --fork-url
+forge test                                                        # la suite completa; el fork test skipea (vm.skip) sin --fork-url
 forge test --match-contract Fork --fork-url robinhood -vv         # e2e real contra la chain
 ```
 
@@ -67,7 +78,7 @@ Review multi-lente (4 auditores independientes + síntesis), y luego el audit fo
 GT indicó el path: Flap revisa el código + nosotros agregamos integration tests para RH; la info está en `flap-sh/FlapVaultExample` (spec-checker oficial + rule 006 + integration-test-guide).
 
 - **Guardian REAL de Robinhood desbloqueado:** del commit `3b7689d8` de FlapVaultExample → `0x0000b48720d3B4ED6BC5031768B07F2b59270000` (resuelve el placeholder histórico `0xdEaD`; ver `src/flap/RobinhoodAddresses.sol`). Agregadas las ramas 4663 a `_getPortal`/`_getVaultPortal`/`_getGuardian` de los base contracts. A diferencia del estado original del proyecto, hoy el Guardian SÍ se usa: co-gatea/gatea 3 funciones (`emergencyWithdrawNative`, `setRescueForward`, `rotateAttester`).
-- **Cobertura rule 006 (integration tests):** writes happy+revert (`claimAndBind`/`claimByProof`/`rebindWallet`/`sweep`/`recoverUnclaimed`), views (`pendingAmount`/`boundWallet`/`expectedTweet`), `description()` cambia con el estado, `vaultUISchema()` (count + isWriteMethod, 7 métodos), `vaultDataSchema()` de la factory, `newVault()` portal-only + revert desde no-portal, y `testReceiveGasUnder1M` (Rule 005). Total **95 tests** (71 del preaudit v2 + 21 del audit v3 de GT + 3 post-v3 del wiring de `X_VERIFIER` en Robinhood) — correr `forge test` para el número real.
+- **Cobertura rule 006 (integration tests):** writes happy+revert (`claimAndBind`/`claimByProof`/`rebindWallet`/`sweep`/`recoverUnclaimed`), views (`pendingAmount`/`boundWallet`/`expectedTweet`), `description()` cambia con el estado, `vaultUISchema()` (count + isWriteMethod, 7 métodos), `vaultDataSchema()` de la factory, `newVault()` portal-only + revert desde no-portal, y `testReceiveGasUnder1M` (Rule 005). Total **la suite completa** (71 del preaudit v2 + 21 del audit v3 de GT + 3 post-v3 del wiring de `X_VERIFIER` en Robinhood) — correr `forge test` para el número real.
 - **Integration test para RH:** `Fork.t.sol` lanza un token real vía el VaultPortal de RH y corre launch → tax → claim(github) → sweep + receive<1M + schema/description contra el estado real de la chain. Reproducir: `forge test --match-contract Fork --fork-url robinhood -vv`.
 - Pendiente para el badge oficial: correr el spec-checker de FlapVaultExample como gate final + pasarle a Flap el standard-json-input + addresses cuando deployemos.
 

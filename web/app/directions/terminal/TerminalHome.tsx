@@ -199,8 +199,8 @@ export function TerminalHome() {
           <div className="mt-14 grid max-w-xl grid-cols-2 gap-y-1 text-xs sm:grid-cols-4" style={{ color: PHOS_FAINT }}>
             <span>CHAIN=4663</span>
             <span>BLOCK=100ms</span>
-            <span>ADMIN_KEYS=0</span>
-            <span>TESTS=51 ✓</span>
+            <span>ADMIN_KEYS=0 (ours; see footer)</span>
+            <span>CHAIN=4663</span>
           </div>
         </section>
 

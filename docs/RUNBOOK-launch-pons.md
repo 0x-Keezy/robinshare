@@ -1,7 +1,7 @@
 # RUNBOOK — Launch de RobinShare sobre pons v2 (Robinhood Chain 4663)
 
 > **Estado: LISTO PARA AUDITAR, NO PARA DEPLOYAR.** El ciclo entero esta probado contra los
-> contratos REALES de pons en fork (`contracts/test/ForkPons.t.sol`, 7 tests verdes) y el script de
+> contratos REALES de pons en fork (`contracts/test/ForkPons.t.sol`, 10 tests verdes) y el script de
 > deploy esta ensayado en SIMULACION contra la cadena real. Lo que falta **no** es tecnico: el
 > contrato es nuevo, custodia ETH de terceros y **no esta auditado**. Ver `PENDIENTES.md`.
 >
@@ -17,9 +17,13 @@
 - [ ] **Wallet ATTESTER** nueva y dedicada (`cast wallet new`), SIN fondos. Su address va al
       constructor; su PK va SOLO al env de Vercel (`ATTESTER_PK`). Si no matchean, `/api/health` lo
       delata (`attesterMatches:false`).
-- [ ] **`ATTESTER_ADMIN`** — decision abierta, ver `PENDIENTES.md` §3. Es un co-gate que SOLO puede
-      rotar el attester (no toca fondos, no firma vouchers). `0x0` lo desactiva, y entonces una
-      llave de attester perdida **congela para siempre** el ETH de todos los vaults de GitHub.
+- [ ] **`ATTESTER_ADMIN`** — decision abierta, ver `PENDIENTES.md` §3. Su unica funcion es rotar
+      el attester. ⚠️ **Eso NO es inocuo**: rotar el attester a una llave propia y firmarse un
+      voucher alcanza los fondos de cualquier vault de **GitHub** (probado en
+      `ReviewRound2.t.sol::test_attesterAdmin_SI_alcanzaLosFondosDeUnVaultGithub`). No alcanza los
+      vaults de wallet ni los de X. `0x0` lo desactiva, y entonces una llave de attester perdida
+      **congela para siempre** el ETH de todos los vaults de GitHub. O sea: la eleccion es entre un
+      riesgo de liveness y uno de custodia. Leer `PENDIENTES.md` §2 y §3 antes de elegir.
 - [ ] **GitHub OAuth app** (`GITHUB_CLIENT_ID` / `GITHUB_CLIENT_SECRET`) — paso a paso en
       `docs/DEPLOY-WEB.md` (callback: `https://<dominio>/api/attest/github/callback`).
 - [ ] **Auditoria del contrato nuevo** — `PENDIENTES.md` §1. **Este es el gate real.**
@@ -156,11 +160,15 @@ ECON=$(cast call $PONS "previewLaunchEconomics(uint256,address)(bytes32)" \
 #      Sin ellas `cast` tira `parser error` apuntando al primer campo vacio. Este comando esta
 #      VERIFICADO con `cast calldata`: encodea y da el selector 0xf35abbcf.
 SALT=$(cast keccak "robinshare/piloto/1")
+# OJO: `cast call` imprime `500000000000000 [5e14]`, o sea DOS palabras. Metido directo en
+# `--value $(...)` la sustitucion se parte y `cast send` recibe `[5e14]` como argumento suelto.
+FEE=$(cast call $PONS "launchFee()(uint256)" --rpc-url $R | awk '{print $1}')
+echo "FEE=$FEE"   # tiene que imprimir 500000000000000, sin corchetes
 cast send $PONS \
   "launchToken((string,string,string,string,(string,string,string,string,string),address,uint16,bool,bytes32,bytes32),uint256,address)(address,address)" \
   '(RobinShare Pilot,RSHARE,https://github.com/0x-keezy.png,fees routed to a builder,("","","","https://github.com/0x-keezy",""),'"$VAULT"',1000,false,'"$ECON"','"$SALT"')' \
   0 0x0000000000000000000000000000000000000000 \
-  --value $(cast call $PONS "launchFee()(uint256)" --rpc-url $R) \
+  --value $FEE \
   --rpc-url $R --private-key $DEPLOYER_PK
 
 # TOKEN y CURVE salen del evento TokenLaunched. Van INDEXADOS, asi que estan en los topics
@@ -219,8 +227,9 @@ cast call $PONS "getLaunchedToken(address)((address,address,address,address,addr
 
 | Cuando | Take del creador sobre el volumen | Por que |
 |---|---|---|
-| Primeros **3 segundos** del launch | **72,3%** | el snipe tax (9.900 bps decayendo) **se suma al bucket del creador** |
-| De ahi en adelante | **10,7%** | `creatorTaxBps` 10% + el 70% de la base fee de 1% |
+| En el **instante** del launch (t=0) | **72,3%** | el snipe tax arranca en 9.900 bps y **se suma al bucket del creador** |
+| Dentro de la ventana de 3 s | entre 72,3% y 10,7% | el snipe tax **decae rapido**: `startBps >> ((elapsed*14)/window)`, o sea que a 1 s ya cayo ~5x |
+| Pasados los 3 s | **10,7%** | `creatorTaxBps` 10% + el 70% de la base fee de 1% |
 
 Las dos cifras estan fijadas contra la cadena real en
 `ForkPons.t.sol::test_fork_feeSplit_dosRegimenes`. **La que hay que usar para cualquier

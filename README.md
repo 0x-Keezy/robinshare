@@ -1,5 +1,16 @@
 # RobinShare — route trading fees to the builders who earned them
 
+> ⚠️ **ESTE README DESCRIBE EL RAIL DE FLAP, QUE YA NO ES LA LINEA VIVA.**
+>
+> RobinShare se porto al launchpad **pons v2** (misma cadena, Robinhood Chain 4663). En el rail
+> nuevo no hay `VaultPortal`, ni vanity `0x7777`, ni Guardian, y los contratos son
+> `RobinShareVault` + `RobinShareVaultFactory`. Lo de abajo sigue siendo correcto **para la rama
+> `flap-rail` y el tag `audited-v3`**, y se conserva por eso.
+>
+> Para el rail vivo: [`docs/superpowers/specs/2026-08-29-robinshare-pons-port-design.md`](docs/superpowers/specs/2026-08-29-robinshare-pons-port-design.md)
+> (diseno), [`docs/RUNBOOK-launch-pons.md`](docs/RUNBOOK-launch-pons.md) (operacion) y
+> [`PENDIENTES.md`](PENDIENTES.md) (lo que falta decidir). **El contrato nuevo no esta auditado.**
+
 **RobinShare** lets anyone launch a token on [Flap](https://flap.sh) (Robinhood Chain) whose
 trading fees accrue to **one person** — identified by their **GitHub, X handle, or wallet** —
 without that person needing a wallet up front. They claim by proving the identity: a GitHub
@@ -32,7 +43,7 @@ stays empty — always.
 
 | Path | What |
 |---|---|
-| `contracts/` | Foundry — `SocialFeeEscrow` + `SocialFeeEscrowFactory` (51 tests incl. fork E2E against the live chain) |
+| `contracts/` | Foundry — `SocialFeeEscrow` + `SocialFeeEscrowFactory` (la suite completa incl. fork E2E against the live chain) |
 | `web/` | Next.js 16 — landing, `/create` (launch from the browser: local salt mining, vanity `7777`), `/claim/[vault]`, GitHub OAuth attester routes, X oracle proxy |
 | `docs/` | Design specs, plans, runbook, deploy guides |
 
