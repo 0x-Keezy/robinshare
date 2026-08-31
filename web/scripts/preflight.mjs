@@ -109,16 +109,25 @@ const bad = (m) => {
 const section = (t) => console.log(`\n${t}`);
 
 /**
- * Medido en fork: deploy ~0,00215 + launch (fee 0,0005 + ~0,0037 de gas) ≈ 0,0065 ETH. La
- * transaccion cara es `launchToken`, que despliega el token Y la curva (8,26M de gas) — el gas
- * es ~7x la fee, no un redondeo.
+ * Cuanto ETH hace falta en el deployer. NO es una constante: se calcula con el gasPrice VIVO.
  *
- * Se separan dos umbrales a proposito: por debajo del MINIMO no alcanza y es bloqueante; entre el
- * minimo y el COMODO alcanza pero sin margen si pons sube la fee o el gas pica, y eso es una
- * advertencia. Antes 0,02 era bloqueante y rechazaba una wallet con 0,01, que habria alcanzado.
+ * Antes eran dos constantes fijas (0,008 bloqueante / 0,02 comodo) calibradas cuando el gas estaba
+ * caro. El 2026-08-31 eso produjo un BLOQUEANTE FALSO: rechazo una wallet con 0,005 ETH que en
+ * realidad alcanzaba de sobra — corrido end-to-end contra un anvil que forkeaba la cadena real, el
+ * deploy + las tres transacciones del piloto costaron 0,00255 ETH y sobraron 0,00245. Un preflight
+ * que frena un launch que si se podia hacer es peor que no tenerlo: entrena a ignorarlo.
+ *
+ * GAS_USED sale de esa misma corrida: 0,002550766 ETH gastados con un gasPrice de 0,30097 gwei,
+ * menos la launchFee de 0,0005, da ~6,81M de gas para las cuatro transacciones (deploy de la
+ * factory + createVault + launchToken + attachToken). launchToken es la cara: despliega el token
+ * Y la curva.
+ *
+ * Ojo con el numero que imprime forge: estima con `maxFeePerGas` (~2x el base fee) y con limites
+ * de gas inflados, asi que su "Estimated amount required" es ~1,6x lo que la cadena cobra de
+ * verdad. Sirve como techo, no como costo.
  */
-const MIN_DEPLOYER_WEI = 8_000_000_000_000_000n; // 0,008 ETH — lo medido, con poco margen
-const COMFY_DEPLOYER_WEI = 20_000_000_000_000_000n; // 0,02 ETH
+const MEASURED_GAS = 6_810_000n; // medido 2026-08-31 en fork de 4663, bloque 51.039.126
+const LAUNCH_FEE_WEI = 500_000_000_000_000n; // 0,0005 — se re-lee de pons mas abajo igual
 
 async function main() {
   console.log("PREFLIGHT — RobinShare sobre pons v2 (Robinhood Chain 4663)");
@@ -192,13 +201,43 @@ async function main() {
     bad(`DEPLOYER_ADDRESS (la wallet que deploya y lanza): ${deployerProblem}`);
   } else {
     const bal = await balanceOf(deployer);
-    if (bal === null) warn(`no pude leer el saldo del deployer (RPC)`);
-    else if (bal >= COMFY_DEPLOYER_WEI) ok(`deployer ${deployer} · ${formatEther(bal)} ETH`);
-    else if (bal >= MIN_DEPLOYER_WEI)
-      warn(`deployer ${deployer} · ${formatEther(bal)} ETH — alcanza (hace falta ~0.0065) pero sin margen`);
-    else if (bal > 0n)
-      bad(`deployer tiene ${formatEther(bal)} ETH — hacen falta al menos ${formatEther(MIN_DEPLOYER_WEI)}`);
-    else bad(`deployer ${deployer} NO TIENE ETH en 4663`);
+    // El costo se calcula con el gas de AHORA, no con una constante de hace dos semanas.
+    let gasPrice = null;
+    try {
+      await sleep(200);
+      gasPrice = await client.getGasPrice();
+    } catch { /* sin gasPrice caemos al piso de abajo */ }
+
+    if (bal === null) {
+      warn(`no pude leer el saldo del deployer (RPC)`);
+    } else if (bal === 0n) {
+      bad(`deployer ${deployer} NO TIENE ETH en 4663`);
+    } else if (gasPrice === null) {
+      // Sin gasPrice no se puede decidir con honestidad: se informa y no se bloquea por un numero
+      // inventado.
+      warn(`deployer ${deployer} · ${formatEther(bal)} ETH — no pude leer el gasPrice, no puedo decir si alcanza`);
+    } else {
+      const costo = MEASURED_GAS * gasPrice + (fee ?? LAUNCH_FEE_WEI);
+      const veces = Number((bal * 100n) / costo) / 100;
+      const gwei = Number(gasPrice) / 1e9;
+      console.log(
+        `      costo estimado hoy: ${formatEther(costo)} ETH ` +
+          `(deploy + piloto, a ${gwei.toFixed(3)} gwei)`,
+      );
+      if (bal < (costo * 13n) / 10n) {
+        bad(
+          `deployer tiene ${formatEther(bal)} ETH — es ${veces}x el costo. ` +
+            `Con menos de 1,3x, un pico de gas te deja a mitad de camino: fondeá hasta ~${formatEther(costo * 3n)}`,
+        );
+      } else if (bal < costo * 3n) {
+        warn(
+          `deployer ${deployer} · ${formatEther(bal)} ETH — alcanza (${veces}x el costo), ` +
+            `pero si el gas se triplica quedás corto`,
+        );
+      } else {
+        ok(`deployer ${deployer} · ${formatEther(bal)} ETH (${veces}x el costo estimado)`);
+      }
+    }
   }
 
   const attester = process.env.ATTESTER_ADDRESS;
@@ -361,7 +400,9 @@ async function main() {
     console.log("\nsiguiente paso:");
     // `cd ../contracts` y no `cd contracts`: esto se corre desde `web/`.
     if (!factory) {
-      console.log("  cd ../contracts && ATTESTER_ADDRESS=$ATTESTER_ADDRESS \\");
+      // Las DOS env vars, no una: sin ATTESTER_ADMIN el script aborta, y peor, si se le pasara
+      // un default silencioso quedaria mal para siempre (es immutable).
+      console.log("  cd ../contracts && ATTESTER_ADDRESS=$ATTESTER_ADDRESS ATTESTER_ADMIN=$ATTESTER_ADMIN \\");
       console.log("    forge script script/DeployPons.s.sol --rpc-url robinhood --broadcast --private-key $DEPLOYER_PK");
     } else {
       console.log("  cd ../contracts && FACTORY=$NEXT_PUBLIC_FACTORY_ADDRESS ... \\");
