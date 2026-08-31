@@ -203,9 +203,11 @@ KEEPER_PK=0x... NEXT_PUBLIC_FACTORY_ADDRESS=0x... node scripts/keeper.mjs --send
 
 ## Lo que sigue sin estar probado, y conviene que sepas
 
-- **La ruta X nunca funcionó de punta a punta**, en ningún lado. El fork sólo prueba que el
-  verifier real rechaza una firma forjada; el camino positivo necesita un tweet real. Para el
-  piloto usá **GitHub**.
+- **La ruta X no existe en este deploy.** Se decidió sacarla (`PENDIENTES.md` §4): la factory va
+  con `xVerifier = 0`, así que `createVault` con identidad X revierte en cadena y `/create` sólo
+  ofrece GitHub y wallet. Es **irreversible en esta factory** — agregar X después obliga a
+  redeployar. El motivo: el camino positivo de X nunca funcionó end-to-end en ningún lado, y
+  depende de infra de Flap que, si se apaga, deja el ETH de un builder atrapado para siempre.
 - **El claim real en mainnet** sólo existe en fork y en anvil. El paso 4 es lo que lo convierte
   en un hecho.
 - Post-graduación el vault **no tiene ruta propia** a las fees del pool: depende del operador de
@@ -213,6 +215,8 @@ KEEPER_PK=0x... NEXT_PUBLIC_FACTORY_ADDRESS=0x... node scripts/keeper.mjs --send
 
 ## Decisiones que siguen abiertas
 
-`PENDIENTES.md` — el push del repo (§6), el disclosure del conflicto con PonsVault (§5), si la
-landing declara que no está auditado (§8, pesa más ahora), y si conservás la ruta X pese a
-depender de infra de Flap (§4).
+`PENDIENTES.md` — queda **una sola**: el push del repo (§6), que es tuyo y no bloquea nada.
+
+Las otras tres se cerraron el 2026-08-31 y ya están implementadas: la ruta X sale del deploy (§4),
+la landing declara que el contrato no está auditado (§8) y declara el conflicto con PonsVault
+(§5). Las tres tienen tests que impiden que se deshagan en silencio.

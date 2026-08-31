@@ -52,7 +52,12 @@ contract DeployPons is Script {
         console2.log("  attesterAdmin:       ", factory.attesterAdmin());
         console2.log("  feeEscrow (pons):    ", factory.feeEscrow());
         console2.log("  ponsFactory:         ", factory.ponsFactory());
-        console2.log("  xVerifier (Flap):    ", factory.xVerifier());
+        console2.log("  xVerifier:           ", factory.xVerifier());
+        if (factory.xVerifier() == address(0)) {
+            console2.log("    ^ CERO a proposito: el launch va SIN la ruta de X (PENDIENTES seccion 4).");
+            console2.log("      `createVault` con identityType=2 va a revertir. Es IRREVERSIBLE:");
+            console2.log("      agregar X despues obliga a redeployar la factory.");
+        }
         console2.log("");
         console2.log("constructor-args para forge verify-contract:");
         console2.logBytes(constructorArgs(attester, attesterAdmin));
@@ -67,7 +72,7 @@ contract DeployPons is Script {
             attester,
             PonsAddresses.FEE_ESCROW,
             PonsAddresses.LAUNCH_FACTORY,
-            PonsAddresses.X_GENERAL_VERIFIER,
+            PonsAddresses.X_VERIFIER_AT_LAUNCH,
             attesterAdmin
         );
     }
@@ -84,7 +89,7 @@ contract DeployPons is Script {
             attester,
             PonsAddresses.FEE_ESCROW,
             PonsAddresses.LAUNCH_FACTORY,
-            PonsAddresses.X_GENERAL_VERIFIER,
+            PonsAddresses.X_VERIFIER_AT_LAUNCH,
             attesterAdmin
         );
     }

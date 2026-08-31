@@ -23,6 +23,7 @@ import {
   type IdentityType,
   type LaunchIdentity,
 } from "@/lib/pons";
+import { AUDIT_LINE } from "@/lib/claims";
 import { RSShell, RS } from "@/components/RSShell";
 
 const inputCls = "w-full border-0 border-b-2 bg-transparent py-2 placeholder:opacity-35 focus:outline-none";
@@ -437,7 +438,11 @@ export default function CreatePage() {
                 Who gets the fees?
               </div>
               <div className="mt-4 flex gap-2.5" style={{ fontFamily: "var(--f-mono)" }}>
-                {(["github", "twitter", "wallet"] as IdentityType[]).map((t) => (
+                {/* Sin "twitter": el lanzamiento va SIN la ruta de X (PENDIENTES §4). No es sólo
+                    cosmético — la factory se deploya con `xVerifier = 0`, así que `createVault`
+                    con identityType=2 revierte en cadena. Ofrecerlo acá sería ofrecer un botón
+                    que falla. */}
+                {(["github", "wallet"] as IdentityType[]).map((t) => (
                   <button
                     key={t}
                     onClick={() => setType(t)}
@@ -567,6 +572,16 @@ export default function CreatePage() {
             <p className="text-xs leading-relaxed" style={{ fontFamily: "var(--f-mono)", color: RS.FAINT }}>
               Three signatures: create the vault, launch the coin, link the two. The coin is always
               paired against native ETH — RobinShare can only collect from ETH-paired launches.
+            </p>
+            {/* El footer del shell ya lleva la declaración (va compuesta dentro de CUSTODY_LINE),
+                pero acá se repite a la vista: éste es el punto donde alguien firma y compromete
+                plata, y una declaración que hay que ir a buscar al pie no es una declaración. */}
+            <p
+              className="rounded-xl border px-4 py-3 text-xs leading-relaxed"
+              style={{ fontFamily: "var(--f-mono)", borderColor: RS.HAIR, color: RS.DIM }}
+            >
+              {AUDIT_LINE.trim()} It has been reviewed and tested, but no external auditor has
+              looked at it. You are the first line of defence for whatever you launch here.
             </p>
           </div>
         )}

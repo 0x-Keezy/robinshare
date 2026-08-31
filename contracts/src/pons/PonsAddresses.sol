@@ -35,9 +35,29 @@ library PonsAddresses {
     address internal constant MEME_HOOK = 0xE5e702641Ea86F4ae6cC3cDaeD2B886f976Be044;
 
     /// @notice XGeneralVerifier de Flap — oraculo on-chain de la ruta X. NO es de pons.
-    /// @dev Proxy upgradeable de un Safe 2-de-5, implementacion no verificada. Es una dependencia
-    ///      de un competidor y esta declarada como riesgo aceptado en el spec (§12.3).
+    /// @dev Proxy upgradeable de un Safe 2-de-5, implementacion no verificada, alimentado por un
+    ///      servicio HTTP de Flap sin auth y sin SLA.
+    ///
+    ///      ESTA DIRECCION QUEDA COMO REGISTRO DE LO MEDIDO, NO COMO ALGO QUE USEMOS.
+    ///      El deploy va con `X_VERIFIER_AT_LAUNCH` (= 0). Ver abajo.
     address internal constant X_GENERAL_VERIFIER = 0xccDaB0d5Bc6E0aCb8B157cffFA062688Aa849c17;
+
+    /// @notice El xVerifier con el que se deploya la factory. CERO a proposito.
+    ///
+    /// @dev DECISION DE JOSE, 2026-08-31 (`PENDIENTES.md` §4): el lanzamiento sale con GitHub y
+    ///      wallet, sin la ruta de X. Con `xVerifier = 0`, `createVault` con `identityType = 2`
+    ///      revierte `ZeroAddress()`, asi que la ruta no existe ni por accidente.
+    ///
+    ///      POR QUE. El camino positivo de X nunca funciono de punta a punta, en ningun lado: el
+    ///      fork solo prueba que el verifier real rechaza una firma forjada. Y el oraculo es infra
+    ///      de un competidor: si lo apagan o cambian la implementacion del proxy, un vault de X
+    ///      queda SIN RUTA DE CLAIM PARA SIEMPRE — `xVerifier` es immutable en el vault. Para un
+    ///      producto cuya promesa entera es "el builder cobra", dejar viva una ruta que puede
+    ///      atrapar el ETH de alguien es peor que no ofrecerla.
+    ///
+    ///      ES IRREVERSIBLE EN ESTE DEPLOY. `xVerifier` tambien es immutable en la FACTORY y no
+    ///      tiene setter: agregar X despues obliga a redeployar la factory entera.
+    address internal constant X_VERIFIER_AT_LAUNCH = address(0);
 
     /// @notice Valor vigente de `launchFee()`. MUTABLE por el owner de pons — leer en vivo.
     uint256 internal constant LAUNCH_FEE = 0.0005 ether;

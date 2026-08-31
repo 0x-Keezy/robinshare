@@ -105,7 +105,25 @@ dirección del attester no agrega nada; poner la del deployer concentra el riesg
 
 ---
 
-## 4. ¿Se conserva la ruta X, o se construye un attester propio?
+## 4. ~~¿Se conserva la ruta X?~~ — DECIDIDO: se saca, sólo GitHub y wallet
+
+> **DECISIÓN DE JOSE, 2026-08-31: el lanzamiento va SIN la ruta de X** (opción 2). La factory se
+> deploya con `xVerifier = 0`, así que `createVault` con `identityType = 2` revierte `ZeroAddress`
+> en cadena, y `/create` deja de ofrecer X.
+>
+> **El motivo que inclinó la balanza** no fue la incomodidad de depender del competidor, sino el
+> modo de falla: el camino positivo de X **nunca funcionó de punta a punta, en ningún lado**, y si
+> Flap apaga el prover o cambia la implementación del proxy, un vault de X queda **sin ruta de
+> claim para siempre** — `xVerifier` es immutable en el vault. Para un producto cuya promesa
+> entera es "el builder cobra", dejar viva una ruta que puede atrapar el ETH de alguien es peor
+> que no ofrecerla.
+>
+> **ES IRREVERSIBLE EN ESTE DEPLOY.** `xVerifier` también es immutable en la FACTORY y no tiene
+> setter: agregar X después obliga a redeployar la factory entera. Clavado en
+> `contracts/test/DeployPons.t.sol::test_deploy_vaSinRutaX` y `::test_deploy_createVaultDeXRevierte`,
+> y en `web/test/copy.test.ts`.
+>
+> Lo de abajo se conserva como el registro de qué se evaluó.
 
 La ruta de X depende **enteramente de infra de un competidor**:
 
@@ -132,7 +150,12 @@ ruta de claim. `xVerifier` es **inmutable en el vault**: no se puede reapuntar d
 
 ---
 
-## 5. Disclosure del conflicto de interés
+## 5. ~~Disclosure del conflicto de interés~~ — DECIDIDO: se declara, landing y README
+
+> **DECISIÓN DE JOSE, 2026-08-31: se declara en las dos superficies.** El texto vive en
+> `web/lib/claims.ts` como `CONFLICT_LINE` y se compone dentro de `CUSTODY_LINE`, así que aparece
+> en las nueve direcciones de arte y en el shell sin tocar nueve archivos — y una décima dirección
+> futura no puede nacer sin él. En el repo, `README.md`. `copy.test.ts` exige las dos.
 
 Jose es parte del equipo de **PonsVault**, un competidor directo en la misma cadena. RobinShare se
 lanza en pons.
@@ -183,7 +206,15 @@ por las defensas, pero es una wallet caliente y eso no lo decide un agente.
 
 ---
 
-## 8. ¿La landing declara que el contrato no está auditado?
+## 8. ~~¿La landing declara que el contrato no está auditado?~~ — DECIDIDO: sí
+
+> **DECISIÓN DE JOSE, 2026-08-31: se declara en la landing.** `AUDIT_LINE` en
+> `web/lib/claims.ts`, compuesta dentro de `CUSTODY_LINE` (llega a las nueve direcciones y al
+> shell) **y además repetida a la vista en `/create`**, junto al botón de lanzar: una declaración
+> que hay que ir a buscar al pie no es una declaración, y ése es el punto donde alguien firma.
+>
+> `copy.test.ts` exige la frase en la constante compuesta y **prohíbe** que cualquier superficie
+> afirme lo contrario (`audited` a secas, `security audit`).
 
 Al sacar los conteos de tests del copy (dos direcciones se contradecían entre sí, 95 vs 71, y
 ninguno coincidía con el suite real) quedó a la vista una pregunta que no es técnica: **una página

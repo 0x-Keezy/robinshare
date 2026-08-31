@@ -99,4 +99,9 @@ npx vitest run          # includes an executable honesty gate over the landing c
 - **The contract has not been audited.** The Flap audit does not carry over: this is new code
   that custodies other people's ETH.
 
+**Disclosure.** The person who builds RobinShare also works on **PonsVault**, a competing product
+on this same chain, and RobinShare launches its coins on pons. There is no formal obligation to
+say this; it is said anyway, because finding it out from somewhere else is worse. (`PENDIENTES.md`
+§5.)
+
 Not affiliated with Robinhood, pons or Flap.

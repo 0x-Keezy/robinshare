@@ -21,21 +21,49 @@
 ///    Decirlo importa porque cuatro paginas afirmaban "0 admin keys" a secas.
 ///  · "ETH-paired launches only" — impuesto por el contrato: `attachToken()` rechaza cualquier
 ///    launch con `pairToken != 0`.
+/// DECLARACION 1 — el contrato no paso por una auditoria externa (`PENDIENTES.md` seccion 8).
+///
+/// Decision de Jose del 2026-08-31, y viene atada a la seccion 1: el lanzamiento va sin auditar.
+/// Una pagina que custodia plata de terceros y no lo dice no esta mintiendo —nunca afirma lo
+/// contrario— pero se apoya en que nadie pregunte. Decirlo cuesta conversiones; ese es el precio.
+///
+/// Se declara en frase propia y no diluida adentro del parrafo para que siga siendo citable, y
+/// `test/copy.test.ts` prohibe ademas afirmar lo contrario en cualquier superficie.
+export const AUDIT_LINE = " This contract has not been audited.";
+
+/// DECLARACION 2 — el conflicto de interes (`PENDIENTES.md` seccion 5).
+///
+/// Quien construye RobinShare tambien trabaja en PonsVault, un competidor directo en la misma
+/// cadena, y RobinShare se lanza en pons. No hay obligacion formal de declararlo; se declara
+/// igual, porque si sale despues por otro lado sale peor. Decision de Jose del 2026-08-31: en la
+/// landing Y en el README.
+export const CONFLICT_LINE =
+  " Disclosure: the person who builds RobinShare also works on PonsVault, a competing product on " +
+  "this chain.";
+
+/// Las dos declaraciones, juntas. Se COMPONEN adentro de `CUSTODY_LINE` en vez de agregarse a
+/// mano en cada pagina: las nueve direcciones de arte tienen footer propio pero todas renderizan
+/// `CUSTODY_LINE`, asi que componerlas aca las pone en las nueve sin tocar nueve archivos — y sin
+/// que una decima direccion futura pueda nacer sin ellas.
+export const DISCLOSURES = AUDIT_LINE + CONFLICT_LINE;
+
 export const CUSTODY_LINE =
   "Permissionless. The vault has no owner, no upgrades and no emergency hatch, and whoever " +
   "launches a coin can never redirect its fees — unless they set a recovery window at launch, " +
   "which the vault publishes on-chain. Two powers are not ours to disclaim: pons, the launchpad, " +
   "can point a coin's creator fees elsewhere behind a public 3-day timelock, and on a GitHub " +
-  "vault our attester signature is what proves the identity, so that key is trusted (X and " +
-  "wallet vaults do not depend on it). ETH-paired launches only. Not affiliated with Robinhood, " +
-  "pons or Flap.";
+  "vault our attester signature is what proves the identity, so that key is trusted (wallet " +
+  "vaults do not depend on it). ETH-paired launches only. Not affiliated with Robinhood, " +
+  "pons or Flap." +
+  DISCLOSURES;
 
 /// Version corta para los lugares donde no entra el parrafo entero. Dice MENOS, pero no dice
 /// nada distinto: nunca puede afirmar "cero llaves" a secas.
 export const CUSTODY_LINE_SHORT =
   "Permissionless. No owner, no upgrades, no emergency hatch — but pons can redirect a coin's " +
   "creator fees behind a public 3-day timelock, and GitHub claims trust our attester key. " +
-  "ETH-paired launches only.";
+  "ETH-paired launches only." +
+  DISCLOSURES;
 
 /// Lo que un builder necesita de verdad para cobrar. La version anterior decia que no hacia
 /// falta "ni wallet ni ETH", y la segunda mitad era falsa: el contrato SOPORTA que un tercero

@@ -321,8 +321,9 @@ Las dos cifras estan fijadas contra la cadena real en
 proyeccion es 10,7%**: la de la ventana solo se cobra si alguien tradea en los 3 segundos
 posteriores al lanzamiento. Una version anterior de este runbook publicaba la primera como si
 fuera la de todos los dias — un 7x.
-- La ruta X como fast-follow con un tweet real, **no como gate del launch** (depende de infra de
-  Flap sin SLA).
+- La ruta X **no va**: se saco del deploy (`PENDIENTES.md` seccion 4). `xVerifier = 0` en la
+  factory, `createVault` con identityType=2 revierte, y `/create` solo ofrece GitHub y wallet.
+  Volver a ofrecerla exige redeployar la factory: `xVerifier` es immutable ahi tambien.
 - Post en X: SOLO despues del claim verde.
 
 ## 8. Operacion continua: barrer temprano

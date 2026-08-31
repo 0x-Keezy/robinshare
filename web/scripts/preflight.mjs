@@ -301,8 +301,20 @@ async function main() {
         else bad(`feeEscrow apunta a ${esc} — NO es el de pons`);
         if (pf.toLowerCase() === PONS.toLowerCase()) ok("ponsFactory correcto");
         else bad(`ponsFactory apunta a ${pf} — NO es pons`);
-        if (xv.toLowerCase() === XVER.toLowerCase()) ok("xVerifier correcto");
-        else warn(`xVerifier es ${xv} (los vaults de X dependen de esto)`);
+        // El lanzamiento va SIN la ruta de X (PENDIENTES §4): la factory se deploya con
+        // `xVerifier = 0`. Antes esto esperaba el verifier de Flap y ahora seria al reves —
+        // encontrarlo seteado significa que se deployo con la decision vieja, y como el campo es
+        // IMMUTABLE en la factory, eso no se corrige: se redeploya.
+        if (xv === "0x0000000000000000000000000000000000000000") {
+          ok("xVerifier en 0 — sin ruta de X, como se decidió (§4)");
+        } else if (xv.toLowerCase() === XVER.toLowerCase()) {
+          bad(
+            `xVerifier es el de Flap (${xv}), pero §4 decidió lanzar SIN la ruta de X. ` +
+              `Es INMUTABLE: si esta factory es la que va a producción, hay que redeployar`,
+          );
+        } else {
+          bad(`xVerifier es ${xv} — ni 0 ni el verifier conocido`);
+        }
 
         if (admin && isAddress(admin)) {
           const onchainAdmin = await read("attesterAdmin");

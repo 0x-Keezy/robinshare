@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { readdirSync, readFileSync, statSync } from "node:fs";
 import { join } from "node:path";
-import { CUSTODY_LINE, CUSTODY_LINE_SHORT, CLAIM_REQUIREMENTS } from "@/lib/claims";
+import { CUSTODY_LINE, CUSTODY_LINE_SHORT, CLAIM_REQUIREMENTS, AUDIT_LINE, CONFLICT_LINE } from "@/lib/claims";
 
 /// Gate de honestidad del copy, ejecutable.
 ///
@@ -95,6 +95,69 @@ describe("la constante canonica dice la verdad completa", () => {
 
   it("sigue diciendo que no estamos afiliados a ninguno de los tres", () => {
     expect(CUSTODY_LINE).toMatch(/Robinhood, pons or Flap/);
+  });
+});
+
+describe("las dos declaraciones que Jose decidio hacer (PENDIENTES 5 y 8)", () => {
+  /// Estas dos frases cuestan conversiones, y por eso son exactamente las que un dia alguien va a
+  /// querer sacar "solo del hero" o "solo de esta direccion". El gate las trata como parte de la
+  /// promesa, igual que el caveat de custodia.
+
+  it("la declaracion de no-auditado viaja DENTRO de la constante compartida", () => {
+    // Se verifica sobre la constante COMPUESTA y no sobre el archivo fuente: asi da igual como
+    // este escrita la composicion, lo que se exige es que el texto que se renderiza la traiga.
+    // Si alguien saca `+ DISCLOSURES` de CUSTODY_LINE, esto se pone rojo aunque el archivo siga
+    // exportando AUDIT_LINE.
+    expect(CUSTODY_LINE).toContain(AUDIT_LINE.trim());
+    expect(CUSTODY_LINE_SHORT).toContain(AUDIT_LINE.trim());
+  });
+
+  it("la declaracion del conflicto de interes tambien", () => {
+    expect(CUSTODY_LINE).toContain(CONFLICT_LINE.trim());
+    expect(CUSTODY_LINE_SHORT).toContain(CONFLICT_LINE.trim());
+  });
+
+  it("dicen lo que tienen que decir, no una version aguada", () => {
+    expect(AUDIT_LINE).toMatch(/not been audited/i);
+    expect(CONFLICT_LINE).toMatch(/PonsVault/);
+  });
+
+  it.each(surfaces)("%s no afirma que el contrato SI esta auditado", (_n, src) => {
+    // El riesgo no es solo omitir: es que una pagina de marketing gane la palabra "audited" en un
+    // badge o un bullet. `audited` a secas queda prohibido; la constante dice "not been audited",
+    // que matchearia, asi que se descuenta esa forma antes de mirar.
+    const sinLaNegacion = src.replace(/not been audited/gi, "");
+    expect(sinLaNegacion).not.toMatch(/audited/i);
+    expect(sinLaNegacion).not.toMatch(/security audit/i);
+  });
+
+  it("el README declara el conflicto de interes", () => {
+    // Decision de Jose: landing Y README. El README es donde mira quien evalua el codigo.
+    const readme = readFileSync(join(WEB, "..", "README.md"), "utf8");
+    expect(readme).toMatch(/PonsVault/);
+  });
+});
+
+describe("el lanzamiento va SIN la ruta de X (PENDIENTES 4)", () => {
+  /// La factory se deploya con `xVerifier = 0`, asi que `createVault` con identityType=2 revierte
+  /// en cadena (clavado en contracts/test/DeployPons.t.sol). Esto cubre la otra mitad: que la UI
+  /// no ofrezca un boton que no puede funcionar.
+
+  it("/create no ofrece X como identidad", () => {
+    // Se mira el ARRAY de opciones, no el archivo entero: la palabra "twitter" puede aparecer
+    // legitimamente en otros lugares (el campo social del token, por ejemplo).
+    const opciones = createPage.match(/\(\[[^\]]*\] as IdentityType\[\]\)/);
+    expect(opciones, "no encontre el selector de identidad en /create").not.toBeNull();
+    expect(opciones![0]).not.toMatch(/twitter/);
+    expect(opciones![0]).toMatch(/github/);
+    expect(opciones![0]).toMatch(/wallet/);
+  });
+
+  it("ninguna landing promete que se puede lanzar para una cuenta de X", () => {
+    for (const [name, src] of surfaces) {
+      const prometeX = /(launch|fees?|vault|coin|builder)[^.]{0,80}(on X|X handle|X account|@handle on X)/i.test(src);
+      expect(prometeX, `${name} sigue prometiendo la ruta de X`).toBe(false);
+    }
   });
 });
 
