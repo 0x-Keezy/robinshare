@@ -73,3 +73,41 @@ export const CLAIM_REQUIREMENTS =
   "They don't need a wallet for you to launch it. To collect, they connect one — and if the " +
   "relayer is funded, they don't need any ETH either: we send the claim and pay the gas. " +
   "Otherwise they pay for one transaction.";
+
+
+/// Traduce el error crudo de una wallet a algo que un builder pueda accionar.
+///
+/// POR QUE EXISTE: al intentar cobrar, la pagina mostraba 500 caracteres de tripas de viem —
+/// "Requested resource not available. Request Arguments: chain: ... data: 0x4c013f4f0000..." —
+/// a alguien que solo queria su plata. Peor: el error mas comun de todos (`-32002`) no lo tira la
+/// cadena sino la EXTENSION, cuando ya hay un pedido pendiente en la ventanita, y el texto de viem
+/// manda a mirar el RPC, que es exactamente el lugar equivocado. Verificado contra la cadena real:
+/// eth_call, eth_estimateGas, eth_feeHistory y eth_gasPrice responden todos bien.
+export function walletErrorHint(message: string): string | null {
+  const m = message.toLowerCase();
+  if (m.includes("resource not available") || m.includes("-32002")) {
+    return (
+      "Your wallet already has a request waiting. Open the extension, clear the pending prompt " +
+      "(approve or reject it), then try again. This is not a problem with the chain."
+    );
+  }
+  if (m.includes("user rejected") || m.includes("user denied")) {
+    return "You rejected the request in your wallet. Nothing was sent — press claim again when ready.";
+  }
+  if (m.includes("insufficient funds")) {
+    return (
+      "That wallet has no ETH for gas on Robinhood Chain. Either add a little, or ask us to send " +
+      "the claim for you if the relayer is on."
+    );
+  }
+  if (m.includes("deadline") || m.includes("expired")) {
+    return "The verification expired (it lasts 15 minutes). Verify with GitHub again.";
+  }
+  if (m.includes("bad attester") || m.includes("invalid signature")) {
+    return "That proof was not accepted on-chain. Verify with GitHub again to get a fresh one.";
+  }
+  if (m.includes("chain") && m.includes("switch")) {
+    return "Your wallet is on another network. Switch it to Robinhood Chain and try again.";
+  }
+  return null;
+}

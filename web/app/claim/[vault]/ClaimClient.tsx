@@ -8,6 +8,7 @@ import { injected } from "wagmi/connectors";
 import { publicClient, factoryAddress, robinhoodChain } from "@/lib/chain";
 import { escrowAbi, factoryAbi } from "@/lib/abis";
 import { recoveryBadge } from "@/lib/pons";
+import { walletErrorHint } from "@/lib/claims";
 import { RSShell, RS } from "@/components/RSShell";
 
 const ZERO = "0x0000000000000000000000000000000000000000";
@@ -241,7 +242,13 @@ export function ClaimClient({ vault }: { vault: Address }) {
       setVoucher(null);
       await refresh();
     } catch (e) {
-      setMsg(e instanceof Error ? e.message : String(e));
+      // El error crudo se conserva DEBAJO del consejo, no se tira: cuando alguien tenga que
+      // reportar el problema, el detalle tiene que seguir estando.
+      const raw = e instanceof Error ? e.message : String(e);
+      const hint = walletErrorHint(raw);
+      setMsg(hint ? `${hint}
+
+${raw}` : raw);
     }
   }
 
