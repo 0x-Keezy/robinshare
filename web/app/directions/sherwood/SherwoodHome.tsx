@@ -322,8 +322,8 @@ export function SherwoodHome() {
                 </span>
               </h1>
               <p className={`mt-8 max-w-md text-lg ${inCls()}`} style={{ color: "rgba(242,239,230,0.78)", ...inStyle(430) }}>
-                Launch a coin for someone who ships. A slice of every trade escrows to their GitHub,
-                X, or wallet — and only they can ever claim it.
+                Launch a coin for someone who ships. A slice of every trade escrows to their GitHub
+                or wallet — and only they can ever claim it.
               </p>
               <div className={`mt-9 flex flex-wrap items-center gap-4 ${inCls()}`} style={inStyle(560)}>
                 <Magnetic>
@@ -391,7 +391,7 @@ export function SherwoodHome() {
               </Reveal>
               <div className="mt-14 flex flex-col">
                 {[
-                  { k: "01 · Mark", t: "Name the builder", d: "Pick someone who ships — by their GitHub, their X, or a wallet. Their coin goes live on pons in seconds, paired against native ETH." },
+                  { k: "01 · Mark", t: "Name the builder", d: "Pick someone who ships — by their GitHub or a wallet. Their coin goes live on pons in seconds, paired against native ETH." },
                   { k: "02 · Tax", t: "Every trade pays them", d: "A slice of the trading tax drips into an on-chain vault held in their name. Automatic, permissionless, non-custodial." },
                   { k: "03 · Claim", t: "Only they collect", d: "They prove the name is theirs — a GitHub login, or a signature from the wallet you named — and sweep the gold to any wallet. No one else can." },
                 ].map((row, i) => (
@@ -533,7 +533,7 @@ export function SherwoodHome() {
                   Is there gold under <span style={{ color: GOLD, fontStyle: "italic" }}>your name</span>?
                 </h2>
                 <p className="mt-3 max-w-md" style={{ color: "rgba(242,239,230,0.68)" }}>
-                  Check the vaults sworn to your GitHub, X, or wallet — and claim what is yours.
+                  Check the vaults sworn to your GitHub or wallet — and claim what is yours.
                 </p>
 
                 <div className="mt-10 flex flex-col gap-6 sm:flex-row sm:items-end">

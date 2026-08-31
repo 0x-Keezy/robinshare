@@ -158,8 +158,8 @@ export function DecreeHome() {
             to the one who builds.»
           </p>
           <p className="mt-6 max-w-md text-[17px] leading-relaxed" style={{ color: INK_DIM }}>
-            Launch a coin for someone who ships. A slice of every trade escrows to their GitHub,
-            X, or wallet — and only they may ever claim it.
+            Launch a coin for someone who ships. A slice of every trade escrows to their GitHub
+            or wallet — and only they may ever claim it.
           </p>
           <div className="mt-9 flex flex-wrap items-center justify-center gap-5">
             <Link
@@ -188,9 +188,9 @@ export function DecreeHome() {
           </Reveal>
           <div className="mt-10 flex flex-col gap-12">
             {[
-              { n: "I", t: "Of the Naming", d: "The issuer shall name a builder — by GitHub, by X, or by wallet — and the coin shall be struck upon pons within moments, paired against native ETH. The named need not know, nor sign, nor hold a key." },
+              { n: "I", t: "Of the Naming", d: "The issuer shall name a builder — by GitHub or by wallet — and the coin shall be struck upon pons within moments, paired against native ETH. The named need not know, nor sign, nor hold a key." },
               { n: "II", t: "Of the Tithe", d: "Upon every purchase and every sale, a portion of the tax shall ride, untouched by any hand, into a vault sworn to that name. Neither issuer nor scribe nor sovereign may divert it." },
-              { n: "III", t: "Of the Claiming", d: "Only the named, upon proof — a signature, an oath of GitHub, or the oracle of X — may open the vault and carry the gold to any wallet of their choosing. No other soul may touch it." },
+              { n: "III", t: "Of the Claiming", d: "Only the named, upon proof — a signature, or an oath of GitHub — may open the vault and carry the gold to any wallet of their choosing. No other soul may touch it." },
             ].map((c, i) => (
               <Reveal key={c.n} delay={i * 100}>
                 <div className="grid gap-4 sm:grid-cols-[90px_1fr] sm:gap-8">

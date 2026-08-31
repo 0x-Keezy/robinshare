@@ -164,7 +164,7 @@ export function AvionHome() {
               Dispatch a coin to <span style={{ color: MAILRED }}>someone worth backing.</span>
             </h1>
             <p className="mt-6 max-w-md text-lg" style={{ color: "rgba(27,36,54,0.72)" }}>
-              Address it to a builder, an open source dev, anyone — by their GitHub, their X, or a wallet. Every trade franks
+              Address it to a builder, an open source dev, anyone — by their GitHub or a wallet. Every trade franks
               a little postage into escrow. It stays poste restante until they claim it.
             </p>
             <div className="mt-8 flex flex-wrap items-center gap-4">
@@ -201,7 +201,7 @@ export function AvionHome() {
         </div>
         <div className="grid gap-8 sm:grid-cols-3">
           {[
-            { t: "Address", d: "Name the recipient by their GitHub, X, or wallet. Their coin ships on pons in seconds, paired against native ETH." },
+            { t: "Address", d: "Name the recipient by their GitHub or wallet. Their coin ships on pons in seconds, paired against native ETH." },
             { t: "Frank", d: "Every buy and sell franks a slice of the trading tax into an on-chain escrow held in their name." },
             { t: "Deliver", d: "They prove who they are and the escrow is delivered, swept to any wallet they choose." },
           ].map((s, i) => (
@@ -237,7 +237,7 @@ export function AvionHome() {
             Is there mail held for <span style={{ color: "#ff8a6b" }}>you</span>?
           </h2>
           <p className="mt-3 max-w-md text-base" style={{ color: "rgba(241,232,214,0.7)" }}>
-            Look up the escrows waiting under your GitHub, X, or wallet, and collect what is addressed to you.
+            Look up the escrows waiting under your GitHub or wallet, and collect what is addressed to you.
           </p>
 
           <div className="mt-8 flex flex-col gap-3 sm:flex-row">

@@ -129,7 +129,7 @@ export function SkyHome() {
 
         <p className="mt-8 max-w-xl text-lg" style={{ color: "rgba(244,247,242,0.72)" }}>
           Someone you follow ships every day and nobody pays them. Launch their coin on pons. Every trade feeds them, by
-          their GitHub, their X, or a wallet. Only they can ever claim it. That is the whole point.
+          their GitHub or a wallet. Only they can ever claim it. That is the whole point.
         </p>
 
         <div className="mt-9 flex flex-wrap gap-3">
@@ -160,7 +160,7 @@ export function SkyHome() {
         </div>
         <div className="grid gap-10 sm:grid-cols-3">
           {[
-            { n: "01", t: "Launch", d: "Pick someone by their GitHub, X, or wallet. Their coin goes live on pons in seconds, paired against native ETH." },
+            { n: "01", t: "Launch", d: "Pick someone by their GitHub or wallet. Their coin goes live on pons in seconds, paired against native ETH." },
             { n: "02", t: "Every trade feeds them", d: "A slice of the trading tax drips into an on-chain escrow held for that identity. Automatic." },
             { n: "03", t: "Only they claim", d: "They prove it is them and sweep the ETH to any wallet. No one else can touch it." },
           ].map((s, idx) => (
@@ -186,7 +186,7 @@ export function SkyHome() {
             Were you funded?
           </h2>
           <p className="mt-3 max-w-lg text-base font-medium" style={{ color: "rgba(6,9,7,0.75)" }}>
-            Look up the escrows filling up for your GitHub, X, or wallet, and claim them.
+            Look up the escrows filling up for your GitHub or wallet, and claim them.
           </p>
 
           <div className="mt-8 flex flex-col gap-3 sm:flex-row">

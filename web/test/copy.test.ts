@@ -164,7 +164,21 @@ describe("el lanzamiento va SIN la ruta de X (PENDIENTES 4)", () => {
   /// Moraleja, la misma que ya esta escrita arriba para el caveat de custodia: la regla se escribe
   /// sobre la PROMESA (aca: "existe una ruta por X"), no sobre una redaccion puntual de ella. Por
   /// eso ahora se prohiben los TERMINOS, que es lo que no se puede parafrasear.
+  /// LA REGLA VA SOBRE LA PROMESA, Y ESTA VEZ EN SERIO.
+  ///
+  /// Version 1: buscaba `(launch|fees|vault|coin) ... (on X|X handle)`. No cazo nada.
+  /// Version 2: prohibia cuatro TERMINOS — twitter, tweet, x oracle, x handle. Tampoco cazo la
+  /// frase mas comun del sitio entero: **"their GitHub, X, or wallet"**, que estaba VIVA en
+  /// produccion en 9 direcciones mientras la suite daba 100/100 verde y la cadena revertia
+  /// ZeroAddress(). Dos veces el mismo error, y la segunda escribiendo arriba la leccion que
+  /// estaba violando.
+  ///
+  /// Version 3: se prohibe **la X como palabra suelta**. Eso es la promesa, no una redaccion:
+  /// "X" en estas paginas es el nombre de la red, y nombrarla es ofrecerla. No hay forma de
+  /// parafrasear "ofrecemos X" sin escribir X. Medido: con las 9 superficies limpias no hay un
+  /// solo falso positivo — ninguna usa la letra X para otra cosa.
   const TERMINOS_DE_X = [
+    [/\bX\b/, "la X suelta: nombrarla es ofrecerla"],
     [/twitter/i, "twitter"],
     [/\btweets?\b/i, "tweet"],
     [/x oracle/i, "x oracle"],

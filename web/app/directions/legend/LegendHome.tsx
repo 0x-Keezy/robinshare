@@ -219,8 +219,8 @@ export function LegendHome() {
               <span style={{ color: GREEN_TEXT }}>Automatically.</span>
             </h1>
             <p className="mt-6 max-w-md text-lg" style={{ color: DIM }}>
-              Launch a coin for any builder. Every trade sets a cut aside for their GitHub, X,
-              or wallet. Only they can claim it.
+              Launch a coin for any builder. Every trade sets a cut aside for their GitHub or
+              wallet. Only they can claim it.
             </p>
             <div className="mt-8 flex flex-wrap items-center gap-4">
               <Magnetic>
@@ -332,7 +332,7 @@ export function LegendHome() {
           </Reveal>
           <div className="mt-10 flex flex-col">
             {[
-              { n: "01", t: "Name them", d: "Pick a builder by GitHub, X, or wallet. Their coin lists on pons in seconds, paired against native ETH." },
+              { n: "01", t: "Name them", d: "Pick a builder by GitHub or wallet. Their coin lists on pons in seconds, paired against native ETH." },
               { n: "02", t: "Fees accrue", d: "A launch-set cut of every trade (1–10%) lands in an on-chain vault under their name." },
               { n: "03", t: "They claim", d: "They prove it's them (GitHub login, or a signature from the wallet you named) and sweep the ETH." },
             ].map((s) => (
@@ -437,7 +437,7 @@ export function LegendHome() {
               Someone may have launched you a coin.
             </h2>
             <p className="mt-3 max-w-md" style={{ color: DIM }}>
-              Search your GitHub, X, or wallet. If there&apos;s a vault, it&apos;s yours to claim.
+              Search your GitHub or wallet. If there&apos;s a vault, it&apos;s yours to claim.
             </p>
 
             <div className="mt-10 flex flex-col gap-6 sm:flex-row sm:items-end">

@@ -343,7 +343,7 @@ export function HoodHome() {
               </h1>
               <p className="ml-auto mt-7 max-w-md text-lg" style={{ color: "rgba(239,238,230,0.78)" }}>
                 Launch a coin for someone who ships. Every trade sends a slice into escrow, sworn
-                to their GitHub, X, or wallet. Only they can ever claim it.
+                to their GitHub or wallet. Only they can ever claim it.
               </p>
               <div className="mt-9 flex flex-wrap items-center justify-end gap-4">
                 <a
@@ -377,7 +377,7 @@ export function HoodHome() {
         <section className="relative min-h-[150vh]">
           <div className="mx-auto max-w-4xl px-6 py-24">
             {[
-              { act: "Act I", num: "I", t: "Mark", d: "Name the builder — by their GitHub, their X, or a wallet. Their coin goes live on pons in seconds, paired against native ETH. They don't even need to know yet." },
+              { act: "Act I", num: "I", t: "Mark", d: "Name the builder — by their GitHub or a wallet. Their coin goes live on pons in seconds, paired against native ETH. They don't even need to know yet." },
               { act: "Act II", num: "II", t: "Tribute", d: "Every buy and sell pays tribute: a slice of the trading tax rides into an on-chain vault sworn to that name. Automatic. Non-custodial. No hands touch it." },
               { act: "Act III", num: "III", t: "Claim", d: "The builder proves the name is theirs — a GitHub login, or a signature from the wallet you named — and sweeps the gold to any wallet. No one else. Not us. Not the launcher." },
             ].map((s, i) => (
@@ -448,7 +448,7 @@ export function HoodHome() {
                   Gold under <span style={{ color: GOLD }}>your name</span>?
                 </h2>
                 <p className="mt-3 max-w-md" style={{ color: "rgba(239,238,230,0.68)" }}>
-                  Check the vaults sworn to your GitHub, X, or wallet — and claim what is yours.
+                  Check the vaults sworn to your GitHub or wallet — and claim what is yours.
                 </p>
 
                 <div className="mt-8 flex flex-col gap-3 sm:flex-row">

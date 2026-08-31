@@ -142,7 +142,7 @@ export function MangaHome() {
             </h1>
             <p className="mt-6 max-w-md text-lg leading-relaxed" style={{ color: DIM }}>
               Launch a coin for someone who ships. Every trade sends a slice into an on-chain
-              vault with their name on it — GitHub, X, or wallet. Only they can claim it.
+              vault with their name on it — GitHub or wallet. Only they can claim it.
             </p>
             <div className="mt-8 flex flex-wrap items-center gap-5">
               <Link
@@ -206,7 +206,7 @@ export function MangaHome() {
           </h2>
           <div className="mt-12 grid gap-10 sm:grid-cols-3">
             {[
-              { ch: "Ch.1", t: "The Mark", d: "Pick a builder — GitHub, X, or wallet. Their coin drops on pons in seconds, paired against native ETH. They don't even know yet!", rot: -1.5 },
+              { ch: "Ch.1", t: "The Mark", d: "Pick a builder — GitHub or wallet. Their coin drops on pons in seconds, paired against native ETH. They don't even know yet!", rot: -1.5 },
               { ch: "Ch.2", t: "The Tithe", d: "Every buy & sell pays up: a slice of the tax streams into their vault. Automatic. Untouchable.", rot: 1 },
               { ch: "Ch.3", t: "The Claim", d: "They prove the name — a GitHub login, or a signature from the wallet you named — and sweep the gold. Nobody else. Ever.", rot: -0.5 },
             ].map((c, i) => (
@@ -249,7 +249,7 @@ export function MangaHome() {
                 Gold under <span style={{ color: GREEN, WebkitTextStroke: `2px ${INKB}` }}>your name?</span>
               </h2>
               <p className="mt-2 max-w-md text-[15px]" style={{ color: DIM }}>
-                Check the vaults sworn to your GitHub, X, or wallet — and claim what&apos;s yours.
+                Check the vaults sworn to your GitHub or wallet — and claim what&apos;s yours.
               </p>
 
               <div className="mt-8 flex flex-col gap-5 sm:flex-row sm:items-end">

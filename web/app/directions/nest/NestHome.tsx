@@ -156,8 +156,8 @@ export function NestHome() {
             <span style={{ fontStyle: "italic", color: AMBER }}>feeds</span> the maker you admire.
           </h1>
           <p className="mt-7 max-w-md text-lg" style={{ color: "rgba(245,241,232,0.72)" }}>
-            Launch a coin for a builder, an open source dev, anyone. Every trade drips into a nest held for their GitHub,
-            their X, or a wallet. Only they can ever lift it out.
+            Launch a coin for a builder, an open source dev, anyone. Every trade drips into a nest held for their GitHub
+            or a wallet. Only they can ever lift it out.
           </p>
           <div className="mt-9 flex flex-wrap items-center gap-4">
             <Link
@@ -184,7 +184,7 @@ export function NestHome() {
         </div>
         <div className="grid gap-12 sm:grid-cols-3">
           {[
-            { n: "Egg", d: "Pick someone by their GitHub, X, or wallet. Their coin hatches on pons in seconds, paired against native ETH." },
+            { n: "Egg", d: "Pick someone by their GitHub or wallet. Their coin hatches on pons in seconds, paired against native ETH." },
             { n: "Feed", d: "Every buy and sell drips a slice of the trading tax into an on-chain nest held for that identity." },
             { n: "Fledge", d: "They prove who they are and the nest opens, sweeping the ETH to any wallet they choose." },
           ].map((s, i) => (
@@ -218,7 +218,7 @@ export function NestHome() {
             Is a nest filling up for <span style={{ fontStyle: "italic", color: AMBER }}>you</span>?
           </h2>
           <p className="mt-3 max-w-md text-base" style={{ color: "rgba(245,241,232,0.66)" }}>
-            Look up the escrows held for your GitHub, X, or wallet, and lift out what is yours.
+            Look up the escrows held for your GitHub or wallet, and lift out what is yours.
           </p>
 
           <div className="mt-8 flex flex-col gap-3 sm:flex-row">
