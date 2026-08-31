@@ -21,13 +21,36 @@ export async function GET() {
   if (!factory) ok = false;
 
   // server attester (derivado de ATTESTER_PK) — solo el ADDRESS, nunca la key
+  //
+  // El diagnóstico distingue AUSENTE de MAL FORMADA, y eso importa: antes las dos caían en el
+  // mismo `catch` y el endpoint decía "MISSING (set ATTESTER_PK)" con la variable ya cargada en
+  // Vercel. Quien la había puesto quedaba mirando un mensaje que le mentía. El caso real: pegarla
+  // sin el prefijo `0x`, que viem rechaza.
+  //
+  // Nunca se reporta el valor: sólo su LARGO y su FORMA. Con eso alcanza para saber qué arreglar.
   let serverAttester: string | null = null;
-  try {
-    serverAttester = attesterAddress();
-    checks.serverAttester = serverAttester;
-  } catch {
-    checks.serverAttester = "MISSING (set ATTESTER_PK)";
+  const rawPk = process.env.ATTESTER_PK;
+  if (!rawPk) {
+    checks.serverAttester = "MISSING (la env var ATTESTER_PK no está definida)";
     ok = false;
+  } else if (!/^(0x)?[0-9a-fA-F]{64}$/i.test(rawPk.trim())) {
+    const t = rawPk.trim();
+    const hex = t.startsWith("0x") || t.startsWith("0X") ? t.slice(2) : t;
+    checks.serverAttester =
+      `INVÁLIDA: la env var está cargada pero no tiene la forma de una private key. ` +
+      `Recibí ${hex.length} caracteres hex (hacen falta 64)` +
+      (t.startsWith("0x") ? "" : ", y le falta el prefijo 0x") +
+      (t !== rawPk ? ", y trae espacios o saltos de línea alrededor" : "") +
+      ". Volvé a cargarla con `vercel env rm ATTESTER_PK production` y después `vercel env add`.";
+    ok = false;
+  } else {
+    try {
+      serverAttester = attesterAddress();
+      checks.serverAttester = serverAttester;
+    } catch (e) {
+      checks.serverAttester = `INVÁLIDA: ${e instanceof Error ? e.message.slice(0, 120) : "no se pudo derivar la dirección"}`;
+      ok = false;
+    }
   }
 
   // attester canónico de la factory on-chain
