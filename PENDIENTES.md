@@ -7,9 +7,18 @@
 
 ---
 
-## 1. Auditoría del contrato nuevo — auditor y presupuesto
+## 1. Auditoría del contrato nuevo — ~~auditor y presupuesto~~ DECIDIDO: va sin auditar
 
-**Es el gate real. Todo lo demás es menor al lado de esto.**
+> **DECISIÓN DE JOSE, 2026-08-31: se lanza SIN auditoría.** Queda cerrada como decisión; lo de
+> abajo se conserva como el registro de qué se estaba comprando y qué no.
+>
+> **Consecuencias que siguen vivas y hay que tratar en consecuencia:**
+> - La divulgación de §8 pasa de ser opcional a ser lo único que le queda al usuario para saber
+>   dónde está parado. El README ya lo dice arriba de todo.
+> - El piloto con plata propia deja de ser "el paso prudente" y pasa a ser **el único banco de
+>   pruebas real** antes de lanzar para terceros.
+> - Los hallazgos de las dos rondas adversariales (y sus fixes, en el historial de
+>   `feat/pons-web`) son ahora la única revisión externa que tuvo este código.
 
 El audit de GT/David Zhang aprobó el árbol `audited-v3`, que es el rail de **Flap**. Ese `AUDIT-NOTES`
 dice textualmente *"deployed bytecode must build from here"*. `RobinShareVault` +
