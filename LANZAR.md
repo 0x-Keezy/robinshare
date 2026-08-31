@@ -10,6 +10,19 @@ la versión corta.
 
 ---
 
+## Antes de empezar · estar en la rama correcta
+
+```bash
+git checkout feat/pons-web
+```
+
+Todo esto vive en `feat/pons-web`. En `main` no existen ni `DeployPons.s.sol` ni `LaunchPons.s.sol`
+ni este archivo, así que si te equivocás de rama los comandos fallan solos — pero los scripts del
+rail **viejo** (`Deploy.s.sol`, `LaunchPilot.s.sol`) sí están, y deployarían el rail de Flap. Por
+eso ahora se niegan a correr salvo que pidas explícitamente `I_MEAN_THE_FLAP_RAIL=true`.
+
+---
+
 ## Paso 0 · Las dos wallets (5 minutos)
 
 ```bash
