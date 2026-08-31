@@ -10,6 +10,7 @@ import {
   parseRelayRequest,
   releaseClaimLock,
   DEFAULT_MAX_FEE_PER_GAS_WEI,
+  CLAIM_GAS_LIMIT,
   DEFAULT_MIN_RELAYER_BALANCE_WEI,
 } from "@/lib/relay";
 
@@ -115,6 +116,9 @@ export async function POST(req: NextRequest) {
         args,
         account,
         maxFeePerGas,
+        // `gas` explicito: sin el, la estimacion acota por el gas limit del bloque (2^50 en esta
+        // cadena) y el chequeo de saldo pide millones de ETH. Ver CLAIM_GAS_LIMIT.
+        gas: CLAIM_GAS_LIMIT,
       });
       request = sim.request;
     } catch (e) {

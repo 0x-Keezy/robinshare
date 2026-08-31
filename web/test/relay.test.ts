@@ -48,6 +48,7 @@ vi.mock("@/lib/chain", () => ({
 }));
 
 const {
+  CLAIM_GAS_LIMIT,
   parseRelayRequest,
   isRefusal,
   assertRelayable,
@@ -258,5 +259,46 @@ describe("el candado de concurrencia", () => {
     acquireClaimLock(VAULT, NOW * 1000);
     expect(isClaimLocked(VAULT, NOW * 1000 + 91_000)).toBe(false);
     expect(acquireClaimLock(VAULT, NOW * 1000 + 91_000)).toBe(true);
+  });
+});
+
+
+describe("el gas limit explicito del claim (sin esto el relayer NO funciona en esta cadena)", () => {
+  /// EL BUG QUE ESTO IMPIDE QUE VUELVA.
+  ///
+  /// Si a `simulateContract` se le pasa `maxFeePerGas` pero NO `gas`, viem estima el gas y esa
+  /// estimacion acota el limite superior por el gas limit del BLOQUE. En Robinhood Chain
+  /// (Arbitrum Orbit) ese limite es 1.125.899.906.842.624 (2^50), no los ~30M de una L1: el
+  /// chequeo de saldo pasa a exigir 2^50 * 2 gwei = 2.251.799 ETH y TODO claim muere con "the
+  /// total cost of executing this transaction exceeds the balance of the account".
+  ///
+  /// No es teorico: se midio contra un fork de la cadena real y fallaba igual con el relayer
+  /// fondeado con 100 ETH. Con el `gas` explicito, el mismo claim paso con 0,01 ETH.
+  const GAS_LIMIT_DEL_BLOQUE = 1_125_899_906_842_624n; // medido en mainnet 4663
+  const COSTO_MEDIDO = 169_365n; // gasUsed real de un claimAndBind con harvest + payout
+
+  it("existe y alcanza para el costo medido, con margen", () => {
+    expect(CLAIM_GAS_LIMIT).toBeGreaterThan(COSTO_MEDIDO * 2n);
+  });
+
+  it("es MUCHO menor que el gas limit del bloque — que es justamente el punto", () => {
+    expect(CLAIM_GAS_LIMIT).toBeLessThan(GAS_LIMIT_DEL_BLOQUE / 1_000_000n);
+  });
+
+  it("al tope de fee, el saldo que le exige al relayer es pagable", () => {
+    // Con el bug, esto daba 2,25 millones de ETH.
+    const requerido = CLAIM_GAS_LIMIT * 2_000_000_000n; // 2 gwei
+    expect(requerido).toBeLessThan(10_000_000_000_000_000n); // < 0,01 ETH
+  });
+
+  it("la ruta del relayer lo pasa a simulateContract", async () => {
+    // Guarda anti-borrado: el valor puede ser correcto y no usarse.
+    const { readFileSync } = await import("node:fs");
+    const { join } = await import("node:path");
+    const src = readFileSync(
+      join(process.cwd(), "app", "api", "relay", "claim", "route.ts"),
+      "utf8",
+    );
+    expect(src).toMatch(/gas:\s*CLAIM_GAS_LIMIT/);
   });
 });

@@ -47,6 +47,21 @@ export const DEFAULT_MIN_RELAYER_BALANCE_WEI = 2_000_000_000_000_000n; // 0,002 
 /// pasa a ser rentable. Este techo la ancla, con margen.
 export const DEFAULT_MAX_FEE_PER_GAS_WEI = 2_000_000_000n; // 2 gwei
 
+/// Gas limit EXPLICITO para el claim. Sin esto el relayer NO FUNCIONA en Robinhood Chain.
+///
+/// El bug, cazado en el ensayo general contra un fork de la cadena real: si a `simulateContract`
+/// se le pasa `maxFeePerGas` pero NO `gas`, viem estima el gas, y esa estimacion acota el limite
+/// superior por el gas limit del BLOQUE. En Robinhood Chain (Arbitrum Orbit) ese limite es
+/// 1.125.899.906.842.624 (2^50) — no los ~30M de una L1. El chequeo de saldo queda entonces en
+/// 2^50 * 2 gwei = 2.251.799 ETH, asi que TODO claim moria con "the total cost of executing this
+/// transaction exceeds the balance of the account" por mas fondeado que estuviera el relayer.
+/// Medido: fallaba igual con 100 ETH.
+///
+/// El valor sale de una medicion, no de una corazonada: un `claimAndBind` con harvest y payout
+/// costo 169.365 gas contra los contratos reales. 500.000 deja ~3x de margen y, al tope de 2 gwei,
+/// pone el techo de saldo requerido en 0,001 ETH.
+export const CLAIM_GAS_LIMIT = 500_000n;
+
 export type RelayRequest = {
   vault: Address;
   payout: Address;
