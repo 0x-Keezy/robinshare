@@ -7,6 +7,7 @@ import { Reveal } from "@/components/Reveal";
 import { useVaultLookup } from "@/lib/useVaultLookup";
 import { useHideNav } from "@/lib/useHideNav";
 import { useScrollSync } from "@/lib/scrollProgress";
+import { CUSTODY_LINE } from "@/lib/claims";
 
 /*
  * DECREE — el decreto (registro claro-cálido medieval del bake-off).
@@ -212,11 +213,11 @@ export function DecreeHome() {
             <div className="mt-14 flex justify-center gap-10 text-center" style={{ fontFamily: "var(--f-mono)", color: INK_FAINT }}>
               <div>
                 <div className="text-3xl" style={{ color: INK }}>0</div>
-                <div className="mt-1 text-[10px] uppercase tracking-[0.2em]">admin keys ours</div>
+                <div className="mt-1 text-[10px] uppercase tracking-[0.2em]">admin keys of ours</div>
               </div>
               <div>
-                <div className="text-3xl" style={{ color: INK }}>71</div>
-                <div className="mt-1 text-[10px] uppercase tracking-[0.2em]">tests green</div>
+                <div className="text-3xl" style={{ color: INK }}>4663</div>
+                <div className="mt-1 text-[10px] uppercase tracking-[0.2em]">robinhood chain</div>
               </div>
               <div>
                 <div className="text-3xl" style={{ color: INK }}>3</div>
@@ -229,8 +230,8 @@ export function DecreeHome() {
               className="mx-auto mt-10 max-w-2xl text-center text-xs leading-relaxed"
               style={{ fontFamily: "var(--f-mono)", color: INK_FAINT }}
             >
-              Be it known: the vault holds no key of ours, and the issuer may never call the fees
-              back. One power is not ours to forswear — pons, the launchpad upon which the coin is
+              Be it known: the issuer may not call the fees back — save where he declared a recovery
+              window at the striking, which the vault itself proclaims on-chain for all to read. One power is not ours to forswear — pons, the launchpad upon which the coin is
               struck, may redirect a coin&apos;s creator fees, though only by a 2-of-3 seal and
               only after a public 3-day timelock all may witness.
             </p>
@@ -359,7 +360,7 @@ export function DecreeHome() {
             <div className="h-px flex-1" style={{ background: `linear-gradient(to right, ${RULE}, transparent)` }} />
           </div>
           <footer className="mt-10 text-xs leading-6" style={{ fontFamily: "var(--f-mono)", color: INK_FAINT }}>
-            Permissionless & non-custodial · funds release only to the wallet that proves the name
+            {CUSTODY_LINE}
             <br />
             Not affiliated with Robinhood, pons or Flap
           </footer>

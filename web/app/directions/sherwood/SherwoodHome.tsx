@@ -11,6 +11,7 @@ import { Magnetic } from "@/components/Magnetic";
 import { useVaultLookup } from "@/lib/useVaultLookup";
 import { Scroll, useScrollSync } from "@/lib/scrollProgress";
 import { useHideNav } from "@/lib/useHideNav";
+import { CUSTODY_LINE } from "@/lib/claims";
 
 /*
  * SHERWOOD v3 — la catedral, en FOTOGRAFÍA (lección dura del bake-off: el "se ve caro"
@@ -343,8 +344,8 @@ export function SherwoodHome() {
                 style={{ fontFamily: "var(--f-mono)", color: "rgba(242,239,230,0.5)", ...inStyle(660) }}
               >
                 <span>Immutable</span>
-                <span>0 admin keys ours</span>
-                <span>95 tests green</span>
+                <span>0 admin keys of ours</span>
+                <span>ETH-paired only</span>
                 <span>Chain 4663</span>
               </div>
             </div>
@@ -417,14 +418,14 @@ export function SherwoodHome() {
                 <Stat value={100} suffix="ms" label="Block time · 4663" accent={CREAM} dim="rgba(242,239,230,0.5)" />
                 <Stat value={0} label="Admin keys we hold" accent={SIGNAL} dim="rgba(242,239,230,0.5)" />
                 <Stat value={3} label="Ways to prove a name" accent={CREAM} dim="rgba(242,239,230,0.5)" />
-                <Stat value={71} label="Tests green · fork E2E" accent={GOLD} dim="rgba(242,239,230,0.5)" />
+                <Stat value={4663} label="Robinhood Chain" accent={GOLD} dim="rgba(242,239,230,0.5)" />
               </div>
               <p
                 className="mt-8 max-w-2xl text-xs leading-relaxed"
                 style={{ fontFamily: "var(--f-mono)", color: "rgba(242,239,230,0.5)" }}
               >
-                Said plainly, because the sheriff is real: the vault holds no key of ours and the
-                launcher can never call the fees back. But pons — the launchpad the coin lives on —
+                Said plainly, because the sheriff is real: the launcher cannot call the fees back — unless
+                they set a recovery window at launch, which the vault publishes on-chain. But pons — the launchpad the coin lives on —
                 can redirect a coin&apos;s creator fees, by a 2-of-3 multisig and only after a
                 public 3-day timelock anyone can watch. We sweep early to keep that window small.
               </p>
@@ -692,8 +693,7 @@ export function SherwoodHome() {
                   </a>
                 </div>
                 <p className="text-xs leading-relaxed" style={{ fontFamily: "var(--f-mono)", color: "rgba(242,239,230,0.42)" }}>
-                  Permissionless and non-custodial. Funds release only to the wallet that proves the
-                  recipient identity. Not affiliated with Robinhood, pons or Flap.
+                  {CUSTODY_LINE}
                 </p>
               </div>
             </div>

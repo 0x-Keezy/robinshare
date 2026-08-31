@@ -9,6 +9,7 @@ import { Magnetic } from "@/components/Magnetic";
 import { useVaultLookup } from "@/lib/useVaultLookup";
 import { Scroll, useScrollSync } from "@/lib/scrollProgress";
 import { useHideNav } from "@/lib/useHideNav";
+import { CUSTODY_LINE } from "@/lib/claims";
 
 /*
  * HOOD — la leyenda contada en FOTOGRAFÍAS (dirección 2.5D, lección viktoroddy/Aegis:
@@ -565,8 +566,7 @@ export function HoodHome() {
             >
               <span className="uppercase tracking-[0.28em]">Fledge</span>
               <p className="max-w-xl leading-relaxed">
-                Permissionless and non-custodial. Funds release only to the wallet that proves the
-                recipient identity. Not affiliated with Robinhood, pons or Flap.
+                {CUSTODY_LINE}
               </p>
             </div>
           </footer>

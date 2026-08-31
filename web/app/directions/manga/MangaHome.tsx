@@ -8,6 +8,7 @@ import { Marquee } from "@/components/Marquee";
 import { useVaultLookup } from "@/lib/useVaultLookup";
 import { useHideNav } from "@/lib/useHideNav";
 import { useScrollSync } from "@/lib/scrollProgress";
+import { CUSTODY_LINE } from "@/lib/claims";
 
 /*
  * MANGA — el shonen (registro tinta-sobre-blanco del bake-off).
@@ -163,8 +164,8 @@ export function MangaHome() {
               </a>
             </div>
             <div className="mt-10 flex flex-wrap gap-x-6 gap-y-1 text-[11px] uppercase tracking-[0.16em]" style={{ fontFamily: "var(--f-mono)", color: DIM }}>
-              <span>0 admin keys ours</span>
-              <span>95 tests ✓</span>
+              <span>0 admin keys of ours</span>
+              <span>chain 4663</span>
               <span>100ms blocks</span>
               <span>custody: none</span>
             </div>
@@ -376,8 +377,7 @@ export function MangaHome() {
             </Link>
           </Reveal>
           <footer className="mx-auto mt-16 max-w-xl border-t-4 pt-5 text-xs leading-6" style={{ borderColor: INKB, fontFamily: "var(--f-mono)", color: DIM }}>
-            FLEDGE — permissionless & non-custodial. Funds release only to the wallet that proves
-            the name. Not affiliated with Robinhood, pons or Flap. — fin del capítulo —
+            {CUSTODY_LINE} — fin del capítulo —
           </footer>
         </section>
       </div>

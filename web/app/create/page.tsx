@@ -3,9 +3,9 @@
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { formatEther, type Address, type Hex } from "viem";
-import { useAccount, useConnect, useWriteContract } from "wagmi";
+import { useAccount, useConnect, useSwitchChain, useWriteContract } from "wagmi";
 import { injected } from "wagmi/connectors";
-import { publicClient, factoryAddress } from "@/lib/chain";
+import { publicClient, factoryAddress, robinhoodChain } from "@/lib/chain";
 import { escrowAbi, factoryAbi } from "@/lib/abis";
 import {
   PONS_LAUNCH_FACTORY,
@@ -34,9 +34,39 @@ const labelStyle = { fontFamily: "var(--f-mono)", color: RS.FAINT, letterSpacing
 /// fees), pero volver a crearlo seria tirar gas y dejar un vault huerfano de mas.
 type Progress = { vault?: Address; token?: Address; curve?: Address; attached?: boolean };
 
+/// El progreso se guarda TAMBIEN en localStorage, no solo en estado de React.
+///
+/// El flujo son tres transacciones. Con estado en memoria alcanzaba para reintentar una que
+/// fallo, pero un F5 entre la segunda y la tercera perdia la direccion del token — y sin ella
+/// nadie puede atar el vault a su curva, asi que las fees se acumulan sin ruta de salida hasta
+/// que alguien la desentierre del historial del explorer.
+const PROGRESS_KEY = "robinshare:launch-progress:v1";
+
+function loadProgress(owner?: Address): Progress {
+  if (typeof window === "undefined" || !owner) return {};
+  try {
+    const raw = window.localStorage.getItem(`${PROGRESS_KEY}:${owner.toLowerCase()}`);
+    return raw ? (JSON.parse(raw) as Progress) : {};
+  } catch {
+    return {};
+  }
+}
+
+function saveProgress(owner: Address | undefined, p: Progress) {
+  if (typeof window === "undefined" || !owner) return;
+  try {
+    const k = `${PROGRESS_KEY}:${owner.toLowerCase()}`;
+    if (p.attached || (!p.vault && !p.token)) window.localStorage.removeItem(k);
+    else window.localStorage.setItem(k, JSON.stringify(p));
+  } catch {
+    // modo incognito / storage bloqueado: se sigue sin persistencia, no es fatal
+  }
+}
+
 export default function CreatePage() {
-  const { address, isConnected } = useAccount();
+  const { address, isConnected, chainId: walletChainId } = useAccount();
   const { connect } = useConnect();
+  const { switchChainAsync } = useSwitchChain();
   const { writeContractAsync } = useWriteContract();
 
   const [name, setName] = useState("");
@@ -59,6 +89,18 @@ export default function CreatePage() {
   const [launchOpen, setLaunchOpen] = useState<boolean | null>(null);
 
   const factory = factoryAddress();
+  const wrongChain = isConnected && walletChainId !== robinhoodChain.id;
+
+  // recuperar un launch a medias tras un reload
+  useEffect(() => {
+    if (!address) return;
+    const saved = loadProgress(address);
+    if (saved.vault || saved.token) setProgress(saved);
+  }, [address]);
+
+  useEffect(() => {
+    saveProgress(address, progress);
+  }, [address, progress]);
 
   /// Se lee la config VIVA de pons, no la constante: `launchFee` y `maxCreatorTaxBps` son estado
   /// mutable de un Safe 2-de-3. Hardcodearlas haria que el dia que las muevan todo launch
@@ -87,6 +129,26 @@ export default function CreatePage() {
     if (!factory) return setMsg("NEXT_PUBLIC_FACTORY_ADDRESS is not configured.");
     if (!isConnected || !address) return setMsg("Connect your wallet first.");
 
+    // GUARD DE CADENA. wagmi no lo hace solo: `writeContract` sin `chainId` resuelve la cadena
+    // del conector y desactiva su propia asercion, asi que una wallet parada en Ethereum manda
+    // la transaccion IGUAL — a una direccion que ahi no tiene codigo, o sea que no revierte, se
+    // come el gas, y despues esta pagina espera un receipt en 4663 que no va a existir nunca.
+    // Robinhood Chain no viene cargada en ninguna wallet por default: estar en la cadena
+    // equivocada es el estado NORMAL de alguien que entra por primera vez.
+    if (walletChainId !== robinhoodChain.id) {
+      try {
+        setBusy("Switching to Robinhood Chain…");
+        await switchChainAsync({ chainId: robinhoodChain.id });
+      } catch {
+        setBusy(null);
+        return setMsg(
+          `Your wallet is on the wrong network. Switch it to Robinhood Chain (chain ${robinhoodChain.id}) and try again.`,
+        );
+      } finally {
+        setBusy(null);
+      }
+    }
+
     const recipientWallet = (type === "wallet" ? wallet || address : address) as Address;
     if (type === "wallet" && !/^0x[0-9a-fA-F]{40}$/.test(recipientWallet)) {
       return setMsg("That recipient wallet is not a valid address.");
@@ -97,6 +159,15 @@ export default function CreatePage() {
     const days = Number(recoveryDays);
     if (!Number.isInteger(days) || days < 0 || (days !== 0 && days < 30) || days > 3650) {
       return setMsg("Recovery must be 0 (never) or between 30 and 3650 days.");
+    }
+
+    // El tope se valida contra el valor VIVO, no contra la constante: si pons lo baja, los
+    // botones de preset se esconden pero el estado por default seguiria mandando 300 bps y la
+    // transaccion revertiria CreatorTaxTooHigh DESPUES de que `createVault` ya gasto gas.
+    if (Math.round(taxPct * 100) > maxTaxBps) {
+      return setMsg(
+        `pons currently caps the creator tax at ${maxTaxBps / 100}%. Pick a lower one.`,
+      );
     }
 
     const identity: LaunchIdentity =
@@ -115,6 +186,7 @@ export default function CreatePage() {
         const vaultTx = await writeContractAsync({
           address: factory,
           abi: factoryAbi,
+          chainId: robinhoodChain.id,
           functionName: "createVault",
           args: [identityTypeId(type), type === "wallet" ? "" : handle.trim(), type === "wallet" ? recipientWallet : ("0x0000000000000000000000000000000000000000" as Address), BigInt(days)],
         } as never);
@@ -160,6 +232,7 @@ export default function CreatePage() {
         const launchTx = await writeContractAsync({
           address: PONS_LAUNCH_FACTORY,
           abi: ponsAbi,
+          chainId: robinhoodChain.id,
           functionName: "launchToken",
           args: [params, PONS_LAUNCH_CONFIG_ID, PONS_NATIVE_PAIR],
           value: fee,
@@ -179,6 +252,7 @@ export default function CreatePage() {
         const attachTx = await writeContractAsync({
           address: step.vault!,
           abi: escrowAbi,
+          chainId: robinhoodChain.id,
           functionName: "attachToken",
           args: [step.token!],
         } as never);
@@ -240,7 +314,9 @@ export default function CreatePage() {
             </div>
             <p className="mt-4 text-sm leading-relaxed" style={{ color: RS.DIM }}>
               Fees now accrue to the {type === "twitter" ? "X" : type === "github" ? "GitHub" : "wallet"} identity.
-              Send them the claim page — they don&apos;t need a wallet or any ETH to collect.
+              Send them the claim page. They didn&apos;t need a wallet for you to launch this, and
+              nobody — not you, not us — can redirect the fees away from them. To collect, they
+              connect a wallet and pay the gas for one transaction.
             </p>
           </div>
         ) : (
@@ -248,7 +324,13 @@ export default function CreatePage() {
             {launchOpen === false && (
               <p className="rounded-xl border p-4 text-sm" style={{ borderColor: RS.HAIR, color: "#c0392b" }}>
                 pons has its public launch gate closed right now — only whitelisted addresses can
-                launch. Nothing you do here will spend anything until that reopens.
+                launch, so the launch step would revert. Launching is disabled until it reopens.
+              </p>
+            )}
+            {wrongChain && (
+              <p className="rounded-xl border p-4 text-sm" style={{ borderColor: RS.HAIR, color: "#c0392b" }}>
+                Your wallet is on the wrong network. RobinShare lives on Robinhood Chain (chain{" "}
+                {robinhoodChain.id}) — we&apos;ll ask you to switch before the first signature.
               </p>
             )}
 
@@ -408,7 +490,7 @@ export default function CreatePage() {
             ) : (
               <button
                 onClick={create}
-                disabled={!!busy}
+                disabled={!!busy || launchOpen === false}
                 className="rounded-full px-7 py-3 font-bold disabled:cursor-not-allowed disabled:opacity-60"
                 style={{ background: RS.GREEN_CTA, color: RS.GREEN_CTA_TEXT }}
               >

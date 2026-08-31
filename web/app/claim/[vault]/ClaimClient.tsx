@@ -3,10 +3,10 @@
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { formatEther, type Address, type Hex } from "viem";
-import { useAccount, useConnect, useWriteContract } from "wagmi";
+import { useAccount, useConnect, useSwitchChain, useWriteContract } from "wagmi";
 import { injected } from "wagmi/connectors";
-import { publicClient } from "@/lib/chain";
-import { escrowAbi } from "@/lib/abis";
+import { publicClient, factoryAddress, robinhoodChain } from "@/lib/chain";
+import { escrowAbi, factoryAbi } from "@/lib/abis";
 import { recoveryBadge } from "@/lib/pons";
 import { RSShell, RS } from "@/components/RSShell";
 
@@ -59,8 +59,9 @@ function easeOutCubic(t: number) {
 }
 
 export function ClaimClient({ vault }: { vault: Address }) {
-  const { address, isConnected } = useAccount();
+  const { address, isConnected, chainId: walletChainId } = useAccount();
   const { connect } = useConnect();
+  const { switchChainAsync } = useSwitchChain();
   const { writeContractAsync, isPending } = useWriteContract();
 
   // ?demo=1 — illustrative mode, see block above. Read synchronously from
@@ -96,6 +97,8 @@ export function ClaimClient({ vault }: { vault: Address }) {
   // tambien, pero la curva nunca se puede barrer. Cualquiera puede atarlos — el contrato lo
   // verifica contra el registro de pons, asi que no hay que confiar en quien lo pega aca.
   const [attachAddr, setAttachAddr] = useState("");
+  /// null = todavia no se sabe; false = la direccion de la URL no es un vault nuestro.
+  const [isKnownVault, setIsKnownVault] = useState<boolean | null>(null);
 
   const refresh = useCallback(async () => {
     const [identityType, identityValue, pending, bound, totalPaid, recoveryAfter, token] =
@@ -132,9 +135,38 @@ export function ClaimClient({ vault }: { vault: Address }) {
   }, [address, vault]);
 
   useEffect(() => {
-    if (isDemo) return; // seeded below instead of read from chain
-    refresh().catch((e) => setMsg(String(e)));
-  }, [refresh, isDemo]);
+    if (isDemo) {
+      setIsKnownVault(true);
+      return; // seeded below instead of read from chain
+    }
+    // Procedencia ANTES de leer nada. Sin esto, una direccion cualquiera en la URL hacia que
+    // las siete lecturas rechazaran a la vez y la pagina se quedaba en "Loading vault…" para
+    // siempre, con un stack de viem por consola. No es un agujero de seguridad (el attester
+    // valida procedencia por su cuenta antes de firmar), pero es un callejon sin salida.
+    (async () => {
+      const factory = factoryAddress();
+      if (!factory) {
+        setIsKnownVault(false);
+        setMsg("NEXT_PUBLIC_FACTORY_ADDRESS is not configured, so this page cannot verify the vault.");
+        return;
+      }
+      try {
+        const known = (await publicClient.readContract({
+          address: factory,
+          abi: factoryAbi,
+          functionName: "isVault",
+          args: [vault],
+        })) as boolean;
+        setIsKnownVault(known);
+        if (!known) return;
+      } catch (e) {
+        setIsKnownVault(false);
+        setMsg(`Could not reach Robinhood Chain to check this address: ${String(e)}`);
+        return;
+      }
+      refresh().catch((e) => setMsg(String(e)));
+    })();
+  }, [refresh, isDemo, vault]);
 
   // Demo seed — illustrative vault: a GitHub-identity vault with fees
   // pending, not yet bound to a payout wallet.
@@ -175,7 +207,21 @@ export function ClaimClient({ vault }: { vault: Address }) {
   ) {
     setMsg(null);
     try {
-      const hash = await writeContractAsync({ address: vault, abi: escrowAbi, functionName: fn, args } as never);
+      // GUARD DE CADENA — ver el comentario largo en app/create/page.tsx. Sin esto un dev con una
+      // MetaMask recien instalada (que nunca oyo hablar de la cadena 4663) manda su claim a otra
+      // red, a una direccion sin codigo: no revierte, se come el gas, y esta pagina espera para
+      // siempre un receipt que no va a existir.
+      if (walletChainId !== robinhoodChain.id) {
+        setMsg("Switching your wallet to Robinhood Chain…");
+        await switchChainAsync({ chainId: robinhoodChain.id });
+      }
+      const hash = await writeContractAsync({
+        address: vault,
+        abi: escrowAbi,
+        chainId: robinhoodChain.id,
+        functionName: fn,
+        args,
+      } as never);
       setTxHash(hash);
       setMsg("Sent — waiting for confirmation…");
       await publicClient.waitForTransactionReceipt({ hash });

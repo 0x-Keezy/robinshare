@@ -7,6 +7,7 @@ import { Reveal } from "@/components/Reveal";
 import { LiveVaultFeed } from "@/components/LiveVaultFeed";
 import { useVaultLookup } from "@/lib/useVaultLookup";
 import { useScrollSync } from "@/lib/scrollProgress";
+import { CUSTODY_LINE } from "@/lib/claims";
 
 /*
  * TERMINAL — la Bloomberg de Sherwood (registro CRT-fósforo del bake-off).
@@ -356,7 +357,7 @@ export function TerminalHome() {
             [ launch a coin for someone ]
           </Link>
           <footer className="mt-20 border-t pt-6 text-left text-xs leading-6" style={{ borderColor: PHOS_FAINT, color: PHOS_FAINT }}>
-            <div>fledge — permissionless, non-custodial. funds release only to the wallet that proves the recipient identity.</div>
+            <div className="lowercase">{CUSTODY_LINE}</div>
             <div>not affiliated with robinhood, pons or flap. exit code 0.</div>
           </footer>
         </section>

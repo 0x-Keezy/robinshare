@@ -57,8 +57,16 @@ beforeEach(() => {
 describe("github callback", () => {
   it("login que matchea -> 302 con voucher en el fragment", async () => {
     (globalThis as Record<string, unknown>).__ghLogin = "Torvalds"; // case-insensitive match
-    const st = encodeState({ vault: VAULT as `0x${string}`, payout: PAYOUT as `0x${string}` });
-    const res = await ghCallback(new NextRequest(`https://fledge.test/cb?code=abc&state=${encodeURIComponent(st)}`));
+    // El nonce + la cookie son parte del camino feliz desde el fix de CSRF (ver el describe de
+    // mas abajo): el callback exige volver al MISMO navegador que arranco el flujo.
+    const st = encodeState({
+      vault: VAULT as `0x${string}`,
+      payout: PAYOUT as `0x${string}`,
+      nonce: "n1",
+    });
+    const okReq = new NextRequest(`https://fledge.test/cb?code=abc&state=${encodeURIComponent(st)}`);
+    okReq.cookies.set("rs_oauth_nonce", "n1");
+    const res = await ghCallback(okReq);
     expect(res.status).toBe(307); // NextResponse.redirect
     const loc = res.headers.get("location")!;
     expect(loc).toContain(`/claim/${VAULT}`);
@@ -82,6 +90,61 @@ describe("github callback", () => {
     mockVaults = ["0x4444444444444444444444444444444444444444"]; // VAULT no esta en la lista
     const st = encodeState({ vault: VAULT as `0x${string}`, payout: PAYOUT as `0x${string}` });
     const res = await ghCallback(new NextRequest(`https://fledge.test/cb?code=abc&state=${encodeURIComponent(st)}`));
+    expect(res.status).toBe(403);
+  });
+});
+
+describe("github callback — CSRF: el flujo tiene que volver al MISMO navegador", () => {
+  // El ataque: el atacante arma /start?vault=<victima>&payout=<su wallet>, se queda con la URL
+  // de GitHub y se la manda al dev real. GitHub auto-aprueba, el login MATCHEA la identidad del
+  // vault (es el dev), y sin esta defensa el server firma un voucher que paga al atacante.
+  const NONCE = "nonce-del-atacante";
+
+  function req(state: string, cookie?: string) {
+    const r = new NextRequest(`https://fledge.test/cb?code=abc&state=${encodeURIComponent(state)}`);
+    if (cookie) r.cookies.set("rs_oauth_nonce", cookie);
+    return r;
+  }
+
+  it("sin la cookie del navegador que lo empezo -> 403 y NINGUN voucher", async () => {
+    (globalThis as Record<string, unknown>).__ghLogin = "torvalds";
+    const st = encodeState({
+      vault: VAULT as `0x${string}`,
+      payout: PAYOUT as `0x${string}`,
+      nonce: NONCE,
+    });
+    const res = await ghCallback(req(st)); // la victima abre el link: no tiene la cookie
+    expect(res.status).toBe(403);
+    expect(res.headers.get("location")).toBeNull();
+  });
+
+  it("con una cookie ajena -> 403", async () => {
+    (globalThis as Record<string, unknown>).__ghLogin = "torvalds";
+    const st = encodeState({
+      vault: VAULT as `0x${string}`,
+      payout: PAYOUT as `0x${string}`,
+      nonce: NONCE,
+    });
+    const res = await ghCallback(req(st, "otro-nonce-cualquiera"));
+    expect(res.status).toBe(403);
+  });
+
+  it("el flujo legitimo (misma cookie) sigue funcionando", async () => {
+    (globalThis as Record<string, unknown>).__ghLogin = "torvalds";
+    const st = encodeState({
+      vault: VAULT as `0x${string}`,
+      payout: PAYOUT as `0x${string}`,
+      nonce: NONCE,
+    });
+    const res = await ghCallback(req(st, NONCE));
+    expect(res.status).toBe(307);
+    expect(res.headers.get("location")).toContain("signature=0xVOUCHER");
+  });
+
+  it("un state VIEJO sin nonce ya no sirve — el fix es fail-closed", async () => {
+    (globalThis as Record<string, unknown>).__ghLogin = "torvalds";
+    const st = encodeState({ vault: VAULT as `0x${string}`, payout: PAYOUT as `0x${string}` });
+    const res = await ghCallback(req(st, NONCE));
     expect(res.status).toBe(403);
   });
 });

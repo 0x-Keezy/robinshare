@@ -5,6 +5,7 @@ import Link from "next/link";
 import { Fraunces, Instrument_Sans, IBM_Plex_Mono } from "next/font/google";
 import { Reveal } from "@/components/Reveal";
 import { useVaultLookup } from "@/lib/useVaultLookup";
+import { CUSTODY_LINE } from "@/lib/claims";
 
 const fraunces = Fraunces({ subsets: ["latin"], variable: "--f-display", axes: ["SOFT", "WONK", "opsz"] });
 const instrument = Instrument_Sans({ subsets: ["latin"], variable: "--f-body" });
@@ -279,8 +280,7 @@ export function NestHome() {
       <footer className="mx-auto max-w-6xl px-6 py-14 text-xs" style={{ color: "rgba(245,241,232,0.4)", fontFamily: "var(--f-mono)" }}>
         <span style={{ letterSpacing: "0.24em" }} className="uppercase">Fledge</span>
         <p className="mt-3 max-w-2xl leading-relaxed">
-          Permissionless and non-custodial. Funds can only ever be released to the wallet that proves the recipient
-          identity. Not affiliated with Robinhood, pons or Flap.
+          {CUSTODY_LINE}
         </p>
       </footer>
     </main>

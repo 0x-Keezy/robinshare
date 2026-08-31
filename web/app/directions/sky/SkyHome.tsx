@@ -5,6 +5,7 @@ import Link from "next/link";
 import { Anton, Archivo, JetBrains_Mono } from "next/font/google";
 import { Reveal } from "@/components/Reveal";
 import { useVaultLookup } from "@/lib/useVaultLookup";
+import { CUSTODY_LINE } from "@/lib/claims";
 
 const anton = Anton({ weight: "400", subsets: ["latin"], variable: "--f-display" });
 const archivo = Archivo({ subsets: ["latin"], variable: "--f-body" });
@@ -252,8 +253,7 @@ export function SkyHome() {
           <span>FLEDGE</span>
         </div>
         <p className="mt-3 max-w-2xl">
-          Permissionless and non-custodial. Funds can only ever be released to the wallet that proves the recipient
-          identity. Not affiliated with Robinhood, pons or Flap.
+          {CUSTODY_LINE}
         </p>
       </footer>
     </main>

@@ -4,6 +4,7 @@ import Link from "next/link";
 import { Archivo_Black, Archivo, IBM_Plex_Mono } from "next/font/google";
 import { BowMark } from "@/components/BowMark";
 import { useTheme } from "@/lib/useTheme";
+import { CUSTODY_LINE } from "@/lib/claims";
 
 /*
  * Shell de RobinShare para las páginas de utilidad (/create, /claim):
@@ -71,8 +72,7 @@ export function RSShell({ children }: { children: React.ReactNode }) {
           className="mx-auto w-full max-w-2xl px-6 py-6 text-xs leading-relaxed"
           style={{ fontFamily: "var(--f-mono)", color: RS.FAINT }}
         >
-          Permissionless and non-custodial. Funds release only to the wallet that proves the
-          recipient identity. Launches on pons, paired against native ETH. Not affiliated with Robinhood, pons or Flap.
+          {CUSTODY_LINE}
         </p>
       </footer>
     </div>

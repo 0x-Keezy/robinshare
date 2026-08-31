@@ -14,6 +14,7 @@ import { useHideNav } from "@/lib/useHideNav";
 import { useTheme } from "@/lib/useTheme";
 import { BowMark } from "@/components/BowMark";
 import { publicClient } from "@/lib/chain";
+import { CUSTODY_LINE } from "@/lib/claims";
 
 /*
  * ROBINSHARE (ex-Legend, ganadora del bake-off) — el BROKERAGE.
@@ -393,17 +394,21 @@ export function LegendHome() {
             <Reveal delay={120}>
               <div>
                 <p className="max-w-md text-lg leading-relaxed" style={{ color: DIM }}>
-                  The vault is fixed at launch — no owner, no upgrades, no admin keys, no
-                  emergency hatch. The money only moves to the wallet that proves the name, and
-                  the economics are frozen the second the coin exists. Whoever launched it can
-                  never redirect the fees. Neither can we.
+                  The vault is fixed at launch — no owner, no upgrades, no emergency hatch. The
+                  money only moves to the wallet that proves the name, and the economics are
+                  frozen the second the coin exists. Whoever launched it can never redirect the
+                  fees, and can only ever reclaim them if they set a recovery window at launch —
+                  which this site reads off the chain, not off a promise.
                 </p>
                 <p className="mt-4 max-w-md text-sm leading-relaxed" style={{ color: FAINT }}>
-                  One thing is not ours to promise. pons — the launchpad the coin lives on — can
-                  point a coin&apos;s creator fees somewhere else: a 2-of-3 multisig, behind a
-                  public 3-day timelock anyone can watch on-chain before it lands. We route around
-                  it by sweeping fees out early and often, and we would rather say so than let you
-                  read &ldquo;zero keys&rdquo; and find out later.
+                  Two things are not ours to promise, and we would rather say them than let you
+                  read &ldquo;zero keys&rdquo; and find out later. pons — the launchpad the coin
+                  lives on — can point a coin&apos;s creator fees somewhere else: a 2-of-3
+                  multisig, behind a public 3-day timelock anyone can watch on-chain before it
+                  lands, and it applies retroactively to anything not yet swept. That is why we
+                  sweep early and often. And on a GitHub vault, our attester signature is what
+                  proves the identity — so that key is trusted, by construction. X and wallet
+                  vaults never touch it.
                 </p>
                 <div className="mt-6 flex flex-wrap gap-2.5" style={{ fontFamily: "var(--f-mono)" }}>
                   {["wallet signature", "github oauth", "x oracle proof"].map((m) => (
@@ -565,8 +570,7 @@ export function LegendHome() {
                 </a>
               </div>
               <p className="text-xs leading-relaxed" style={{ fontFamily: "var(--f-mono)", color: FAINT }}>
-                Permissionless and non-custodial. Funds release only to the wallet that proves the
-                recipient identity. Not affiliated with Robinhood, pons or Flap.
+                {CUSTODY_LINE}
               </p>
             </div>
           </footer>

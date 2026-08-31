@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { decodeState } from "@/lib/state";
+import { decodeState, nonceMatches, OAUTH_NONCE_COOKIE } from "@/lib/state";
 import { assertVaultIdentity, assertVaultFromFactory, handleMatches } from "@/lib/identity";
 import { signBindVoucher } from "@/lib/attester";
 
@@ -9,6 +9,17 @@ export async function GET(req: NextRequest) {
   const code = req.nextUrl.searchParams.get("code");
   const state = decodeState(req.nextUrl.searchParams.get("state") ?? "");
   if (!code || !state) return NextResponse.json({ error: "bad state" }, { status: 400 });
+
+  // El flujo tiene que terminar en el MISMO navegador que lo empezo (ver el comentario largo en
+  // start/route.ts). Un `state` firmado por nosotros pero abierto por otra persona es
+  // exactamente el ataque: la firma prueba que NOSOTROS armamos ese state, no que quien vuelve
+  // sea quien lo pidio.
+  if (!nonceMatches(req.cookies.get(OAUTH_NONCE_COOKIE)?.value, state.nonce)) {
+    return NextResponse.json(
+      { error: "oauth session mismatch — start the verification from the claim page" },
+      { status: 403 },
+    );
+  }
 
   const tokenRes = await fetch("https://github.com/login/oauth/access_token", {
     method: "POST",
@@ -43,5 +54,7 @@ export async function GET(req: NextRequest) {
   // devolvemos el voucher al claim page via fragment (#) — no toca los logs del server
   const back = new URL(`${process.env.APP_BASE_URL}/claim/${state.vault}`);
   back.hash = new URLSearchParams({ ...voucher, payout: state.payout }).toString();
-  return NextResponse.redirect(back);
+  const res = NextResponse.redirect(back);
+  res.cookies.delete(OAUTH_NONCE_COOKIE); // de un solo uso
+  return res;
 }

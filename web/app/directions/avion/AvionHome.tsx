@@ -5,6 +5,7 @@ import Link from "next/link";
 import { Bricolage_Grotesque, Instrument_Sans, IBM_Plex_Mono } from "next/font/google";
 import { Reveal } from "@/components/Reveal";
 import { useVaultLookup } from "@/lib/useVaultLookup";
+import { CUSTODY_LINE } from "@/lib/claims";
 
 const bricolage = Bricolage_Grotesque({ subsets: ["latin"], variable: "--f-display" });
 const instrument = Instrument_Sans({ subsets: ["latin"], variable: "--f-body" });
@@ -301,8 +302,7 @@ export function AvionHome() {
           <span style={{ letterSpacing: "0.22em" }} className="uppercase">Fledge</span>
         </div>
         <p className="mt-3 max-w-2xl leading-relaxed">
-          Permissionless and non-custodial. Funds can only ever be released to the wallet that proves the recipient
-          identity. Not affiliated with Robinhood, pons or Flap.
+          {CUSTODY_LINE}
         </p>
       </footer>
     </main>
