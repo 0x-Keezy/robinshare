@@ -27,8 +27,11 @@ export IDENTITY_TYPE="${IDENTITY_TYPE:-1}"          # 1 = github
 export IDENTITY_VALUE="${IDENTITY_VALUE:-0x-keezy}"
 export RECOVERY_DAYS="${RECOVERY_DAYS:-0}"          # 0 = irrevocable
 export CREATOR_TAX_BPS="${CREATOR_TAX_BPS:-1000}"   # 10%
-export LOGO="${LOGO:-https://github.com/0x-keezy.png}"
-export DESCRIPTION="${DESCRIPTION:-fees routed to a builder}"
+# `${VAR-default}` sin los dos puntos: distingue "no seteada" de "seteada vacia". Con `:-`, pasar
+# `LOGO=` para lanzar SIN logo no hacia nada — volvia a poner el default. Y el logo se congela en
+# el launch, asi que un token de prueba habria quedado con la foto de perfil de Jose para siempre.
+export LOGO="${LOGO-https://github.com/0x-keezy.png}"
+export DESCRIPTION="${DESCRIPTION-fees routed to a builder}"
 
 echo "== 1/3 - en que fase estamos =="
 IDH=$(cast call "$FACTORY" "identityHashFor(uint8,string,address)(bytes32)" \
@@ -48,6 +51,22 @@ else
   fi
   echo "   sin moneda atada -> esta corrida LANZA LA MONEDA."
   FASE=2
+fi
+
+if [ "$FASE" = "2" ]; then
+  echo
+  echo "   ============================================================"
+  echo "   ESTA CORRIDA LANZA LA MONEDA. Es IRREVERSIBLE."
+  echo "     nombre:  $NAME  ($SYMBOL)"
+  echo "     vault:   $VAULTS  (identidad github:$IDENTITY_VALUE)"
+  echo "     tax:     $CREATOR_TAX_BPS bps al vault"
+  echo "     recovery: $RECOVERY_DAYS dias (0 = irrevocable)"
+  echo "   El nombre, el ticker y el tax quedan congelados para siempre, y el vault queda"
+  echo "   CONSUMIDO: attachToken es de una sola vez, no se le puede atar otra moneda."
+  echo "   ============================================================"
+  printf "   Escribi LANZAR para continuar: "
+  read -r OK2
+  [ "$OK2" = "LANZAR" ] || { echo "   cancelado."; exit 1; }
 fi
 
 echo
@@ -82,21 +101,6 @@ fi
 BAL=$(cast balance "$DIR" --rpc-url "$RPC")
 echo "   llave ok: $DIR ($(cast from-wei "$BAL") ETH)"
 
-if [ "$FASE" = "2" ]; then
-  echo
-  echo "   ============================================================"
-  echo "   ESTA CORRIDA LANZA LA MONEDA. Es IRREVERSIBLE."
-  echo "     nombre:  $NAME  ($SYMBOL)"
-  echo "     vault:   $VAULTS  (identidad github:$IDENTITY_VALUE)"
-  echo "     tax:     $CREATOR_TAX_BPS bps al vault"
-  echo "     recovery: $RECOVERY_DAYS dias (0 = irrevocable)"
-  echo "   El nombre, el ticker y el tax quedan congelados para siempre, y el vault queda"
-  echo "   CONSUMIDO: attachToken es de una sola vez, no se le puede atar otra moneda."
-  echo "   ============================================================"
-  printf "   Escribi LANZAR para continuar: "
-  read -r OK2
-  [ "$OK2" = "LANZAR" ] || { echo "   cancelado."; exit 1; }
-fi
 
 echo
 echo "== 3/3 - fase $FASE =="
