@@ -43,6 +43,12 @@ contract LaunchPilot is Script {
     }
 
     function run() external {
+        // ⚠️ GUARDA DE RAIL — ver el comentario largo en Deploy.s.sol. Este lanza en el
+        // VaultPortal de FLAP; el de pons es `LaunchPons.s.sol`.
+        require(
+            vm.envOr("I_MEAN_THE_FLAP_RAIL", false),
+            "Este es el launch del rail de FLAP. Para pons usa script/LaunchPons.s.sol. Si de verdad queres el de Flap: I_MEAN_THE_FLAP_RAIL=true"
+        );
         require(block.chainid == RobinhoodAddresses.CHAIN_ID, "wrong chain (expected 4663)");
 
         string memory idType = vm.envString("IDENTITY_TYPE"); // wallet | github | twitter
