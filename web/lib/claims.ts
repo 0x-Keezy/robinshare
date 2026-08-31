@@ -111,3 +111,27 @@ export function walletErrorHint(message: string): string | null {
   }
   return null;
 }
+
+/// Que decirle a alguien cuyo "Connect wallet" no hizo nada.
+///
+/// POR QUE EXISTE: `useConnect()` devuelve `connect` (un mutate, no async) y `error`. La app solo
+/// desestructuraba `connect`, asi que cuando `injected()` no encuentra `window.ethereum` tira
+/// ConnectorNotFoundError, el error se queda dentro del estado de la mutacion, y NO LLEGA A LA
+/// PANTALLA: el boton se queda ahi, identico, para siempre.
+///
+/// A quien le pasa: al builder que abre el link desde el telefono —que es el camino por defecto de
+/// como esto se comparte— y al que todavia no tiene wallet, que es EL usuario que el producto dice
+/// atender. Llegaba al ultimo paso y no habia mensaje, ni error, ni instruccion.
+export function connectErrorHint(message: string): string {
+  const m = message.toLowerCase();
+  if (m.includes("connector not found") || m.includes("provider not found") || m.includes("no injected")) {
+    return (
+      "We could not find a wallet in this browser. On a phone, open this page from inside your " +
+      "wallet app's browser; on a desktop, install one (MetaMask, Rabby) and reload."
+    );
+  }
+  if (m.includes("user rejected") || m.includes("user denied")) {
+    return "You dismissed the wallet prompt. Press connect again when you are ready.";
+  }
+  return message;
+}

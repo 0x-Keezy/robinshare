@@ -248,7 +248,6 @@ export function AvionHome() {
               style={{ borderColor: "rgba(241,232,214,0.25)", color: PAPER, fontFamily: "var(--f-mono)" }}
             >
               <option style={{ color: "#000" }} value="github">GitHub</option>
-              <option style={{ color: "#000" }} value="twitter">X (Twitter)</option>
               <option style={{ color: "#000" }} value="wallet">Wallet</option>
             </select>
             <input

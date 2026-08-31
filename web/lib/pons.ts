@@ -274,6 +274,25 @@ const REVERT_HINTS: [RegExp, string][] = [
   [/BadHandleLength/, "That handle is too long or empty."],
   [/RecoveryWindowTooShort/, "Recovery must be 0 (never) or at least 30 days."],
   [/RecoveryWindowTooLong/, "Recovery cannot be more than 3650 days."],
+
+  // ── los del CLAIM ──────────────────────────────────────────────────────────────────────────
+  // Faltaban, y son los que un builder se encuentra de verdad. Sin ellos, el error mas probable
+  // de todos —el voucher vencido— llegaba como un selector crudo, cuando lo unico que habia que
+  // hacer era volver a verificar con GitHub.
+  [/VoucherExpired/, "Your GitHub verification expired — it only lasts 15 minutes. Verify again and claim right after."],
+  [/BadAttesterSignature/, "That proof was not accepted on-chain. Verify with GitHub again to get a fresh one."],
+  [/AlreadyBound/, "This vault is already bound to a payout wallet. Withdraw from that wallet instead."],
+  [/NotBoundWallet/, "Only the wallet this vault is bound to can withdraw. Connect that one."],
+  [/NotBoundYet/, "Nobody has claimed this vault yet — prove the identity first."],
+  [/NothingToSweep/, "There is nothing to collect right now: no fees have accrued since the last sweep."],
+  [/ZeroPayout/, "The payout wallet cannot be the zero address."],
+  [/SelfPayout/, "The payout wallet cannot be the vault itself."],
+  [/GithubOnly/, "This vault proves identity through GitHub, not this route."],
+  [/WalletOnly/, "This vault is bound to a named wallet — claim it by signing from that wallet."],
+  [/RecoveryDisabled/, "This vault is irrevocable: the fees wait for the builder forever and nobody can claw them back."],
+  [/TooEarly/, "The recovery window has not passed yet."],
+  [/OnlyLauncher/, "Only the wallet that created this vault can do that."],
+  [/ECDSAInvalidSignature(Length|S)?/, "That signature is malformed. Verify with GitHub again."],
 ];
 
 export function ponsRevertHint(message: string): string | null {

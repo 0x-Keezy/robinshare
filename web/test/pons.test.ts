@@ -14,7 +14,7 @@ import {
   ponsAbi,
   recoveryBadge,
 } from "@/lib/pons";
-import { factoryAbi } from "@/lib/abis";
+import { factoryAbi, escrowAbi } from "@/lib/abis";
 
 const VAULT = "0x1111111111111111111111111111111111111111" as Address;
 const ZERO = "0x0000000000000000000000000000000000000000" as Address;
@@ -248,5 +248,66 @@ describe("recoveryBadge", () => {
     const b = recoveryBadge(BigInt(NOW + 30 * DAY), NOW, true);
     expect(b.irrevocable).toBe(true);
     expect(b.label).toMatch(/irrevocable/i);
+  });
+});
+
+describe("las traducciones matchean el formato REAL de viem, no uno inventado", () => {
+  /// Los tests de arriba alimentan ponsRevertHint con strings como
+  /// "execution reverted: LaunchFeeNotPaid()", un formato que viem NUNCA produce con estos ABIs.
+  /// Pasaban en verde mientras en produccion la funcion devolvia null para TODO, porque los
+  /// custom errors no estaban en el ABI y viem entregaba "reverted with the following signature:
+  /// 0x157fd87e / Unable to decode signature". Dieciseis traducciones escritas, testeadas y
+  /// muertas. Lo encontro una auditoria adversarial, no este archivo.
+  ///
+  /// Estos casos usan el formato que viem emite DE VERDAD cuando el error SI esta en el ABI,
+  /// verificado contra el vault vivo en Robinhood Chain.
+  const REALES: [string, RegExp][] = [
+    [
+      `The contract function "claimAndBind" reverted.
+
+Error: VoucherExpired()
+ 
+Contract Call:`,
+      /verification expired/i,
+    ],
+    [
+      `The contract function "attachToken" reverted.
+
+Error: TokenAlreadyAttached()
+ 
+Contract Call:`,
+      /already attached/i,
+    ],
+    [
+      `The contract function "claimAndBind" reverted.
+
+Error: BadAttesterSignature()
+ 
+Contract Call:`,
+      /verify with github again/i,
+    ],
+  ];
+
+  it.each(REALES)("traduce el caso %#", (mensaje, esperado) => {
+    const hint = ponsRevertHint(mensaje);
+    expect(hint, "no tradujo: " + mensaje.slice(0, 60)).not.toBeNull();
+    expect(hint!).toMatch(esperado);
+  });
+
+  it("el formato VIEJO (selector sin decodificar) NO se traduce, y esa es la prueba de que el ABI importa", () => {
+    // Si alguien saca los errores del ABI, viem vuelve a emitir esto y la tabla vuelve a estar
+    // muerta. Dejarlo escrito hace visible por que el ABI es parte del arreglo.
+    const crudo = `The contract function "claimAndBind" reverted with the following signature:
+0x157fd87e
+
+Unable to decode signature "0x157fd87e" as it was not found on the provided ABI.`;
+    expect(ponsRevertHint(crudo)).toBeNull();
+  });
+
+  it("el ABI del escrow declara los errores que la tabla traduce", () => {
+    const nombres = escrowAbi.filter((e) => e.type === "error").map((e) => (e as { name: string }).name);
+    for (const n of ["VoucherExpired", "BadAttesterSignature", "TokenAlreadyAttached", "AlreadyBound", "NothingToSweep"]) {
+      expect(nombres, "falta " + n + " en escrowAbi").toContain(n);
+    }
   });
 });

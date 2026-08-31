@@ -393,7 +393,7 @@ export function SherwoodHome() {
                 {[
                   { k: "01 · Mark", t: "Name the builder", d: "Pick someone who ships — by their GitHub, their X, or a wallet. Their coin goes live on pons in seconds, paired against native ETH." },
                   { k: "02 · Tax", t: "Every trade pays them", d: "A slice of the trading tax drips into an on-chain vault held in their name. Automatic, permissionless, non-custodial." },
-                  { k: "03 · Claim", t: "Only they collect", d: "They prove the name is theirs — signature, OAuth, or the X oracle — and sweep the gold to any wallet. No one else can." },
+                  { k: "03 · Claim", t: "Only they collect", d: "They prove the name is theirs — a GitHub login, or a signature from the wallet you named — and sweep the gold to any wallet. No one else can." },
                 ].map((row, i) => (
                   <Reveal key={row.k} delay={i * 110}>
                     <div
@@ -427,7 +427,8 @@ export function SherwoodHome() {
                 Said plainly, because the sheriff is real: the launcher cannot call the fees back — unless
                 they set a recovery window at launch, which the vault publishes on-chain. But pons — the launchpad the coin lives on —
                 can redirect a coin&apos;s creator fees, by a 2-of-3 multisig and only after a
-                public 3-day timelock anyone can watch. We sweep early to keep that window small.
+                public 3-day timelock anyone can watch. Sweeping is permissionless: anyone can shrink that
+                window, and the builder can do it from their own claim page.
               </p>
             </div>
           </div>
@@ -503,7 +504,7 @@ export function SherwoodHome() {
                 </Reveal>
                 <Reveal delay={260}>
                   <div className="mt-8 flex flex-wrap gap-3" style={{ fontFamily: "var(--f-mono)" }}>
-                    {["wallet signature", "github oauth", "x oracle proof"].map((m) => (
+                    {["wallet signature", "github oauth"].map((m) => (
                       <span
                         key={m}
                         className="rounded-full border px-4 py-1.5 text-xs uppercase tracking-[0.14em]"
@@ -549,7 +550,6 @@ export function SherwoodHome() {
                         style={{ borderColor: "rgba(242,239,230,0.3)", color: CREAM, fontFamily: "var(--f-mono)" }}
                       >
                         <option style={{ color: "#000" }} value="github">GitHub</option>
-                        <option style={{ color: "#000" }} value="twitter">X (Twitter)</option>
                         <option style={{ color: "#000" }} value="wallet">Wallet</option>
                       </select>
                       {/* caret propio: el nativo del OS desentonaba con el sistema mono/hairline */}

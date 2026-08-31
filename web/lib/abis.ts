@@ -3,7 +3,7 @@
 // (lib/bind.ts) — si lo leyera, un contrato hostil que reenvie esa funcion al vault de otra
 // persona conseguiria una firma valida contra ESE vault.
 
-export const escrowAbi = [
+const escrowFunctionsAbi = [
   // ── identidad ──
   { type: "function", name: "identityType", stateMutability: "view", inputs: [], outputs: [{ type: "uint8" }] },
   { type: "function", name: "identityValue", stateMutability: "view", inputs: [], outputs: [{ type: "string" }] },
@@ -112,7 +112,7 @@ export const escrowAbi = [
   },
 ] as const;
 
-export const factoryAbi = [
+const factoryFunctionsAbi = [
   { type: "function", name: "attester", stateMutability: "view", inputs: [], outputs: [{ type: "address" }] },
   // La factory del rail pons expone un registro directo. Reemplaza al par
   // identityHashFor+getVaults para el chequeo de procedencia del attester: es O(1), no depende de
@@ -174,3 +174,72 @@ export const factoryAbi = [
     ],
   },
 ] as const;
+
+/// LOS CUSTOM ERRORS. Sin estos, la tabla de traducciones no puede funcionar NUNCA.
+///
+/// viem solo decodifica un custom error si su definicion esta en el ABI que se le pasa. Estos ABIs
+/// no las tenian, asi que CADA revert le llegaba al usuario como
+/// `reverted with the following signature: 0x157fd87e / Unable to decode signature ... Version:
+/// viem@2.55.0` — y como `ponsRevertHint` matchea por NOMBRE sobre ese mismo texto, las 16
+/// traducciones ya escritas devolvian `null` siempre. La feature estaba deployada y muerta.
+///
+/// Verificado contra el vault vivo: `claimAndBind` con deadline vencido devolvia `0x157fd87e`
+/// (= `cast sig "VoucherExpired()"`) sin una palabra que dijera "volve a verificar con GitHub",
+/// que era todo lo que el builder tenia que hacer.
+///
+/// GENERADO del ABI compilado (`contracts/out/*.json`), no escrito a mano.
+export const vaultErrorsAbi = [
+  { type: "error", name: "AlreadyBound", inputs: [] },
+  { type: "error", name: "AttesterRequired", inputs: [] },
+  { type: "error", name: "BadAttesterSignature", inputs: [] },
+  { type: "error", name: "BadIdentityType", inputs: [] },
+  { type: "error", name: "BuybackMustBeDisabled", inputs: [] },
+  { type: "error", name: "ECDSAInvalidSignature", inputs: [] },
+  { type: "error", name: "ECDSAInvalidSignatureLength", inputs: [{ name: "length", type: "uint256" }] },
+  { type: "error", name: "ECDSAInvalidSignatureS", inputs: [{ name: "s", type: "bytes32" }] },
+  { type: "error", name: "GithubOnly", inputs: [] },
+  { type: "error", name: "InvalidProof", inputs: [] },
+  { type: "error", name: "InvalidShortString", inputs: [] },
+  { type: "error", name: "LaunchedByStranger", inputs: [] },
+  { type: "error", name: "NotBoundWallet", inputs: [] },
+  { type: "error", name: "NotBoundYet", inputs: [] },
+  { type: "error", name: "NotIdentityWallet", inputs: [] },
+  { type: "error", name: "NotOurLaunch", inputs: [] },
+  { type: "error", name: "NothingToSweep", inputs: [] },
+  { type: "error", name: "OnlyLauncher", inputs: [] },
+  { type: "error", name: "OutdatedProof", inputs: [] },
+  { type: "error", name: "PairMustBeNative", inputs: [] },
+  { type: "error", name: "RecoveryDisabled", inputs: [] },
+  { type: "error", name: "ReentrancyGuardReentrantCall", inputs: [] },
+  { type: "error", name: "SafeERC20FailedOperation", inputs: [{ name: "token", type: "address" }] },
+  { type: "error", name: "SelfPayout", inputs: [] },
+  { type: "error", name: "StringTooLong", inputs: [{ name: "str", type: "string" }] },
+  { type: "error", name: "StringsInsufficientHexLength", inputs: [{ name: "value", type: "uint256" }, { name: "length", type: "uint256" }] },
+  { type: "error", name: "SubstringMismatch", inputs: [] },
+  { type: "error", name: "TokenAlreadyAttached", inputs: [] },
+  { type: "error", name: "TooEarly", inputs: [] },
+  { type: "error", name: "TwitterOnly", inputs: [] },
+  { type: "error", name: "VoucherExpired", inputs: [] },
+  { type: "error", name: "WalletOnly", inputs: [] },
+  { type: "error", name: "WalletRequired", inputs: [] },
+  { type: "error", name: "WrongXHandle", inputs: [] },
+  { type: "error", name: "XVerifierMissing", inputs: [] },
+  { type: "error", name: "ZeroPayout", inputs: [] },
+] as const;
+
+export const factoryErrorsAbi = [
+  { type: "error", name: "BadHandleCharset", inputs: [] },
+  { type: "error", name: "BadHandleLength", inputs: [] },
+  { type: "error", name: "BadIdentityType", inputs: [] },
+  { type: "error", name: "OnlyAttester", inputs: [] },
+  { type: "error", name: "RecoveryWindowTooLong", inputs: [] },
+  { type: "error", name: "RecoveryWindowTooShort", inputs: [] },
+  { type: "error", name: "ValueMustBeEmptyForWallet", inputs: [] },
+  { type: "error", name: "WalletRequired", inputs: [] },
+  { type: "error", name: "ZeroAddress", inputs: [] },
+] as const;
+
+/// Los ABIs que consume la UI: funciones + errores. Se componen aca para que sea imposible
+/// importar uno sin el otro.
+export const escrowAbi = [...escrowFunctionsAbi, ...vaultErrorsAbi] as const;
+export const factoryAbi = [...factoryFunctionsAbi, ...factoryErrorsAbi] as const;

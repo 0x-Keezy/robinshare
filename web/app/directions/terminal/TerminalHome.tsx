@@ -178,7 +178,8 @@ export function TerminalHome() {
             <br />
             <span style={{ color: PHOS_FAINT }}>warn:</span> one role is not ours and not zero —
             pons, the launchpad, can redirect a coin&apos;s creator fees behind a public 3-day
-            timelock. we sweep early to shrink that window. we will not pretend it is not there.
+            timelock. sweeping is permissionless — anyone can shrink that window, including the builder.
+            we will not pretend it is not there.
           </div>
           <div className="mt-8 flex flex-wrap gap-4">
             <Link
@@ -214,7 +215,7 @@ export function TerminalHome() {
           </h2>
           <div className="mt-10 flex flex-col gap-8">
             {[
-              { cmd: "fledge mark <builder>", d: "name the builder — github, x handle, or wallet. their coin lists on pons in seconds, paired against native ETH." },
+              { cmd: "fledge mark <builder>", d: "name the builder — github or wallet. their coin lists on pons in seconds, paired against native ETH." },
               { cmd: "fledge tax --auto", d: "a slice of every trade streams into an on-chain vault held in their name. permissionless." },
               { cmd: "fledge claim --prove", d: "they prove the identity (signature | oauth | x-oracle) and sweep the eth. nobody else can." },
             ].map((r, i) => (
@@ -266,7 +267,6 @@ export function TerminalHome() {
                 style={{ borderColor: PHOS_FAINT, color: PHOS }}
               >
                 <option style={{ color: "#000" }} value="github">github</option>
-                <option style={{ color: "#000" }} value="twitter">x</option>
                 <option style={{ color: "#000" }} value="wallet">wallet</option>
               </select>
             </label>

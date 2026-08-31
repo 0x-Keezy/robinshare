@@ -153,10 +153,46 @@ describe("el lanzamiento va SIN la ruta de X (PENDIENTES 4)", () => {
     expect(opciones![0]).toMatch(/wallet/);
   });
 
-  it("ninguna landing promete que se puede lanzar para una cuenta de X", () => {
+  /// LA REGLA ANTERIOR ERA DEMASIADO ESTRECHA Y NO CAZO NADA.
+  ///
+  /// Buscaba `(launch|fees|vault|coin|builder) ... (on X|X handle|X account)`, y las nueve
+  /// paginas siguieron vendiendo la ruta de X de CUATRO formas que ese regex no ve:
+  /// `<option value="twitter">X (Twitter)</option>` en el selector de identidad de cuatro
+  /// direcciones, "a tweet", "the X oracle", y "x oracle proof" en una lista de metodos. Lo
+  /// encontro una auditoria adversarial, no este test.
+  ///
+  /// Moraleja, la misma que ya esta escrita arriba para el caveat de custodia: la regla se escribe
+  /// sobre la PROMESA (aca: "existe una ruta por X"), no sobre una redaccion puntual de ella. Por
+  /// eso ahora se prohiben los TERMINOS, que es lo que no se puede parafrasear.
+  const TERMINOS_DE_X = [
+    [/twitter/i, "twitter"],
+    [/tweets?/i, "tweet"],
+    [/x oracle/i, "x oracle"],
+    [/x handle/i, "x handle"],
+  ] as const;
+
+  it.each(surfaces)("%s no ofrece la ruta de X, que la factory rechaza en cadena", (name, src) => {
+    for (const [re, termino] of TERMINOS_DE_X) {
+      expect(re.test(src), `${name} menciona "${termino}": la factory va con xVerifier=0 y createVault con identityType=2 revierte`).toBe(false);
+    }
+  });
+
+  it("la meta description del sitio tampoco la ofrece", () => {
+    // Es la que se ve en Google y en cada preview de link compartido — la superficie mas leida
+    // del producto, y estaba fuera del gate.
+    const layout = flat(readFileSync(join(WEB, "app", "layout.tsx"), "utf8"));
+    for (const [re, termino] of TERMINOS_DE_X) {
+      expect(re.test(layout), `layout.tsx menciona "${termino}"`).toBe(false);
+    }
+  });
+
+  it("ninguna superficie se atribuye un barrido que nadie hace", () => {
+    // "That is why we sweep early and often" era falso: no hay keeper corriendo. El lector cerraba
+    // el parrafo creyendo que el operador cierra la ventana de exposicion al redirect de pons.
+    // La verdad —que el barrido es permissionless y lo puede pagar cualquiera, incluido el propio
+    // builder— es igual de tranquilizadora y ademas es cierta.
     for (const [name, src] of surfaces) {
-      const prometeX = /(launch|fees?|vault|coin|builder)[^.]{0,80}(on X|X handle|X account|@handle on X)/i.test(src);
-      expect(prometeX, `${name} sigue prometiendo la ruta de X`).toBe(false);
+      expect(/we sweep/i.test(src), `${name} dice "we sweep" y no hay keeper corriendo`).toBe(false);
     }
   });
 });

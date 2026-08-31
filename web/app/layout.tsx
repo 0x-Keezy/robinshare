@@ -16,7 +16,7 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   title: "RobinShare — route fees to builders",
   description:
-    "Launch a coin for any builder on Robinhood Chain. 3% of every trade goes to a vault only they can claim — via GitHub, X, or wallet.",
+    "Launch a coin for any builder on Robinhood Chain. A cut of every trade goes to a vault only they can claim — with their GitHub account or a wallet.",
 };
 
 export default function RootLayout({

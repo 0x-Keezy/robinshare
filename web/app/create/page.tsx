@@ -23,7 +23,7 @@ import {
   type IdentityType,
   type LaunchIdentity,
 } from "@/lib/pons";
-import { AUDIT_LINE } from "@/lib/claims";
+import { AUDIT_LINE, connectErrorHint } from "@/lib/claims";
 import { RSShell, RS } from "@/components/RSShell";
 
 const inputCls = "w-full border-0 border-b-2 bg-transparent py-2 placeholder:opacity-35 focus:outline-none";
@@ -80,7 +80,7 @@ function saveProgress(owner: Address | undefined, p: Progress) {
 
 export default function CreatePage() {
   const { address, isConnected, chainId: walletChainId } = useAccount();
-  const { connect } = useConnect();
+  const { connect, error: connectError } = useConnect();
   const { switchChainAsync } = useSwitchChain();
   const { writeContractAsync } = useWriteContract();
 
@@ -169,7 +169,7 @@ export default function CreatePage() {
       return setMsg("That recipient wallet is not a valid address.");
     }
     if (type !== "wallet" && !handle.trim()) {
-      return setMsg("Enter the GitHub / X handle.");
+      return setMsg("Enter the GitHub handle.");
     }
     const days = Number(recoveryDays);
     if (!Number.isInteger(days) || days < 0 || (days !== 0 && days < 30) || days > 3650) {
@@ -546,6 +546,7 @@ export default function CreatePage() {
             )}
 
             {!isConnected ? (
+              <>
               <button
                 onClick={() => connect({ connector: injected() })}
                 className="rounded-full border-2 px-7 py-3 font-bold transition-colors"
@@ -553,6 +554,12 @@ export default function CreatePage() {
               >
                 Connect wallet
               </button>
+                {connectError && (
+                  <p className="mt-3 text-xs leading-relaxed" style={{ fontFamily: "var(--f-mono)", color: "#c0392b" }}>
+                    {connectErrorHint(connectError.message)}
+                  </p>
+                )}
+              </>
             ) : (
               <button
                 onClick={create}

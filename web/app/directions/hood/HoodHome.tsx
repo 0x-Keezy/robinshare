@@ -379,7 +379,7 @@ export function HoodHome() {
             {[
               { act: "Act I", num: "I", t: "Mark", d: "Name the builder — by their GitHub, their X, or a wallet. Their coin goes live on pons in seconds, paired against native ETH. They don't even need to know yet." },
               { act: "Act II", num: "II", t: "Tribute", d: "Every buy and sell pays tribute: a slice of the trading tax rides into an on-chain vault sworn to that name. Automatic. Non-custodial. No hands touch it." },
-              { act: "Act III", num: "III", t: "Claim", d: "The builder proves the name is theirs — a signature, a login, the X oracle — and sweeps the gold to any wallet. No one else. Not us. Not the launcher." },
+              { act: "Act III", num: "III", t: "Claim", d: "The builder proves the name is theirs — a GitHub login, or a signature from the wallet you named — and sweeps the gold to any wallet. No one else. Not us. Not the launcher." },
             ].map((s, i) => (
               <Reveal key={s.act} delay={i * 90}>
                 <div className="relative py-16 text-center">
@@ -460,7 +460,6 @@ export function HoodHome() {
                     style={{ borderColor: HAIR, color: CREAM, fontFamily: "var(--f-mono)" }}
                   >
                     <option style={{ color: "#000" }} value="github">GitHub</option>
-                    <option style={{ color: "#000" }} value="twitter">X (Twitter)</option>
                     <option style={{ color: "#000" }} value="wallet">Wallet</option>
                   </select>
                   <input

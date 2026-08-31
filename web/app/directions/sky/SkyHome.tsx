@@ -197,7 +197,6 @@ export function SkyHome() {
               style={{ borderColor: INK, color: INK, fontFamily: "var(--f-mono)" }}
             >
               <option value="github">GitHub</option>
-              <option value="twitter">X (Twitter)</option>
               <option value="wallet">Wallet</option>
             </select>
             <input

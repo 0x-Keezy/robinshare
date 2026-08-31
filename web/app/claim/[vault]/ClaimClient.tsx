@@ -7,8 +7,8 @@ import { useAccount, useConnect, useSwitchChain, useWriteContract } from "wagmi"
 import { injected } from "wagmi/connectors";
 import { publicClient, factoryAddress, robinhoodChain } from "@/lib/chain";
 import { escrowAbi, factoryAbi } from "@/lib/abis";
-import { recoveryBadge } from "@/lib/pons";
-import { walletErrorHint } from "@/lib/claims";
+import { recoveryBadge, ponsRevertHint } from "@/lib/pons";
+import { walletErrorHint, connectErrorHint } from "@/lib/claims";
 import { RSShell, RS } from "@/components/RSShell";
 
 const ZERO = "0x0000000000000000000000000000000000000000";
@@ -61,15 +61,30 @@ function easeOutCubic(t: number) {
 
 export function ClaimClient({ vault }: { vault: Address }) {
   const { address, isConnected, chainId: walletChainId } = useAccount();
-  const { connect } = useConnect();
+  const { connect, error: connectError } = useConnect();
   const { switchChainAsync } = useSwitchChain();
   const { writeContractAsync, isPending } = useWriteContract();
 
-  // ?demo=1 — illustrative mode, see block above. Read synchronously from
-  // the URL: safe because the SSR/pre-hydration render always shows the
-  // "Loading vault…" branch regardless of isDemo (s is null either way), so
-  // there's nothing for this to mismatch against.
-  const isDemo = typeof window !== "undefined" && new URLSearchParams(window.location.search).get("demo") === "1";
+  // ?demo=1 — modo ilustrativo. APAGADO EN PRODUCCION, y no es una precaucion teorica.
+  //
+  // Este bloque se escribio cuando el producto no estaba lanzado ("there's no real vault to read
+  // on-chain"). Desde que hay vaults reales, `?demo=1` sobre la URL de un vault REAL se volvio una
+  // pagina de phishing lista para usar, alojada en el dominio del propio producto: descartaba lo
+  // que dice la cadena, pintaba un saldo inventado, corria Connect -> Verify -> Claim sin tocar
+  // nada, y terminaba en "Claimed - fees released" con un link a una transaccion que no existe.
+  //
+  // El ataque completo: al builder le llega "te lanzaron una moneda, cobrala aca" + la URL de SU
+  // vault con `?demo=1`. Ve un saldo, hace click, la pagina le confirma que cobro, y deja de
+  // intentar el claim de verdad. Si ese vault tiene `recoveryDays > 0`, quien lo lanzo se lleva
+  // todo cuando vence la ventana — que es exactamente el ataque que este producto existe para
+  // impedir, y quien lo lanzo es justamente el que tiene el incentivo de mandar ese link.
+  //
+  // Ahora hace falta ADEMAS la env var, que no esta en produccion: en el dominio real `?demo=1`
+  // es un no-op y la pagina lee la cadena. Clavado en `test/demo.test.ts`.
+  const isDemo =
+    process.env.NEXT_PUBLIC_ALLOW_DEMO === "1" &&
+    typeof window !== "undefined" &&
+    new URLSearchParams(window.location.search).get("demo") === "1";
   const [demoConnected, setDemoConnected] = useState(false);
   const [demoPending, setDemoPending] = useState(false);
   // identity-proof beat: "Verifying…" (spinner) -> "Verified ✓" (chip, brief hold) -> Claim button
@@ -245,7 +260,10 @@ export function ClaimClient({ vault }: { vault: Address }) {
       // El error crudo se conserva DEBAJO del consejo, no se tira: cuando alguien tenga que
       // reportar el problema, el detalle tiene que seguir estando.
       const raw = e instanceof Error ? e.message : String(e);
-      const hint = walletErrorHint(raw);
+      // Dos traductores, en orden: primero el del CONTRATO (ahora que los custom errors estan en
+      // el ABI, `raw` trae el nombre del error y esta tabla puede matchear), y si no, el de la
+      // WALLET. /claim usaba ninguno de los dos: mostraba `e.message` pelado.
+      const hint = ponsRevertHint(raw) ?? walletErrorHint(raw);
       setMsg(hint ? `${hint}
 
 ${raw}` : raw);
@@ -527,9 +545,16 @@ ${raw}` : raw);
 
           <div className="mt-7 flex flex-col gap-3">
             {!effectiveConnected ? (
-              <button onClick={handleConnectClick} className={ghostCls} style={ghostStyle}>
+              <>
+                <button onClick={handleConnectClick} className={ghostCls} style={ghostStyle}>
                 Connect wallet
-              </button>
+                </button>
+                {connectError && (
+                  <p className="text-xs leading-relaxed" style={{ fontFamily: "var(--f-mono)", color: "#c0392b" }}>
+                    {connectErrorHint(connectError.message)}
+                  </p>
+                )}
+              </>
             ) : (
               <>
                 {/* Identidad ya probada. El retiro es PULL: solo el boundWallet lo puede llamar. */}

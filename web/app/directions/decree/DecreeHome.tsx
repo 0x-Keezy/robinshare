@@ -267,7 +267,6 @@ export function DecreeHome() {
                     style={{ borderColor: INK, color: INK }}
                   >
                     <option value="github">GitHub</option>
-                    <option value="twitter">X (Twitter)</option>
                     <option value="wallet">Wallet</option>
                   </select>
                 </label>

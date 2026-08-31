@@ -334,7 +334,7 @@ export function LegendHome() {
             {[
               { n: "01", t: "Name them", d: "Pick a builder by GitHub, X, or wallet. Their coin lists on pons in seconds, paired against native ETH." },
               { n: "02", t: "Fees accrue", d: "A launch-set cut of every trade (1–10%) lands in an on-chain vault under their name." },
-              { n: "03", t: "They claim", d: "They prove it's them (GitHub login, a tweet, or a signature) and sweep the ETH." },
+              { n: "03", t: "They claim", d: "They prove it's them (GitHub login, or a signature from the wallet you named) and sweep the ETH." },
             ].map((s) => (
               <Reveal key={s.n}>
                 <div
@@ -406,12 +406,13 @@ export function LegendHome() {
                   lives on — can point a coin&apos;s creator fees somewhere else: a 2-of-3
                   multisig, behind a public 3-day timelock anyone can watch on-chain before it
                   lands, and it applies retroactively to anything not yet swept. That is why we
-                  sweep early and often. And on a GitHub vault, our attester signature is what
+                  sweep is permissionless — anyone can pay for it, including the builder, with the button on
+                  their claim page. And on a GitHub vault, our attester signature is what
                   proves the identity — so that key is trusted, by construction. X and wallet
                   vaults never touch it.
                 </p>
                 <div className="mt-6 flex flex-wrap gap-2.5" style={{ fontFamily: "var(--f-mono)" }}>
-                  {["wallet signature", "github oauth", "x oracle proof"].map((m) => (
+                  {["wallet signature", "github oauth"].map((m) => (
                     <span
                       key={m}
                       className="rounded-full border px-4 py-1.5 text-xs uppercase tracking-[0.12em]"
@@ -452,7 +453,6 @@ export function LegendHome() {
                   style={{ borderColor: INK, color: INK, fontFamily: "var(--f-mono)" }}
                 >
                   <option value="github">GitHub</option>
-                  <option value="twitter">X (Twitter)</option>
                   <option value="wallet">Wallet</option>
                 </select>
               </label>

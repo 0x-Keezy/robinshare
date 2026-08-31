@@ -208,7 +208,7 @@ export function MangaHome() {
             {[
               { ch: "Ch.1", t: "The Mark", d: "Pick a builder — GitHub, X, or wallet. Their coin drops on pons in seconds, paired against native ETH. They don't even know yet!", rot: -1.5 },
               { ch: "Ch.2", t: "The Tithe", d: "Every buy & sell pays up: a slice of the tax streams into their vault. Automatic. Untouchable.", rot: 1 },
-              { ch: "Ch.3", t: "The Claim", d: "They prove the name — signature, OAuth, or the X oracle — and sweep the gold. Nobody else. Ever.", rot: -0.5 },
+              { ch: "Ch.3", t: "The Claim", d: "They prove the name — a GitHub login, or a signature from the wallet you named — and sweep the gold. Nobody else. Ever.", rot: -0.5 },
             ].map((c, i) => (
               <Reveal key={c.ch} delay={i * 100}>
                 <div className="h-full p-6" style={{ ...PANEL, transform: `rotate(${c.rot}deg)` }}>
@@ -265,7 +265,6 @@ export function MangaHome() {
                     style={{ border: `3px solid ${INKB}`, fontFamily: "var(--f-mono)" }}
                   >
                     <option value="github">GitHub</option>
-                    <option value="twitter">X (Twitter)</option>
                     <option value="wallet">Wallet</option>
                   </select>
                 </label>

@@ -229,7 +229,6 @@ export function NestHome() {
               style={{ borderColor: "rgba(245,241,232,0.2)", color: CREAM, fontFamily: "var(--f-mono)" }}
             >
               <option style={{ color: "#000" }} value="github">GitHub</option>
-              <option style={{ color: "#000" }} value="twitter">X (Twitter)</option>
               <option style={{ color: "#000" }} value="wallet">Wallet</option>
             </select>
             <input
