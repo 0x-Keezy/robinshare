@@ -51,10 +51,14 @@ verifica que lo sean, y después del deploy que el `attesterAdmin` on-chain sea 
 
 ```bash
 cd web
-DEPLOYER_ADDRESS=0x... ATTESTER_ADDRESS=0x... node scripts/preflight.mjs
+DEPLOYER_ADDRESS=0x... ATTESTER_ADDRESS=0x... ATTESTER_ADMIN=0x... node scripts/preflight.mjs
 ```
 
 No manda nada y no necesita ninguna private key. Si sale con **LISTO PARA LANZAR**, seguí.
+
+Con las tres direcciones también verifica lo que decidiste en §3: que sean **distintas** entre sí.
+Y si les pasás una dirección con el casing roto, te dice que el checksum no cierra en vez de un
+"inválida" a secas — minúsculas y checksum correcto pasan las dos.
 
 ---
 
