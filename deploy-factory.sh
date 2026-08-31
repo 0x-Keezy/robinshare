@@ -26,7 +26,7 @@ RPC="${RPC:-https://rpc.mainnet.chain.robinhood.com}"   # el alias `robinhood` s
 
 echo "== 1/4 - la rama =="
 RAMA="$(git -C "$RAIZ" rev-parse --abbrev-ref HEAD)"
-[ "$RAMA" = "feat/pons-web" ] || { echo "   estas en '$RAMA'; corre: git checkout feat/pons-web"; exit 1; }
+case "$RAMA" in feat/pons-web|main) ;; *) false;; esac || { echo "   estas en '$RAMA'; corre: git checkout feat/pons-web"; exit 1; }
 echo "   ok: $RAMA"
 
 echo
