@@ -59,7 +59,10 @@ if [ "$FASE" = "2" ]; then
   echo "   ESTA CORRIDA LANZA LA MONEDA. Es IRREVERSIBLE."
   echo "     nombre:  $NAME  ($SYMBOL)"
   echo "     vault:   $VAULTS  (identidad github:$IDENTITY_VALUE)"
-  echo "     tax:     $CREATOR_TAX_BPS bps al vault"
+  VISIBLE=$(python -c "print(1+$CREATOR_TAX_BPS/100)")
+  ALBUILDER=$(python -c "print(round(0.7+$CREATOR_TAX_BPS/100,2))")
+  echo "     tax:     $CREATOR_TAX_BPS bps -> pons va a mostrar ${VISIBLE}% de tax en la pagina,"
+  echo "              y al builder le llega ${ALBUILDER}% del volumen"
   echo "     recovery: $RECOVERY_DAYS dias (0 = irrevocable)"
   echo "   El nombre, el ticker y el tax quedan congelados para siempre, y el vault queda"
   echo "   CONSUMIDO: attachToken es de una sola vez, no se le puede atar otra moneda."
