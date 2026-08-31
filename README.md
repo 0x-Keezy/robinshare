@@ -1,71 +1,102 @@
 # RobinShare — route trading fees to the builders who earned them
 
-> ⚠️ **ESTE README DESCRIBE EL RAIL DE FLAP, QUE YA NO ES LA LINEA VIVA.**
->
-> RobinShare se porto al launchpad **pons v2** (misma cadena, Robinhood Chain 4663). En el rail
-> nuevo no hay `VaultPortal`, ni vanity `0x7777`, ni Guardian, y los contratos son
-> `RobinShareVault` + `RobinShareVaultFactory`. Lo de abajo sigue siendo correcto **para la rama
-> `flap-rail` y el tag `audited-v3`**, y se conserva por eso.
->
-> Para el rail vivo: [`docs/superpowers/specs/2026-08-29-robinshare-pons-port-design.md`](docs/superpowers/specs/2026-08-29-robinshare-pons-port-design.md)
-> (diseno), [`docs/RUNBOOK-launch-pons.md`](docs/RUNBOOK-launch-pons.md) (operacion) y
-> [`PENDIENTES.md`](PENDIENTES.md) (lo que falta decidir). **El contrato nuevo no esta auditado.**
-
-**RobinShare** lets anyone launch a token on [Flap](https://flap.sh) (Robinhood Chain) whose
-trading fees accrue to **one person** — identified by their **GitHub, X handle, or wallet** —
-without that person needing a wallet up front. They claim by proving the identity: a GitHub
-login, a tweet verified by Flap's on-chain oracle, or a direct signature.
+**RobinShare** lets anyone launch a coin on **[pons](https://pons.fun) v2** (Robinhood Chain)
+whose trading fees accrue to **one person** — identified by their **GitHub, X handle, or wallet** —
+without that person needing a wallet up front. They claim later by proving the identity.
 
 Robin Hood is about sharing with others. Here, that means sharing with the devs who actually
 earned it.
 
-- **Chain:** Robinhood Chain (4663) · VaultPortal `0xe9F7AB7DE8FB8756acbB6a1cd13316a43308197B`
+- **Chain:** Robinhood Chain (4663)
+- **Launchpad:** pons v2 — `0x7eD598BcEf8bd9Edd8C97A195C6d13f40801EC7e`
+- **Contracts:** `RobinShareVault` + `RobinShareVaultFactory`
 - **X:** [@RobinShareApp](https://x.com/RobinShareApp)
+
+> **Status: not deployed, and not audited.** The contracts are written, tested against the live
+> pons contracts in a fork, and waiting on an audit plus a handful of decisions listed in
+> [`PENDIENTES.md`](PENDIENTES.md). Nothing is live on-chain.
 
 ## How it works
 
-1. **Name them** — pick a builder by GitHub, X, or wallet. Their coin lists on Flap in seconds.
-2. **Fees accrue** — a launch-set cut of every trade (1–10%, probed on-chain against the live
-   portal) lands in an immutable escrow vault under their name.
-3. **They claim** — they prove it's them (GitHub OAuth voucher, a tweet verified by Flap's
-   `XGeneralVerifier` oracle, or a wallet signature) and sweep the ETH.
+1. **Name them** — pick a builder by GitHub, X, or wallet. Their coin launches on pons in
+   seconds, always paired against native ETH.
+2. **Fees accrue** — a creator tax set at launch (up to the cap pons enforces, today 10%) lands
+   in an immutable vault under that identity's name. Steady-state that's **10.7% of trade
+   volume** reaching the vault; in the first seconds it is higher because pons' snipe tax lands
+   in the same bucket.
+3. **They claim** — they prove it's them (GitHub OAuth voucher, a tweet verified by an on-chain
+   oracle, or a wallet signature) and withdraw the ETH.
 
-**Core invariant:** escrowed ETH can only ever move to the wallet that proved the identity (or
-back to the creator via `recoverUnclaimed(address to)`, only if the vault was *never* bound and
-the creator-chosen recovery window elapsed). No owner. No pause. No upgrade path. One privileged
-function only: `emergencyWithdrawNative`, an emergency-only hatch gated to Flap's public
-per-chain Guardian multisig (never us) — adopted in the Flap preaudit as the recovery of last
-resort. Payout rotation (`rebindWallet`) and attester rotation (`rotateAttester`) are self-gated:
-the proven identity and the attester key rotate themselves, no admin in either path. `receive()`
-stays empty — always.
+## What is true, and what is not ours to promise
+
+The vault has **no owner, no upgrade path, no pause and no emergency hatch**. Whoever launched
+the coin can never redirect its fees — unless they set a recovery window at launch, which the
+vault publishes on-chain and the claim page shows as a badge.
+
+Two powers are **not** ours to disclaim, and the product says so on every page:
+
+- **pons** — the launchpad's owner (a 2-of-3 multisig) can point any coin's `creatorFeeRecipient`
+  somewhere else, behind a public 3-day timelock, and the change applies retroactively to
+  anything not yet swept. Sweeping early is the mitigation.
+- **our attester key** — on a **GitHub** vault, our signature *is* the proof of identity, so that
+  key can bind any GitHub vault to any wallet. That is inherent to attesting an OAuth login
+  on-chain. X and wallet vaults do not depend on it.
+
+**Only ETH-paired launches are supported.** With an ERC-20 pair, pons credits fees in a
+per-token ledger the vault cannot pay out from, so `attachToken()` refuses those launches
+outright rather than trapping the money. That's roughly half of pons.
 
 ## Repo layout
 
 | Path | What |
 |---|---|
-| `contracts/` | Foundry — `SocialFeeEscrow` + `SocialFeeEscrowFactory` (la suite completa incl. fork E2E against the live chain) |
-| `web/` | Next.js 16 — landing, `/create` (launch from the browser: local salt mining, vanity `7777`), `/claim/[vault]`, GitHub OAuth attester routes, X oracle proxy |
-| `docs/` | Design specs, plans, runbook, deploy guides |
+| `contracts/src/RobinShareVault.sol` · `RobinShareVaultFactory.sol` | The live rail. Foundry. |
+| `contracts/src/pons/` | pons v2 addresses + the minimal ABI surface we call |
+| `contracts/test/ForkPons.t.sol` | The whole money cycle against the **real** pons contracts |
+| `web/` | Next.js 16 — landing, `/create` (3 transactions), `/claim/[vault]`, GitHub OAuth attester, X oracle proxy |
+| `docs/RUNBOOK-launch-pons.md` | The exact launch procedure |
+| `docs/superpowers/specs/2026-08-29-…-port-design.md` | The approved design, with its divergences dated |
+| `PENDIENTES.md` | What still needs a human decision before any of this ships |
+
+### The Flap rail (previous version, preserved)
+
+RobinShare was originally built and audited on the **Flap** launchpad. That version is intact on
+the **`flap-rail`** branch and the **`audited-v3`** tag, and `contracts/src/SocialFeeEscrow*.sol`
+plus `contracts/src/flap/` still build here. It is **not** the live line: the audit covers that
+tree, not this one.
+
+One Flap dependency survives the port on purpose: the X claim route uses Flap's on-chain
+`XGeneralVerifier` oracle. Whether to keep it is an open decision — `PENDIENTES.md` §4.
 
 ## Development
 
 ```bash
-# contracts
-cd contracts && forge test          # unit + fork E2E (needs RPC for fork tests)
+# contracts — unit tests
+cd contracts && forge test
 
-# web
-cd web && npm install && npm run dev
+# the tests that actually prove the integration, against live pons
+forge test --match-contract ForkPonsTest --fork-url robinhood --compute-units-per-second 40
 ```
 
-See [docs/RUNBOOK-launch.md](docs/RUNBOOK-launch.md) for the exact launch procedure and
-[docs/DEPLOY-WEB.md](docs/DEPLOY-WEB.md) for deploying the attester.
+A bare `forge test` **skips** the fork suite and still exits 0, so it proves nothing about pons.
+Set `REQUIRE_FORK=1` to turn that skip into a failure.
+
+```bash
+# web
+cd web && npm install && npm run dev
+npx vitest run          # includes an executable honesty gate over the landing copy
+```
 
 ## Security notes
 
-- The escrow is immutable and bound to a single identity at launch — reviewed adversarially
-  (multi-lens) before the current design: third-party theft was found impossible by all lenses.
-- The GitHub path relies on a factory-canonical attester (constructor arg, not creator-supplied —
-  a creator-supplied attester would enable self-signed rugs, which is why it isn't one).
-- The X path uses Flap's own on-chain oracle (`XGeneralVerifier`), not our infrastructure.
+- The vault is immutable and bound to a single identity at launch. Reviewed adversarially across
+  several rounds; the findings and their fixes are in the commit history of `feat/pons-web`.
+- The GitHub path relies on a factory-canonical attester (a constructor argument, never
+  launcher-supplied — a launcher-supplied attester would enable self-signed rugs). Treat that key
+  as **custodial**, not merely a signing key: see `PENDIENTES.md` §2 and §3.
+- `attachToken()` verifies against pons' own registry that the launch routes its creator fees
+  here *and* that our launcher made it, so the vault↔coin link cannot be squatted.
+- **The contract has not been audited.** The Flap audit does not carry over: this is new code
+  that custodies other people's ETH.
 
-Not affiliated with Robinhood. Built on Flap's public infrastructure.
+Not affiliated with Robinhood, pons or Flap.
