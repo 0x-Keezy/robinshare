@@ -38,7 +38,7 @@ export RECOVERY_DAYS="${RECOVERY_DAYS:-0}"          # 0 = irrevocable
 #   el builder recibe = 0,70% + CREATOR_TAX_BPS/100
 # Lo que revela ese 0,70%: el builder cobra AUNQUE el tax extra sea cero, porque le toca el 70%
 # del 1% base. El producto no necesita castigar al trader para funcionar.
-export CREATOR_TAX_BPS="${CREATOR_TAX_BPS:-200}"   # 2% -> 3% visible, 2,7% al builder
+export CREATOR_TAX_BPS="${CREATOR_TAX_BPS:-0}"   # 0 -> 1% visible (como cualquier token de pons), 0,7% al builder
 # `${VAR-default}` sin los dos puntos: distingue "no seteada" de "seteada vacia". Con `:-`, pasar
 # `LOGO=` para lanzar SIN logo no hacia nada — volvia a poner el default. Y el logo se congela en
 # el launch, asi que un token de prueba habria quedado con la foto de perfil de Jose para siempre.

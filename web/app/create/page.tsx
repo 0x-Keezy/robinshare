@@ -94,7 +94,12 @@ export default function CreatePage() {
   const [recoveryDays, setRecoveryDays] = useState("0");
   // % de cada trade que va al vault, sobre el fee base de pons. Tope leido EN VIVO de
   // `maxCreatorTaxBps()` (hoy 1000 bps = 10%); pons revierte CreatorTaxTooHigh por encima.
-  const [taxPct, setTaxPct] = useState(3);
+  // Default CERO, y no es desidia: con 0 el token muestra el mismo 1% que cualquier otro de pons,
+  // y el builder IGUAL cobra 0,70% del volumen (el 70% del fee base que pons reparte al creador).
+  // El default anterior era 3, que hace que la pagina de pons muestre 4% — y el token de prueba,
+  // lanzado con 10, mostro "11% / 11%" contra el 1% de un token normal. Un tax alto espanta al
+  // que compra, y sin volumen el builder no cobra nada de todos modos.
+  const [taxPct, setTaxPct] = useState(0);
 
   const [busy, setBusy] = useState<string | null>(null);
   const [msg, setMsg] = useState<string | null>(null);
@@ -489,7 +494,7 @@ export default function CreatePage() {
                   Creator tax → vault
                 </div>
                 <div className="mt-4 flex flex-wrap gap-2.5" style={{ fontFamily: "var(--f-mono)" }}>
-                  {[1, 2, 3, 5, 10].filter((pct) => pct <= maxPct).map((pct) => (
+                  {[0, 1, 2, 3, 5, 10].filter((pct) => pct <= maxPct).map((pct) => (
                     <button
                       key={pct}
                       onClick={() => setTaxPct(pct)}
@@ -504,10 +509,18 @@ export default function CreatePage() {
                     </button>
                   ))}
                 </div>
-                <p className="mt-3 text-xs leading-relaxed" style={{ color: RS.FAINT }}>
-                  Charged on top of pons&apos; own trade fee, on every buy and sell, and paid in full
-                  to the builder&apos;s vault — pons never splits it. Fixed at launch; nobody can
-                  change it afterwards, not even us.
+                <p className="mt-3 text-xs leading-relaxed" style={{ color: RS.INK }}>
+                  Traders will see <strong>{1 + taxPct}% tax</strong> on the coin&apos;s pons page,
+                  and the builder receives <strong>{(0.7 + taxPct).toFixed(2)}% of every trade</strong>.
+                </p>
+                {/* El numero que nadie mostraba: al elegir "3%" la pagina de pons dice 4%, y con
+                    0% el builder igual cobra 0,70%. Sin esto, quien lanza elige a ciegas algo que
+                    se congela para siempre. */}
+                <p className="mt-2 text-xs leading-relaxed" style={{ color: RS.FAINT }}>
+                  pons always charges 1% and passes 70% of it to the builder — that is the 0.70%
+                  you get even at zero. Anything you add here is charged on top, on every buy and
+                  sell, and paid in full to the vault. Fixed at launch; nobody can change it
+                  afterwards, not even us.
                 </p>
               </div>
             </div>
