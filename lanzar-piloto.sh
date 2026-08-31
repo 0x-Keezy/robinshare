@@ -26,7 +26,19 @@ export SYMBOL="${SYMBOL:-RSHARE}"
 export IDENTITY_TYPE="${IDENTITY_TYPE:-1}"          # 1 = github
 export IDENTITY_VALUE="${IDENTITY_VALUE:-0x-keezy}"
 export RECOVERY_DAYS="${RECOVERY_DAYS:-0}"          # 0 = irrevocable
-export CREATOR_TAX_BPS="${CREATOR_TAX_BPS:-1000}"   # 10%
+# El tax del creador, en puntos basicos, ENCIMA del 1% base que pons cobra siempre.
+#
+# El default era 1000 (10%) — el MAXIMO que pons permite. Lo tome de la receta del runbook sin
+# preguntarme si servia para el producto. Medido en el token de prueba ya lanzado: la pagina de
+# pons muestra "11% / 11%", cuando un token normal de ahi muestra 1%. Un tax asi espanta al que
+# compra, y sin volumen el builder no cobra nada igual.
+#
+# La aritmetica, leida de la curva desplegada (feeBps=100, protocolFeeShareBps=3000):
+#   tax visible       = 1% + CREATOR_TAX_BPS/100
+#   el builder recibe = 0,70% + CREATOR_TAX_BPS/100
+# Lo que revela ese 0,70%: el builder cobra AUNQUE el tax extra sea cero, porque le toca el 70%
+# del 1% base. El producto no necesita castigar al trader para funcionar.
+export CREATOR_TAX_BPS="${CREATOR_TAX_BPS:-200}"   # 2% -> 3% visible, 2,7% al builder
 # `${VAR-default}` sin los dos puntos: distingue "no seteada" de "seteada vacia". Con `:-`, pasar
 # `LOGO=` para lanzar SIN logo no hacia nada — volvia a poner el default. Y el logo se congela en
 # el launch, asi que un token de prueba habria quedado con la foto de perfil de Jose para siempre.
