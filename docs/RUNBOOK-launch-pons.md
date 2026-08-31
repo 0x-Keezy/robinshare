@@ -62,9 +62,19 @@ Es la prueba que los mocks no dan: lanza contra el factory REAL, tradea de verda
 
 ```bash
 cd contracts
+export DEPLOYER_PK=0x...   # la wallet que paga el deploy y el launch. NUNCA la del attester.
+
 forge test --match-contract ForkPonsTest --fork-url robinhood --compute-units-per-second 40 -vv
-# esperado: 7 passed; 0 failed
+# esperado: 10 passed; 0 failed
 ```
+
+> **Un `forge test` pelado NO prueba nada de esto.** Sin `--fork-url` los 10 tests se reportan
+> SKIPPED y el suite igual sale con exit 0 — o sea que un CI descuidado queda verde sin haber
+> tocado pons. `REQUIRE_FORK=1` convierte ese skip en un fallo:
+>
+> ```bash
+> REQUIRE_FORK=1 forge test --match-contract ForkPonsTest --fork-url robinhood --compute-units-per-second 40
+> ```
 
 ## 3. Deploy de la factory
 
@@ -126,10 +136,14 @@ vault y no se puede predecir al reves.
 cast send $FACTORY "createVault(uint8,string,address,uint256)" \
   1 "0x-keezy" 0x0000000000000000000000000000000000000000 0 \
   --rpc-url $R --private-key $DEPLOYER_PK
-# sacar VAULT del evento VaultCreated del receipt:
-#   cast logs --address $FACTORY "VaultCreated(bytes32,uint8,string,address,address,uint64)" ...
+# anotar el TX HASH que imprime y sacar el vault del recibo:
+cast receipt <TX_HASH> --rpc-url $R
+#   -> el log de VaultCreated emitido por $FACTORY. En Blockscout viene ya decodificado con
+#      el campo `vault`; en el recibo crudo es el 3er valor del `data`.
+VAULT=0x...   # pegarlo aca
+cast call $FACTORY "isVault(address)(bool)" $VAULT --rpc-url $R   # DEBE dar true
 
-# 5.2 · el pin de la economia (opcional pero recomendado; 0x00.. lo desactiva)
+# 5.2 · el pin de la economia (opcional pero MUY recomendado; 0x00.. lo desactiva)
 ECON=$(cast call $PONS "previewLaunchEconomics(uint256,address)(bytes32)" \
   0 0x0000000000000000000000000000000000000000 --rpc-url $R)
 
@@ -137,18 +151,38 @@ ECON=$(cast call $PONS "previewLaunchEconomics(uint256,address)(bytes32)" \
 #      creatorFeeRecipient = $VAULT · buybackEnabled = false · pairToken = 0x0 (ETH nativo)
 #      creatorTaxBps <= maxCreatorTaxBps (1000 = 10%). SALT: cualquier valor no usado por esta
 #      wallet — pons NO exige vanity, no hay nada que minar.
+#
+#      ⚠️ LAS COMILLAS DE LOS STRINGS VACIOS DEL TUPLE `socials` NO SON OPCIONALES.
+#      Sin ellas `cast` tira `parser error` apuntando al primer campo vacio. Este comando esta
+#      VERIFICADO con `cast calldata`: encodea y da el selector 0xf35abbcf.
 SALT=$(cast keccak "robinshare/piloto/1")
 cast send $PONS \
   "launchToken((string,string,string,string,(string,string,string,string,string),address,uint16,bool,bytes32,bytes32),uint256,address)(address,address)" \
-  "(RobinShare Pilot,RSHARE,https://github.com/0x-keezy.png,fees routed to a builder,(,,,https://github.com/0x-keezy,),$VAULT,1000,false,$ECON,$SALT)" \
+  '(RobinShare Pilot,RSHARE,https://github.com/0x-keezy.png,fees routed to a builder,("","","","https://github.com/0x-keezy",""),'"$VAULT"',1000,false,'"$ECON"','"$SALT"')' \
   0 0x0000000000000000000000000000000000000000 \
-  --value 500000000000000 --rpc-url $R --private-key $DEPLOYER_PK
-# sacar TOKEN y CURVE del evento TokenLaunched
+  --value $(cast call $PONS "launchFee()(uint256)" --rpc-url $R) \
+  --rpc-url $R --private-key $DEPLOYER_PK
+
+# TOKEN y CURVE salen del evento TokenLaunched. Van INDEXADOS, asi que estan en los topics
+# del log de $PONS: topic[1] = token, topic[2] = curve (32 bytes, con 12 ceros de padding).
+cast receipt <TX_HASH_DEL_LAUNCH> --rpc-url $R
+TOKEN=0x...   # pegarlos aca
+CURVE=0x...
+
+# VERIFICAR ANTES DE ATAR. Si alguna de estas dos no da lo esperado, NO sigas:
+cast call $CURVE "deployer()(address)" --rpc-url $R                 # DEBE dar $VAULT
+cast call $PONS "getLaunchedToken(address)((address,address,address,address,address,uint256,uint24,int24,uint16,bool,uint8,uint256,uint256,uint256,bool))" $TOKEN --rpc-url $R
 
 # 5.4 · atar vault <-> token. Permissionless: lo puede mandar cualquiera, y el contrato lo
-#      verifica contra el registro de pons — no hay que confiar en quien llama.
+#      verifica DOS veces contra el registro de pons (que las fees apunten aca, y que lo haya
+#      lanzado nuestro propio launcher) — no hay que confiar en quien llama.
 cast send $VAULT "attachToken(address)" $TOKEN --rpc-url $R --private-key $DEPLOYER_PK
 ```
+
+> **El orden importa y el squat es real.** `attachToken` acepta un solo launch y despues queda
+> fijo, asi que conviene mandar 5.4 apenas confirme 5.3. Un extrano no puede secuestrarlo (el
+> contrato exige que el `deployer` del launch sea el mismo que creo el vault), pero un vault sin
+> atar acumula fees en la curva sin ruta para barrerlas.
 
 ## 6. Verificacion post-launch (todas obligatorias)
 
@@ -172,9 +206,27 @@ cast call $PONS "getLaunchedToken(address)((address,address,address,address,addr
 ## 7. Smoke del claim real
 
 - Abrir `https://<dominio>/claim/$VAULT`, conectar, flujo GitHub → `claimAndBind` → el ETH llega a
-  la payout wallet. Probado en fork: **un dev con 0 ETH cobro 0,54225 ETH con un relayer pagando el
-  gas** (`ForkPons.t.sol::test_fork_fullCycle_nativePair`).
-- Despues: mas trades → `withdraw()` desde la payout wallet. Probado en fork (0,2169 ETH).
+  la payout wallet. Probado en fork: **un dev con 0 ETH cobro 0,08025 ETH sobre 0,75 ETH de volumen
+  con un relayer pagando el gas** (`ForkPons.t.sol::test_fork_fullCycle_nativePair`).
+- Despues: mas trades → `withdraw()` desde la payout wallet. Probado en fork (0,0321 ETH).
+
+> ⚠️ **El relayer del fork test NO existe en el producto.** El contrato acepta que un tercero
+> mande el `claimAndBind` (por eso el test lo prueba con un dev de 0 ETH), pero la web no tiene
+> ninguna ruta que lo haga: hoy el gas del claim lo paga quien reclama. Construirlo necesita una
+> wallet caliente fondeada → `PENDIENTES.md`.
+
+### El take del creador: dos regimenes, y no hay que confundirlos
+
+| Cuando | Take del creador sobre el volumen | Por que |
+|---|---|---|
+| Primeros **3 segundos** del launch | **72,3%** | el snipe tax (9.900 bps decayendo) **se suma al bucket del creador** |
+| De ahi en adelante | **10,7%** | `creatorTaxBps` 10% + el 70% de la base fee de 1% |
+
+Las dos cifras estan fijadas contra la cadena real en
+`ForkPons.t.sol::test_fork_feeSplit_dosRegimenes`. **La que hay que usar para cualquier
+proyeccion es 10,7%**: la de la ventana solo se cobra si alguien tradea en los 3 segundos
+posteriores al lanzamiento. Una version anterior de este runbook publicaba la primera como si
+fuera la de todos los dias — un 7x.
 - La ruta X como fast-follow con un tweet real, **no como gate del launch** (depende de infra de
   Flap sin SLA).
 - Post en X: SOLO despues del claim verde.
@@ -214,6 +266,13 @@ consulta el balance antes).
   `0x0`, **no hay sucesor** y los vaults de GitHub quedan sin ruta de bind. Decision de §0.
 - **pons redirige las fees de nuestro token**: hay 3 dias de aviso publico y auditable
   (`CreatorFeeRecipientChangeProposed`). Vale la pena monitorear ese evento.
+- **El token gradua** (cruza 4,2 ETH de reserva real): pasa solo, dentro del `buy()` que cruza el
+  umbral — no hay que disparar nada. Verificado en fork
+  (`test_fork_postGraduation_noRompeElVaultYLoBarridoSigueCobrable`): la graduacion **barre y
+  acredita al vault en el camino**, asi que no se pierde nada en el borde, y el claim sigue
+  funcionando. **Pero desde ahi el vault ya no tiene ninguna ruta propia hacia las fees del pool**:
+  `sweepCurve()` queda en no-op permanente y dependemos del `feeSweepOperator` de pons. Es una
+  perdida de LIVENESS, no de fondos. Solo gradua ~1% de los launches.
 
 ## Apendice: gotchas
 

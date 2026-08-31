@@ -21,9 +21,13 @@ Y custodian ETH de terceros — el modelo del producto es que la plata espere *i
 alguien que todavía no tiene wallet.
 
 **Lo que ya se hizo para que la auditoría sea barata:**
-- El vault bajó a **8.126 B** y la factory a **13.340 B** (la versión Flap pesaba 22–24 KB).
-- 131 tests unitarios + **7 tests de fork contra los contratos reales de pons**, incluido el ciclo
-  completo de plata y los tres rechazos (par ERC-20, buyback activo, launch ajeno).
+- El vault pesa **9.014 B** y la factory **14.731 B** (la versión Flap pesaba 22–24 KB).
+- **147 tests unitarios + 10 de fork contra los contratos reales de pons**, incluido el ciclo
+  completo de plata, la graduación real cruzando 4,2 ETH, los tres rechazos (par ERC-20, buyback
+  activo, launch ajeno) y las regresiones de la ronda adversarial.
+- Una ronda de review con **tres agentes frescos** (seguridad · conformidad al spec · "¿esto
+  funcionaría en la cadena real?"), con todo lo bloqueante y alto ya cerrado. Los hallazgos y sus
+  fixes están en los commits de `feat/pons-web`; el auditor humano debería empezar por ahí.
 
 **Qué hace falta decidir:** quién audita, con qué presupuesto y en qué plazo.
 
@@ -37,8 +41,18 @@ de Flap — trabado, pero ahora por otra puerta.
 Hoy **no existe**. Hay que crear una wallet dedicada (`cast wallet new`), sin fondos, cuya address va
 al constructor de la factory y cuya PK va **solo** al env de Vercel (`ATTESTER_PK`).
 
-Lo que esa llave puede hacer: firmar vouchers de bind para vaults de **GitHub**. No puede mover ETH,
-no puede redirigir fees, no puede tocar los vaults de X ni los de wallet.
+Lo que esa llave puede hacer, dicho con precisión — **la versión anterior de este documento decía
+que "no puede mover ETH", y era falso**; dos revisores lo reprodujeron con un PoC:
+
+> Firmar vouchers de bind para vaults de **GitHub**. Y como en esa ruta la firma del attester **es**
+> la prueba de identidad, quien tenga la llave puede bindear cualquier vault de GitHub a la wallet
+> que quiera y cobrarlo — incluso uno que el dev real ya reclamó y todavía no vació. Es inherente a
+> atestiguar un OAuth on-chain, no un bug del contrato, pero **tratala como una llave de custodia,
+> no como una llave de firma**.
+
+Lo que **no** puede: tocar los vaults de X (dependen del `XGeneralVerifier`, no del attester), ni
+los de wallet (ahí `boundWallet` lo fija el constructor), ni hacerlo en silencio (rotar emite
+`AttesterRotated`, bindear emite `Bound`).
 
 Lo que pasa si se pierde **y** `attesterAdmin` quedó en `0x0`: los vaults de GitHub se quedan **sin
 ninguna ruta de bind**, y con el default `recoveryDays = 0` tampoco hay recovery. El ETH queda
@@ -50,13 +64,18 @@ congelado para siempre. Es el finding 5 (High) del audit v3, por otra puerta.
 
 ## 3. Qué dirección va como `attesterAdmin` (o si va en `0x0`)
 
-`attesterAdmin` es un co-gate acotado a propósito: **solo puede rotar el attester**. No firma
-vouchers, no toca fondos, no tiene ninguna otra potestad.
+`attesterAdmin` es un co-gate cuya única función es rotar el attester. No firma vouchers ni tiene
+ninguna otra potestad **directa** — pero leé §2 antes de elegir la dirección: rotar el attester a
+una llave propia y firmarse un voucher **sí alcanza los fondos** de cualquier vault de GitHub, en
+dos transacciones. Está probado en
+`contracts/test/ReviewRound2.t.sol::test_attesterAdmin_SI_alcanzaLosFondosDeUnVaultGithub`.
 
-- Con una dirección: hay sucesión si la llave del attester se pierde. El costo es que esa dirección
-  puede rotar el attester a una que controle, y desde ahí firmar vouchers de bind — o sea, **puede
-  desviar los claims de GitHub**, aunque no puede sacar un wei directamente.
-- Con `0x0`: nadie más puede rotar, y una llave perdida congela todo (ver §2).
+O sea que la elección real es entre dos riesgos, no entre riesgo y seguridad:
+
+- **Con una dirección**: hay sucesión si la llave del attester se pierde (riesgo de *liveness*
+  cubierto), a cambio de un segundo actor con alcance de custodia sobre los vaults de GitHub.
+- **Con `0x0`**: nadie más puede rotar. Una llave perdida **congela para siempre** el ETH de todos
+  los vaults de GitHub (ver §2), pero no hay segundo actor.
 
 **Recomendación técnica** (la decisión sigue siendo de Jose): una dirección **distinta** de la del
 attester y de la del deployer — idealmente un multisig o una hardware wallet fría. Poner la misma
@@ -112,3 +131,37 @@ qué palabras. No es una decisión técnica y no la puede tomar un agente por é
 El bloqueante técnico que había (el spec documentaba la cadena de ataque del attester *antes* de que
 estuviera arreglada) **ya cayó**: el fix está aplicado y con test de regresión en las dos ramas.
 Ahora es puramente decisión de Jose cuándo se hace público.
+
+---
+
+## 7. ¿Se construye el relayer del claim?
+
+**Es una promesa del producto que hoy no se cumple.**
+
+El contrato **sí** soporta que un tercero pague el gas del primer claim: `claimAndBind` valida la
+firma del attester, no `msg.sender`. Está probado contra la cadena real — en
+`ForkPons.t.sol::test_fork_fullCycle_nativePair` **un dev con 0 ETH cobró**, con un relayer
+mandando la transacción. Y la ruta de X se cambió en este port justamente para que también fuera
+relayable (§7.1 del spec).
+
+Pero **el producto no tiene relayer**: `web/app/api/` sólo tiene `attest`, `health`, `token-image`
+y `x-prove`. Hoy el gas del claim lo paga quien reclama. El copy ya se corrigió para decir la
+verdad, pero la promesa original —"no necesita wallet ni ETH"— era la más vendible que teníamos.
+
+**Qué hace falta decidir:** si se construye. Implica una wallet caliente fondeada (plata de Jose),
+un endpoint que firme y mande transacciones, y una defensa contra abuso — cualquiera podría
+quemarle el saldo pidiendo claims. Alternativa barata: dejarlo así y que el copy lo diga, que es
+donde está hoy.
+
+---
+
+## 8. ¿La landing declara que el contrato no está auditado?
+
+Al sacar los conteos de tests del copy (dos direcciones se contradecían entre sí, 95 vs 71, y
+ninguno coincidía con el suite real) quedó a la vista una pregunta que no es técnica: **una página
+que custodia plata de terceros, ¿debería decir que el contrato todavía no pasó por una auditoría
+externa?**
+
+Decirlo es lo más honesto y cuesta conversiones. No decirlo no es mentir —la página no afirma lo
+contrario— pero se apoya en que nadie pregunte. **Es decisión de Jose**, y depende de §1: si la
+auditoría se contrata antes del launch, la pregunta desaparece sola.

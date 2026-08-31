@@ -37,8 +37,10 @@ Guardian en el camino crítico), launch permissionless por ~0,0005 ETH.
 > con `pairToken != address(0)` o `buybackEnabled == true`. Motivo medido: **el 50,5% de los launches
 > reales de pons cotiza contra un ERC-20**, y en esos el vault entregaria **CERO** (las fees se
 > acreditan en el ledger por-token del escrow, `pendingAmount()` da 0 y `withdraw()` revierte); con
-> `recoveryDays > 0` la plata quedaba **encerrada para siempre**. Es mejor rechazar el launch que
-> atrapar fondos. **Consecuencia de producto: RobinShare sirve para la mitad ETH-pareada de pons.**
+> `recoveryDays > 0` la plata quedaba **encerrada para siempre**. Es mejor rechazar el **link** que
+> atrapar fondos. **Precision agregada 2026-08-30**: `attachToken()` corre DESPUES de que
+> `launchToken` ya se ejecuto y el fee ya se gasto, asi que no puede rechazar el launch — rechaza
+> atarse a el. El efecto es que ese launch queda huerfano, no que la plata quede encerrada. **Consecuencia de producto: RobinShare sirve para la mitad ETH-pareada de pons.**
 
 **Dentro**: contratos (vault + factory), backend del attester, y los cambios de la web necesarios
 para lanzar y cobrar sobre pons.
@@ -112,9 +114,21 @@ de 7 curvas activas muestreadas acumulaban **0,857 ETH fuera del escrow** en un 
 
 Post-graduación existe `sweepPoolFees(bytes32,uint256,uint256)` en el hook (`0x3d61055e`), pero
 revierte con `InternalSwapRequiresOperator()` (`0x31cdb504`) siempre que haya fees denominadas en el
-memecoin — que es el régimen normal (55% de los cobros medidos). El vault lo intenta dentro de un
-**`try/catch` que ignora el revert** y sigue con `pull()`: post-graduación dependemos del operador de
-pons para esa porción. Sólo el 0,99% de los launches gradúa, así que es el caso raro.
+memecoin — que es el régimen normal (55% de los cobros medidos).
+
+> ⚠️ **DIVERGENCIA, marcada 2026-08-30.** Este diseño decía que el vault "lo intenta dentro de un
+> `try/catch`". **No se construyó**: `_sweepCurve()` sólo llama `sweepFees(0)` de la curva, y
+> `MEME_HOOK` no se referencia desde ningún lado. Se deja así a propósito — la llamada necesita el
+> `poolId` (`bytes32`) del pool graduado, que el vault no tiene y habría que derivar de la `PoolKey`,
+> y agregar una llamada que no se puede probar contra un pool real es peor que no tenerla.
+>
+> Lo que **sí** se hizo es medir el caso contra la cadena
+> (`ForkPons.t.sol::test_fork_postGraduation_...`, cruzando el umbral real de 4,2 ETH), y ahí
+> apareció algo que el diseño no sabía: **la graduación barre y acredita al vault en el camino**
+> (0,5049 ETH en el test), dentro del mismo `buy()` que cruza el umbral — no hay que dispararla. Así
+> que no se pierde nada en el borde. Después de graduar, `sweepCurve()` queda en no-op permanente y
+> dependemos del `feeSweepOperator` de pons para las fees del pool. Sólo el 0,99% de los launches
+> gradúa, y es pérdida de **liveness**, no de fondos.
 
 ### 5.2 `pull()` — permissionless
 
@@ -184,10 +198,21 @@ guard **global** `lastTweetId`.
    un tercero pueda pagar el gas del primer claim. El replay guard global se mantiene sin cambios.
 2. **Anti-squat**: `createVault` no impide que alguien cree vaults para identidades ajenas — es
    deseable, *ese es el producto*. Lo que sí se registra es `isVault[address]`, usado por el attester
-   (§8). **No** se implementa el chequeo `getLaunchedToken(token).deployer == vault.launcher()`: no
-   protege contra el squat real (cualquiera puede lanzar y ser deployer de su propio squat) y además
-   cerraría la puerta al orquestador de 1 tx de §4, porque el único entrypoint que preserva el
-   deployer original (`launchTokenFor`) está gateado al `launchForwarder` de pons.
+   (§8).
+
+   > 🔄 **CORREGIDO 2026-08-30 — el chequeo `deployer == launcher` SÍ se implementa.** Este párrafo
+   > decía que no, y el motivo que daba era correcto sobre **otro** ataque: squatear una *identidad*,
+   > que efectivamente no se puede impedir y además es el producto. Pero había un segundo squat, el
+   > del **link**, y contra ese el chequeo funciona exacto. Reproducido con PoC: la dirección del
+   > vault es pública desde `VaultCreated`, el flujo de `/create` son tres transacciones, y por
+   > 0,0005 ETH un extraño lanzaba su propia moneda apuntándole las fees al vault de la víctima y la
+   > ataba antes de la tercera. Como el link es de una sola vez, el vault quedaba pegado **para
+   > siempre** a la curva del atacante: la moneda real ya no se podía atar, `sweepCurve()` barría la
+   > equivocada, y el beneficiario probaba su identidad para cobrar cero.
+   >
+   > El costo declarado (cerrarle la puerta al orquestador de 1 tx) es una mejora de UX que el propio
+   > §4 deja para después; el squat era explotable hoy. Que `deployer` sea quien lanzó está probado
+   > contra la cadena en `ForkPons.t.sol::test_fork_fullCycle_nativePair`.
 
 ## 8. Attester (backend) — arreglo de seguridad
 
@@ -261,6 +286,19 @@ no aplican. Se cierran de otra forma, sin llaves:
 vault a una dirección que no sea `boundWallet` o el destino de `recoverUnclaimed` fijado por el
 `launcher`. Lo mismo aplica al retiro de ERC-20 (§5.5).
 
+> **Reformulado 2026-08-30 tras el review.** Enunciado así, el invariante se cumple en el código —
+> pero es más débil de lo que parece, porque no dice nada sobre **quién puede convertirse en
+> `boundWallet`**, que es lo que en realidad importa. La versión honesta, y la que hay que auditar:
+>
+> - vaults de **wallet**: sólo la identidad original, vía `rebindWallet`. Cerrado.
+> - vaults de **X**: sólo quien produzca una prueba del oráculo con el substring exacto, que ata la
+>   wallet y el vault. Cerrado *si el oráculo se comporta* (§12.3).
+> - vaults de **GitHub**: quien tenga la llave del **attester**, que es nuestra. En esa ruta la firma
+>   ES la prueba de identidad, así que la llave puede bindear cualquier vault de GitHub a cualquier
+>   wallet — probado en `ReviewRound2.t.sol::test_attesterAdmin_SI_alcanzaLosFondosDeUnVaultGithub`.
+>   Es **inherente** a atestiguar un OAuth on-chain, no un bug; lo que era un bug es haberlo negado
+>   en los comentarios del contrato y en el copy. Ahora está escrito, acotado y divulgado.
+
 ## 12. Riesgos aceptados
 
 1. **pons puede redirigir las fees de cualquier token.** `setCreatorFeeRecipient` del factory,
@@ -280,6 +318,12 @@ vault a una dirección que no sea `boundWallet` o el destino de `recoverUnclaime
    agnóstico del rail** (firma substrings arbitrarios, sin registro de vaults), pero no hay plan B.
 4. **"0 admin keys" sigue siendo cierto para nuestro contrato**, y falso para el rail. El copy debe
    distinguirlo.
+
+   > **Ampliado 2026-08-30**: falso también para el **producto** en la ruta GitHub, por el attester
+   > (ver §11). El copy ahora lo dice, y vive en una constante única (`web/lib/claims.ts`) que las
+   > nueve direcciones y el shell importan, con `web/test/copy.test.ts` exigiéndolo. La versión
+   > anterior del gate tenía el agujero justo ahí: buscaba `no custody` y cuatro páginas decían
+   > `non-custodial`.
 
 ## 13. Auditoría
 

@@ -6,8 +6,12 @@ import { attesterAddress } from "@/lib/attester";
 export const dynamic = "force-dynamic";
 
 /// GET /api/health — valida la config del attester ANTES de que falle un claim en prod.
-/// El footgun que atrapa: el attester de la factory es INMUTABLE; si ATTESTER_PK del server
-/// no corresponde a ese address, TODO claim de github/X revierte "bad attester signature".
+/// El footgun que atrapa: si el ATTESTER_PK del server no corresponde al attester VIGENTE de la
+/// factory, todo claim de GitHub revierte "bad attester signature" en silencio.
+///
+/// (En el rail de Flap el attester era inmutable. En el de pons es ROTABLE — por el attester
+/// vigente o por `attesterAdmin` — asi que un mismatch puede aparecer despues de una rotacion, y
+/// se arregla rotando o cambiando la env, sin redeployar nada.)
 export async function GET() {
   const checks: Record<string, unknown> = {};
   let ok = true;
@@ -41,7 +45,7 @@ export async function GET() {
         if (!match) {
           ok = false;
           checks.hint =
-            "ATTESTER_PK no corresponde al attester inmutable de la factory. Los claims github/X revertirán. Usá la key correcta o redesplegá la factory.";
+            "ATTESTER_PK no corresponde al attester vigente de la factory. Los claims de GitHub revertirán. Poné la key correcta en el env, o rotá el attester on-chain con rotateAttester(). No hace falta redeployar.";
         }
       }
     } catch (e) {
