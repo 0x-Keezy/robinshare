@@ -92,20 +92,19 @@ Anotá la dirección de la factory. El script imprime los `constructor-args` par
 
 ## Paso 3 · Conectar la web
 
-Antes que nada, **agregá `robinshareapp.com` al proyecto en Vercel** (Settings → Domains). El
-dominio ya está registrado y delegado a `ns1/ns2.vercel-dns.com`, pero Vercel responde `REFUSED` a
-cualquier consulta porque no tiene la zona: hasta que el dominio esté dentro del proyecto, no
-resuelve. Configurá también que `www` redirija al dominio pelado — el flujo de claim guarda una
-cookie de un solo uso atada al host, y si el usuario arranca en `www` y GitHub lo devuelve al
-apex, la cookie no viaja y el claim falla con «oauth session mismatch».
+**El host canónico es `www.robinshareapp.com`** (medido el 2026-08-31: el apex hace 308 a `www`).
+Todo lo que sigue usa `www`, y tiene que coincidir **carácter por carácter** en las tres puntas:
+el `APP_BASE_URL` de Vercel, el callback de la OAuth App, y el host donde el usuario navega. El
+flujo de claim guarda una cookie de un solo uso atada al host; si esas puntas no coinciden, la
+cookie no viaja y el claim falla con «oauth session mismatch» sin explicación útil.
 
 Después crear la **GitHub OAuth App** (github.com/settings/developers → New OAuth App):
 
 | Campo | Valor |
 |---|---|
 | Application name | `RobinShare` |
-| Homepage URL | `https://robinshareapp.com` |
-| Authorization callback URL | `https://robinshareapp.com/api/attest/github/callback` |
+| Homepage URL | `https://www.robinshareapp.com` |
+| Authorization callback URL | `https://www.robinshareapp.com/api/attest/github/callback` |
 
 El callback tiene que coincidir **carácter por carácter** con lo que arma el server
 (`APP_BASE_URL` + `/api/attest/github/callback`), o GitHub corta con `redirect_uri_mismatch`. El
@@ -119,7 +118,7 @@ Y poner en Vercel:
 | `ATTESTER_PK` | la PK del `cast wallet new` del paso 0 |
 | `ATTESTER_STATE_SECRET` | `openssl rand -hex 32` |
 | `GITHUB_CLIENT_ID` / `GITHUB_CLIENT_SECRET` | la OAuth App |
-| `APP_BASE_URL` | `https://robinshareapp.com` (sin barra final) |
+| `APP_BASE_URL` | `https://www.robinshareapp.com` (con `www`, sin barra final) |
 
 Verificá: `curl https://robinshareapp.com/api/health` tiene que dar **200** con `attesterMatches: true`.
 Si da `false`, la PK no corresponde al attester de la factory y **todo claim de GitHub va a
