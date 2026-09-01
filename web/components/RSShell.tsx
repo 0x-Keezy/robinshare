@@ -46,7 +46,14 @@ export function RSShell({ children }: { children: React.ReactNode }) {
       <nav className="border-b" style={{ borderColor: RS.HAIR }}>
         <div className="mx-auto flex w-full max-w-2xl items-center justify-between px-6 py-4">
           <Link href="/" className="flex items-center gap-2 hover:opacity-80" style={{ color: RS.INK }}>
-            <SetAsideMark color={RS.INK} accent={RS.GREEN} />
+            {/* Una sola tinta, igual que en la landing. La marca llevaba su porcion apartada en el
+                verde de la cadena (#00C805) a 40px del CTA lima: dos verdes distintos lo bastante
+                cerca como para leerse como un error y lo bastante lejos como para no leerse como
+                sistema. La regla es la misma en las tres superficies: **el verde de la cadena es
+                solo para el dato en vivo**, y la marca se lee por su geometria. Este archivo se
+                habia quedado atras cuando se corrigio la landing, asi que `/create` y `/claim`
+                mostraban una marca distinta de la de la home. */}
+            <SetAsideMark color={RS.INK} />
             <span style={{ fontFamily: "var(--f-mono)", letterSpacing: "0.26em" }} className="text-xs font-medium uppercase">
               RobinShare
             </span>
