@@ -325,6 +325,124 @@ body::after {
   }
 }
 
+/* ── LA FIRMA ───────────────────────────────────────────────────────────────
+   La pluma vuelve, y firma. Tres tiempos encadenados, no tres animaciones sueltas:
+   el renglón se dibuja, después la tinta corre, y la pluma RECORRE ESE MISMO TRAZO
+   mientras corre.
+
+   La clave de que se vea bien es que la pluma y la tinta comparten el path: la pluma
+   va con `offset-path` sobre la misma curva que el `stroke-dashoffset` va revelando,
+   así que el pico está siempre exactamente donde nace la tinta. Animadas por separado
+   —una con translate y la otra con dash— se despegan, y ese desfasaje es justo lo que
+   hace que un efecto así se vea barato.
+
+   `offset-rotate: 0deg` a proposito: con `auto` la pluma gira siguiendo la tangente y
+   termina cabeza abajo en los rulos. Una mano que firma inclina la pluma, no la voltea. */
+.rs-sig {
+  position: relative;
+}
+.rs-sig-rule {
+  transform: scaleX(0);
+  transform-origin: left center;
+  transition: transform 700ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+.rs-sig.is-on .rs-sig-rule {
+  transform: scaleX(1);
+}
+
+.rs-sig-ink {
+  stroke-dasharray: 100;
+  stroke-dashoffset: 100;
+}
+.rs-sig.is-on .rs-sig-ink {
+  animation: rsInk 2200ms cubic-bezier(0.42, 0, 0.3, 1) 420ms forwards;
+}
+@keyframes rsInk {
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+
+.rs-sig-quill {
+  position: absolute;
+  top: 0;
+  left: 0;
+  /* la caja respeta la proporcion del dibujo (64:190) para que el pico caiga EXACTAMENTE en el
+     100% de altura, que es donde apunta `offset-anchor` */
+  width: 28px;
+  height: 83px;
+  /* el path esta en coordenadas del viewBox (410 de ancho); el contenedor mide 100%, asi que la
+     pluma se posiciona en % del mismo sistema y acompaña cualquier ancho */
+  offset-path: path(
+    "M6,62 C26,22 50,12 61,32 C70,49 55,73 45,61 C36,50 58,25 90,29 C119,33 117,64 105,67 C95,69 95,51 115,43 C139,33 167,51 185,57 C205,63 223,43 235,29 C247,15 267,17 275,35 C281,49 267,63 257,57 C249,52 257,37 283,37 C314,37 337,51 398,24"
+  );
+  offset-rotate: 0deg;
+  /* el pico de la pluma esta abajo del dibujo, asi que hay que subir el ancla hasta el: sin esto
+     firma con el medio del vano y el trazo sale de la nada */
+  offset-anchor: 50% 100%;
+  offset-distance: 0%;
+  opacity: 0;
+  /* el giro tiene que ser ALREDEDOR DEL PICO, no del centro: rotando por el centro el pico se va
+     del trazo y la pluma escribe desde el aire */
+  transform: rotate(-22deg);
+  transform-origin: 50% 100%;
+  color: var(--rs-ink);
+}
+@keyframes rsQuillRide {
+  to {
+    offset-distance: 100%;
+  }
+}
+/* entra, firma, y al terminar se levanta del papel: la mano se va */
+.rs-sig.is-on .rs-sig-quill {
+  animation:
+    rsQuillRide 2200ms cubic-bezier(0.42, 0, 0.3, 1) 420ms forwards,
+    rsQuillLift 2900ms ease-out 300ms forwards;
+}
+/* Al terminar NO desaparece: se APOYA. La condicion de regreso que quedo escrita cuando se saco
+   la pluma decia "como la pluma apoyada sobre un acta ya firmada", y una pluma que se esfuma deja
+   la seccion sin nada que mirar el 95% del tiempo. Se acuesta un poco mas (de -22° a -38°, girando
+   sobre el PICO para no despegarse del final del trazo) y baja a media tinta: sigue ahi, pero ya
+   no es la protagonista — la firma si. */
+@keyframes rsQuillLift {
+  0% {
+    opacity: 0;
+    transform: rotate(-22deg);
+  }
+  12% {
+    opacity: 0.92;
+    transform: rotate(-22deg);
+  }
+  76% {
+    opacity: 0.92;
+    transform: rotate(-22deg);
+  }
+  100% {
+    opacity: 0.5;
+    transform: rotate(-38deg);
+  }
+}
+
+/* Reducido: la firma ya está escrita y la pluma no aparece. El gesto es contenido — el acta se
+   firma— así que el resultado se muestra igual; lo que se saca es el recorrido. */
+@media (prefers-reduced-motion: reduce) {
+  .rs-sig-rule,
+  .rs-sig.is-on .rs-sig-rule {
+    transform: scaleX(1);
+    transition: none;
+  }
+  .rs-sig-ink,
+  .rs-sig.is-on .rs-sig-ink {
+    stroke-dashoffset: 0;
+    animation: none !important;
+  }
+  .rs-sig-quill,
+  .rs-sig.is-on .rs-sig-quill {
+    animation: none !important;
+    opacity: 0;
+  }
+}
+
 /* EL GOLPE DEL SELLO.
    Un sello no aparece: BAJA, golpea y se asienta. Por eso arranca grande y arriba (la mano
    todavia no llego al papel), cae rapido, se pasa apenas, y vuelve. La curva es de impacto —

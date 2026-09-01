@@ -13,7 +13,7 @@ import { Scroll, useScrollSync } from "@/lib/scrollProgress";
 import { useHideNav } from "@/lib/useHideNav";
 import { useTheme } from "@/lib/useTheme";
 import { Wordmark } from "@/components/Wordmark";
-import { QuillMark } from "@/components/QuillMark";
+import { Signature } from "@/components/Signature";
 import { publicClient, robinhoodChain } from "@/lib/chain";
 import { CUSTODY_LINE_PARTS } from "@/lib/claims";
 
@@ -776,12 +776,17 @@ export function LegendHome() {
                 </h2>
               </Reveal>
 
+              {/* LA FIRMA. Aca es donde el diagnostico de la pluma dijo que tenia que volver:
+                  "echada bajo 'One vault. One identity. No keys of ours.', como la pluma apoyada
+                  sobre un acta ya firmada". Se dispara al entrar la seccion, una sola vez. */}
+              <Signature className="mt-20 max-w-[420px]" />
+
               {/* LAS DOS RUTAS, EN TIPOGRAFIA Y NO EN PILDORAS.
                   Antes eran dos chips con borde y radio completo: vestidos de CONTROL —el ojo lee
                   "esto se clickea"— cuando no son controles sino dos hechos. Un juez visual lo
                   fallo por nombre. Como jerarquia tipografica dicen lo mismo, no mienten sobre su
                   interactividad, y de paso llenan la columna que estaba vacia. */}
-              <Reveal variant="lift" stagger={120} delay={260} className="mt-10 flex flex-col">
+              <Reveal variant="lift" stagger={120} delay={260} className="mt-8 flex flex-col">
                 {[
                   { k: "Wallet signature", v: "The wallet you named signs. Nothing else is involved." },
                   { k: "GitHub OAuth", v: "They log in as themselves, and we attest it on-chain." },
