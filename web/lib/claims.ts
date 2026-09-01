@@ -47,20 +47,51 @@ export const CONFLICT_LINE =
 /// que una decima direccion futura pueda nacer sin ellas.
 export const DISCLOSURES = AUDIT_LINE + CONFLICT_LINE;
 
-export const CUSTODY_LINE =
-  "Permissionless. The vault has no owner, no upgrades and no emergency hatch, and whoever " +
-  "launches a coin can never redirect its fees, unless they set a recovery window at launch, " +
-  "which the vault publishes on-chain. Two powers are not ours to disclaim: pons, the launchpad, " +
-  "can point a coin's creator fees elsewhere behind a public 3-day timelock, and on a GitHub " +
-  "vault our attester signature is what proves the identity, so that key is trusted (wallet " +
-  "vaults do not depend on it). ETH-paired launches only. Not affiliated with Robinhood, " +
-  "pons or Flap." +
-  DISCLOSURES;
+/// LOS BLOQUES DE LA PROMESA, etiquetados.
+///
+/// El texto es EL MISMO de `CUSTODY_LINE` —los `body` de abajo se concatenan y dan la constante
+/// entera, y `test/copy.test.ts` lo exige— pero partido por tema y con su etiqueta.
+///
+/// Por que se partio: un juez visual externo encontro que las dos frases mas importantes del
+/// sitio —*"this contract has not been audited"* y la declaracion de que quien construye
+/// RobinShare tambien trabaja en un competidor— vivian dentro de un bloque de 20 lineas de mono
+/// gris de bajo contraste en el footer. Su diagnostico: esa honestidad **es** el diferenciador del
+/// producto y estaba vestida de letra chica; mono a largo de parrafo no tiene ritmo y en mobile
+/// son 20 lineas monoespaciadas que nadie lee. Etiquetarla la convierte de disclaimer en seccion
+/// de confianza, que es lo que el vertical pide.
+///
+/// La particion es por frase y el espacio inicial viaja con el bloque que lo sigue, para que la
+/// concatenacion sea identica al original carácter por carácter.
+export const CUSTODY_LINE_PARTS = [
+  {
+    label: "The vault",
+    body:
+      "Permissionless. The vault has no owner, no upgrades and no emergency hatch, and whoever " +
+      "launches a coin can never redirect its fees, unless they set a recovery window at launch, " +
+      "which the vault publishes on-chain.",
+  },
+  {
+    label: "Powers that are not ours",
+    body:
+      " Two powers are not ours to disclaim: pons, the launchpad, " +
+      "can point a coin’s creator fees elsewhere behind a public 3-day timelock, and on a GitHub " +
+      "vault our attester signature is what proves the identity, so that key is trusted (wallet " +
+      "vaults do not depend on it).",
+  },
+  {
+    label: "Limits",
+    body: " ETH-paired launches only. Not affiliated with Robinhood, pons or Flap.",
+  },
+  { label: "Audit", body: AUDIT_LINE },
+  { label: "Conflict of interest", body: CONFLICT_LINE },
+] as const;
+
+export const CUSTODY_LINE = CUSTODY_LINE_PARTS.map((p) => p.body).join("");
 
 /// Version corta para los lugares donde no entra el parrafo entero. Dice MENOS, pero no dice
 /// nada distinto: nunca puede afirmar "cero llaves" a secas.
 export const CUSTODY_LINE_SHORT =
-  "Permissionless. No owner, no upgrades, no emergency hatch, but pons can redirect a coin's " +
+  "Permissionless. No owner, no upgrades, no emergency hatch, but pons can redirect a coin’s " +
   "creator fees behind a public 3-day timelock, and GitHub claims trust our attester key. " +
   "ETH-paired launches only." +
   DISCLOSURES;

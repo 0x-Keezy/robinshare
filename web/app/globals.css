@@ -20,13 +20,62 @@
   --rs-nav-gradient: linear-gradient(to bottom, rgba(13, 18, 14, 0.97) 0%, rgba(13, 18, 14, 0.85) 60%, transparent);
   --rs-watermark: rgba(242, 243, 238, 0.045);
   --rs-feather-ink-filter: brightness(1.4) saturate(1.3) contrast(1.1);
+
+  /* ── MATERIAL ────────────────────────────────────────────────────────────
+     La pagina era casi-negro PLANO + hairlines de 1px, y nada mas: un juez
+     externo lo midio como "en 4 frames de desktop no hay un solo asset — ni
+     gradiente, ni sombra, ni textura, ni profundidad", y concluyo que el ojo
+     lee "esto no se construyo, se escribio".
+
+     Lo que sigue es la capa que faltaba, y sale de como se comporta la luz
+     real, no de un preset: un panel se siente FISICO cuando su borde de
+     arriba atrapa luz y el de abajo no. Por eso los bordes son asimetricos
+     (--rs-edge-top mas claro que --rs-edge-bot) en vez de un `1px solid`
+     uniforme, y por eso la sombra es DIRECCIONAL y con spread negativo
+     (cae hacia abajo, no un halo que rodea — el halo es el tell de glow). */
+  --rs-surface: linear-gradient(180deg, rgba(242, 243, 238, 0.05), rgba(242, 243, 238, 0.014));
+  --rs-surface-hi: linear-gradient(180deg, rgba(242, 243, 238, 0.085), rgba(242, 243, 238, 0.025));
+  --rs-edge-top: rgba(242, 243, 238, 0.17);
+  --rs-edge-bot: rgba(242, 243, 238, 0.07);
+  --rs-lift:
+    inset 0 1px 0 rgba(242, 243, 238, 0.06),
+    0 24px 48px -28px rgba(0, 0, 0, 0.9);
+  --rs-lift-hi:
+    inset 0 1px 0 rgba(242, 243, 238, 0.1),
+    0 30px 60px -26px rgba(0, 0, 0, 0.95);
+  /* El fondo deja de ser un color y pasa a ser una SUPERFICIE: +4% de
+     luminancia bajo el hero, cayendo a nada. Elíptico y enorme a proposito —
+     si el degradado se ve como degradado, es glow; tiene que leerse como que
+     la pagina esta iluminada desde algun lado. */
+  --rs-field:
+    radial-gradient(120% 62% at 50% -6%, rgba(242, 243, 238, 0.055), transparent 62%),
+    radial-gradient(80% 40% at 88% 8%, rgba(0, 200, 5, 0.035), transparent 70%);
+  /* Regla de tinta: la hairline plana de 1px es lo unico que separaba
+     secciones. Una regla real se apaga en las puntas. */
+  --rs-rule: linear-gradient(90deg, transparent, rgba(242, 243, 238, 0.18) 12%, rgba(242, 243, 238, 0.18) 88%, transparent);
+  /* La porcion apartada del instrumento (SetAsideBand) y el hueco que deja.
+     Van por token y no por literal porque "lo mas prominente" se INVIERTE con el tema: sobre
+     casi-negro es un bloque casi blanco, sobre papel es un bloque de tinta. Escrito a mano con
+     #FFFFFF quedaba un degradado blanco→negro→gris en claro, o sea roto. */
+  --rs-slice: linear-gradient(180deg, #ffffff, #f2f3ee 45%, #c9ccc2);
+  --rs-notch: linear-gradient(180deg, rgba(0, 0, 0, 0.5), rgba(0, 0, 0, 0.14));
+  --rs-bar: linear-gradient(180deg, rgba(242, 243, 238, 0.14), rgba(242, 243, 238, 0.05));
+  /* Canto para controles secundarios. `--rs-hair` (0.14) alcanza para separar bloques pero deja
+     un boton sin borde legible, sobre todo en claro, donde el secundario quedaba blanco sobre
+     blanco. */
+  --rs-edge-strong: rgba(242, 243, 238, 0.24);
 }
 
 [data-robinshare-theme="light"] {
   --rs-paper: #F7F8F4;
   --rs-ink: #0D120E;
-  --rs-green-text: #087C2E;
-  --rs-green-cta: #0B6B2E;
+  /* UN SOLO MATIZ, DOS LUMINOSIDADES.
+     Antes el acento de oscuro era lima #CCFF00 (matiz ~76°) y el de claro un forest #087C2E
+     (~145°): 70 grados de diferencia, o sea que tocar el toggle cambiaba de marca. Estos son el
+     mismo lima llevado a una luminosidad que sobreviva sobre papel — contra #F7F8F4 dan ~6:1 el
+     texto y ~7:1 el blanco sobre el boton. */
+  --rs-green-text: #4C6600;
+  --rs-green-cta: #445C00;
   /* En claro la misma textura salta mucho mas: la mitad. */
   --rs-plate-opacity: 0.03;
   --rs-green-cta-text: #FFFFFF;
@@ -36,6 +85,36 @@
   --rs-nav-gradient: linear-gradient(to bottom, rgba(247, 248, 244, 0.97) 0%, rgba(247, 248, 244, 0.85) 60%, transparent);
   --rs-watermark: rgba(13, 18, 14, 0.045);
   --rs-feather-ink-filter: saturate(0.6) brightness(0.78) contrast(1.05);
+
+  /* Material en claro: la luz viene de arriba igual, pero sobre papel la
+     elevacion se lee al reves — el panel se HUNDE con un tinte, no se
+     ilumina. Por eso la superficie es tinta translucida y no luz, y la
+     sombra es mucho mas corta y suave (sobre blanco, una sombra larga se
+     ve sucia). */
+  --rs-surface: linear-gradient(180deg, rgba(13, 18, 14, 0.035), rgba(13, 18, 14, 0.012));
+  --rs-surface-hi: linear-gradient(180deg, rgba(13, 18, 14, 0.06), rgba(13, 18, 14, 0.02));
+  --rs-edge-top: rgba(13, 18, 14, 0.16);
+  --rs-edge-bot: rgba(13, 18, 14, 0.09);
+  --rs-lift:
+    inset 0 1px 0 rgba(255, 255, 255, 0.6),
+    0 14px 28px -20px rgba(13, 18, 14, 0.4);
+  --rs-lift-hi:
+    inset 0 1px 0 rgba(255, 255, 255, 0.8),
+    0 18px 34px -18px rgba(13, 18, 14, 0.5);
+  --rs-field:
+    radial-gradient(120% 62% at 50% -6%, rgba(13, 18, 14, 0.04), transparent 62%),
+    radial-gradient(80% 40% at 88% 8%, rgba(0, 200, 5, 0.03), transparent 70%);
+  --rs-rule: linear-gradient(90deg, transparent, rgba(13, 18, 14, 0.18) 12%, rgba(13, 18, 14, 0.18) 88%, transparent);
+  /* En claro la porcion es un bloque de TINTA sobre papel, con la misma caida de luz desde
+     arriba. Y el hueco no puede ser una sombra negra —sobre papel eso se ve sucio—: es un
+     rebaje suave del propio color de la tinta. */
+  --rs-slice: linear-gradient(180deg, #3a423c, #0d120e 45%, #050806);
+  /* El hueco tiene que quedar MAS CLARO que la barra, no mas oscuro: es papel a la vista, apenas
+     rebajado. Con la version anterior (0.16 contra una barra de 0.06) el vano pesaba mas que el
+     material y el instrumento se leia invertido. */
+  --rs-notch: linear-gradient(180deg, rgba(13, 18, 14, 0.055), rgba(13, 18, 14, 0.015));
+  --rs-bar: linear-gradient(180deg, rgba(13, 18, 14, 0.15), rgba(13, 18, 14, 0.06));
+  --rs-edge-strong: rgba(13, 18, 14, 0.26);
 }
 
 @theme inline {
@@ -92,6 +171,163 @@ body::after {
 /* asentado: mata la transición para que un freeze de pestaña oculta no deje fantasmas */
 .reveal.no-anim {
   transition: none !important;
+}
+
+/* ── MOVIMIENTO CON INTENCION ───────────────────────────────────────────────
+   Antes habia UN primitivo (fade + translate) aplicado a todo por igual, que
+   es la animacion mas perezosa que existe: no distingue un titular de un
+   panel de una regla, asi que ninguno de los tres se mueve como lo que es.
+
+   Ahora hay cuatro, y cada uno dice algo distinto sobre el elemento:
+
+     .rs-set    — el titular se COMPONE: cada linea sube desde detras de su
+                  propia caja (clip-path), como tipografia entrando en su
+                  caja de texto. Sin fade: el clip ya es la revelacion.
+     .rs-settle — el panel se ASIENTA: baja con overshoot amortiguado. Es un
+                  objeto con masa que llega a su lugar, no un fantasma que
+                  aparece.
+     .rs-draw   — la regla se DIBUJA de izquierda a derecha. Una linea que
+                  aparece de golpe es un borde; una que se dibuja es un gesto.
+     .rs-lift-in— el dato ENTRA en foco: blur + escala minima. Se usa solo en
+                  numeros, para que el ojo los lea como que se resolvieron.
+
+   Todos comparten la misma curva de salida (0.16,1,0.3,1) salvo .rs-settle,
+   que usa una con overshoot real — es el unico que representa masa. */
+.rs-set > * {
+  clip-path: inset(0 0 110% 0);
+  transform: translateY(0.34em);
+  transition:
+    clip-path 0.9s cubic-bezier(0.22, 1, 0.28, 1),
+    transform 0.9s cubic-bezier(0.22, 1, 0.28, 1);
+  transition-delay: calc(var(--rs-stagger, 90ms) * var(--i, 0) + var(--reveal-delay, 0ms));
+}
+.rs-set.is-in > * {
+  clip-path: inset(-0.3em 0 -0.3em 0);
+  transform: none;
+}
+
+.rs-settle {
+  opacity: 0;
+  transform: translateY(26px) scale(0.985);
+  transition:
+    opacity 0.5s ease-out,
+    transform 0.85s cubic-bezier(0.16, 1.02, 0.32, 1);
+  transition-delay: var(--reveal-delay, 0ms);
+}
+.rs-settle.is-in {
+  opacity: 1;
+  transform: none;
+}
+
+.rs-draw {
+  transform: scaleX(0);
+  transform-origin: left center;
+  transition: transform 1.1s cubic-bezier(0.16, 1, 0.3, 1);
+  transition-delay: var(--reveal-delay, 0ms);
+}
+.rs-draw.is-in {
+  transform: scaleX(1);
+}
+
+.rs-lift-in {
+  opacity: 0;
+  filter: blur(9px);
+  transform: scale(0.97);
+  transition:
+    opacity 0.6s ease-out,
+    filter 0.8s cubic-bezier(0.16, 1, 0.3, 1),
+    transform 0.8s cubic-bezier(0.16, 1, 0.3, 1);
+  transition-delay: calc(var(--rs-stagger, 90ms) * var(--i, 0) + var(--reveal-delay, 0ms));
+}
+.rs-lift-in.is-in {
+  opacity: 1;
+  filter: none;
+  transform: none;
+}
+
+/* mismo apagado de fantasmas que .reveal, para los cuatro */
+.rs-set.no-anim > *,
+.rs-settle.no-anim,
+.rs-draw.no-anim,
+.rs-lift-in.no-anim {
+  transition: none !important;
+}
+
+/* ── MICRO-ESTADOS ─────────────────────────────────────────────────────────
+   Aca es donde se destapa el "10 minutos": hover, focus, loading, vacio. */
+
+/* Foco visible y con la forma del control — el default del browser era un
+   anillo azul que no pertenece a ningun sistema de esta pagina. */
+.rs-focus:focus-visible {
+  outline: 2px solid var(--rs-green-cta);
+  outline-offset: 3px;
+  border-radius: 3px;
+}
+
+/* El boton como instrumento: se hunde 1px al presionar y el borde superior
+   pierde su luz. Es lo que hace un boton fisico. */
+.rs-press {
+  transition:
+    transform 0.14s cubic-bezier(0.16, 1, 0.3, 1),
+    box-shadow 0.2s ease,
+    background-color 0.2s ease,
+    opacity 0.2s ease;
+}
+.rs-press:active:not(:disabled) {
+  transform: translateY(1px);
+}
+
+/* Skeleton de carga: barrido, no spinner. El spinner dice "esperá"; el
+   barrido dice "esto se esta llenando", que es lo que pasa de verdad. */
+.rs-skeleton {
+  position: relative;
+  overflow: hidden;
+  background: var(--rs-surface);
+  border-radius: 3px;
+}
+.rs-skeleton::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  transform: translateX(-100%);
+  background: linear-gradient(90deg, transparent, var(--rs-edge-top), transparent);
+  animation: rsSweep 1.25s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+@keyframes rsSweep {
+  to {
+    transform: translateX(100%);
+  }
+}
+
+/* El dot de "en vivo" respira al ritmo del poll del RPC (2s), no a un ritmo
+   decorativo: el pulso ES el latido del dato. */
+.rs-live-dot {
+  animation: rsLive 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+@keyframes rsLive {
+  0%,
+  100% {
+    opacity: 1;
+    box-shadow: 0 0 0 0 rgba(0, 200, 5, 0.45);
+  }
+  70% {
+    opacity: 0.75;
+    box-shadow: 0 0 0 5px rgba(0, 200, 5, 0);
+  }
+}
+
+/* El numero que acaba de cambiar parpadea una vez. Sin esto, un contador en
+   vivo y uno congelado se ven identicos. */
+.rs-tick {
+  animation: rsTick 0.42s ease-out;
+}
+@keyframes rsTick {
+  0% {
+    opacity: 0.35;
+  }
+  100% {
+    opacity: 1;
+  }
 }
 
 /* ---------------------------------------------------------------------
@@ -244,6 +480,21 @@ body::after {
     transform: none;
     filter: none;
     transition: none;
+  }
+  .rs-set > *,
+  .rs-settle,
+  .rs-draw,
+  .rs-lift-in {
+    opacity: 1;
+    clip-path: none;
+    transform: none;
+    filter: none;
+    transition: none;
+  }
+  .rs-skeleton::after,
+  .rs-live-dot,
+  .rs-tick {
+    animation: none !important;
   }
   .demo-spinner,
   .demo-verified-chip,

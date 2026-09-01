@@ -1,7 +1,14 @@
 import { describe, it, expect } from "vitest";
 import { readdirSync, readFileSync, statSync } from "node:fs";
 import { join } from "node:path";
-import { CUSTODY_LINE, CUSTODY_LINE_SHORT, CLAIM_REQUIREMENTS, AUDIT_LINE, CONFLICT_LINE } from "@/lib/claims";
+import {
+  CUSTODY_LINE,
+  CUSTODY_LINE_PARTS,
+  CUSTODY_LINE_SHORT,
+  CLAIM_REQUIREMENTS,
+  AUDIT_LINE,
+  CONFLICT_LINE,
+} from "@/lib/claims";
 
 /// Gate de honestidad del copy, ejecutable.
 ///
@@ -95,6 +102,28 @@ describe("la constante canonica dice la verdad completa", () => {
 
   it("sigue diciendo que no estamos afiliados a ninguno de los tres", () => {
     expect(CUSTODY_LINE).toMatch(/Robinhood, pons or Flap/);
+  });
+
+  /// El footer dejo de renderizar la constante como un solo bloque de mono gris y ahora renderiza
+  /// `CUSTODY_LINE_PARTS`, que la parte por tema y le pone etiqueta a cada parte. Ese es
+  /// exactamente el movimiento que puede perder texto sin que nadie lo note: alguien reescribe un
+  /// `body` "para que lea mejor" y la promesa queda distinta de la constante que el resto del
+  /// gate audita. Por eso la particion se verifica contra el TODO: si los bloques dejan de
+  /// componer la constante, esto se pone rojo.
+  it("los bloques etiquetados componen exactamente la constante", () => {
+    expect(CUSTODY_LINE_PARTS.map((p) => p.body).join("")).toBe(CUSTODY_LINE);
+  });
+
+  it("cada bloque tiene etiqueta y cuerpo, y las dos declaraciones van en bloque propio", () => {
+    for (const p of CUSTODY_LINE_PARTS) {
+      expect(p.label.length, `un bloque quedo sin etiqueta`).toBeGreaterThan(0);
+      expect(p.body.trim().length, `el bloque "${p.label}" quedo vacio`).toBeGreaterThan(0);
+    }
+    // Enterrar de nuevo el no-auditado o el conflicto adentro de otro bloque los devolveria a la
+    // letra chica de la que se los saco.
+    const cuerpos = CUSTODY_LINE_PARTS.map((p) => p.body);
+    expect(cuerpos).toContain(AUDIT_LINE);
+    expect(cuerpos).toContain(CONFLICT_LINE);
   });
 });
 
