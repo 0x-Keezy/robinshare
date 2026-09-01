@@ -12,7 +12,7 @@ import { useVaultLookup, type IdType } from "@/lib/useVaultLookup";
 import { Scroll, useScrollSync } from "@/lib/scrollProgress";
 import { useHideNav } from "@/lib/useHideNav";
 import { useTheme } from "@/lib/useTheme";
-import { SetAsideMark } from "@/components/SetAsideMark";
+import { Wordmark } from "@/components/Wordmark";
 import { QuillMark } from "@/components/QuillMark";
 import { publicClient, robinhoodChain } from "@/lib/chain";
 import { CUSTODY_LINE_PARTS } from "@/lib/claims";
@@ -22,10 +22,11 @@ import { CUSTODY_LINE_PARTS } from "@/lib/claims";
  * Registro suizo-snappy: tipografía negra gigante, grid denso, hairlines.
  * Oscuro por defecto (tokens var(--rs-*), toggle a claro en el nav). El lima
  * es el acento de marca; el verde Robinhood puro queda SOLO en el tape en
- * vivo. La marca es el APARTADO (SetAsideMark): una barra con una porcion
- * separada y sostenida aparte — lo que el producto hace, sin metafora
- * prestada. El arco se fue: convergia con Recurve, el otro launchpad de
- * Jose en esta misma cadena, que se llama literalmente por un arco.
+ * vivo. La marca es el WORDMARK: el nombre en la serif del acta, sin simbolo,
+ * como Stripe/Ramp/Mercury. Antes de eso hubo un arco (convergia con Recurve,
+ * el otro launchpad de Jose en esta misma cadena) y despues una barra con una
+ * porcion apartada, que a 20px media 8px de alto y leia como skeleton loader.
+ * El porque completo, en Wordmark.tsx.
  */
 
 // Fraunces variable, no Archivo Black. Ver BRIEF-facelift.md: el display anterior era el del molde
@@ -211,12 +212,7 @@ export function LegendHome() {
               es explicita y se sostiene en toda la pagina: **el verde de la cadena es solo para el
               dato en vivo** (el dot y la altura de bloque), y la marca se lee por su geometria,
               que es como fue dibujada. */}
-          <div className="flex items-center gap-2" style={{ color: INK }}>
-            <SetAsideMark color={INK} />
-            <span style={{ fontFamily: "var(--f-mono)", letterSpacing: "0.26em" }} className="text-xs font-medium uppercase">
-              RobinShare
-            </span>
-          </div>
+          <Wordmark size={21} />
           <div className="flex items-center gap-4 sm:gap-5">
             {/* EL TEMA NO SE TOCA COMO FEATURE, PERO SI COMO ICONO.
                 El sol/luna arriba a la derecha es un tell de scaffold que el gate del vertical
@@ -906,9 +902,7 @@ export function LegendHome() {
 
             <div className="relative grid gap-10 border-t pb-10 pt-10 sm:grid-cols-3" style={{ borderColor: HAIR }}>
               <div>
-                <span className="flex items-center gap-2 text-xs uppercase tracking-[0.26em]" style={{ fontFamily: "var(--f-mono)" }}>
-                  <SetAsideMark size={14} color={INK} /> RobinShare
-                </span>
+                <Wordmark size={20} href={null} />
                 <p className="mt-3 max-w-xs text-sm leading-relaxed" style={{ color: DIM }}>
                   A coin&rsquo;s trading fees, routed to the builder who earned them. On Robinhood Chain.
                 </p>
