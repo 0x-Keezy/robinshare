@@ -60,6 +60,12 @@
   --rs-slice: linear-gradient(180deg, #ffffff, #f2f3ee 45%, #c9ccc2);
   --rs-notch: linear-gradient(180deg, rgba(0, 0, 0, 0.5), rgba(0, 0, 0, 0.14));
   --rs-bar: linear-gradient(180deg, rgba(242, 243, 238, 0.14), rgba(242, 243, 238, 0.05));
+  /* La HOJA del acta. No es la sombra de una card: una card levanta con un halo parejo alrededor
+     (y eso hace que un documento se lea "componente de UI"); una hoja apoyada tira una sombra
+     CORTA y hacia abajo. Y la regla del campo se marca por forma, nunca por color — el acento no
+     alcanza para esto y ademas #CCFF00 sobre papel da 1,1:1. */
+  --rs-sheet: 0 2px 0 rgba(0, 0, 0, 0.28), 0 18px 30px -22px rgba(0, 0, 0, 0.8);
+  --rs-field-rule: rgba(242, 243, 238, 0.45);
   /* Canto para controles secundarios. `--rs-hair` (0.14) alcanza para separar bloques pero deja
      un boton sin borde legible, sobre todo en claro, donde el secundario quedaba blanco sobre
      blanco. */
@@ -114,6 +120,9 @@
      material y el instrumento se leia invertido. */
   --rs-notch: linear-gradient(180deg, rgba(13, 18, 14, 0.055), rgba(13, 18, 14, 0.015));
   --rs-bar: linear-gradient(180deg, rgba(13, 18, 14, 0.15), rgba(13, 18, 14, 0.06));
+  /* Sobre papel la hoja no puede tirar una sombra larga: se ve sucia. Un canto y poco mas. */
+  --rs-sheet: 0 1px 0 rgba(13, 18, 14, 0.1), 0 12px 22px -18px rgba(13, 18, 14, 0.45);
+  --rs-field-rule: rgba(13, 18, 14, 0.5);
   --rs-edge-strong: rgba(13, 18, 14, 0.26);
 }
 

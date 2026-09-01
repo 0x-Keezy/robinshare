@@ -5,10 +5,10 @@ import Link from "next/link";
 import { Fraunces, Archivo, IBM_Plex_Mono } from "next/font/google";
 import { Reveal, stagIndex } from "@/components/Reveal";
 import { Stat } from "@/components/Stat";
-import { SetAsideBand } from "@/components/SetAsideBand";
+import { SetAsideDeed } from "@/components/SetAsideDeed";
 import { OnChainStrip } from "@/components/OnChainStrip";
 import { Magnetic } from "@/components/Magnetic";
-import { useVaultLookup } from "@/lib/useVaultLookup";
+import { useVaultLookup, type IdType } from "@/lib/useVaultLookup";
 import { Scroll, useScrollSync } from "@/lib/scrollProgress";
 import { useHideNav } from "@/lib/useHideNav";
 import { useTheme } from "@/lib/useTheme";
@@ -77,6 +77,17 @@ export function LegendHome() {
   const reduce = useReducedMotion();
   const { theme, toggle: toggleTheme } = useTheme();
   const { type, setType, value, setValue, rows, error, loading, lookup } = useVaultLookup();
+
+  // Lo que el visitante buscó DE VERDAD, que no es lo mismo que `value` (eso cambia con cada
+  // tecla). El acta se llena con esto: si se llenara con `value`, el documento se escribiría solo
+  // letra por letra mientras alguien tipea, que es justo lo contrario de un instrumento.
+  const [named, setNamed] = useState<{ value: string; type: IdType } | null>(null);
+  const runLookup = () => {
+    const v = value.trim();
+    if (!v) return;
+    setNamed({ value: v, type });
+    lookup();
+  };
   const inkFeather = useRef<HTMLDivElement>(null);
 
   // demo interactivo del tape (producto-como-héroe, lección Arcus): el visitante
@@ -448,7 +459,7 @@ export function LegendHome() {
                     suppressHydrationWarning
                     value={value}
                     onChange={(e) => setValue(e.target.value)}
-                    onKeyDown={(e) => e.key === "Enter" && lookup()}
+                    onKeyDown={(e) => e.key === "Enter" && runLookup()}
                     placeholder={type === "wallet" ? "0x…" : "your-handle"}
                     spellCheck={false}
                     className="rs-focus w-full rounded-[9px] px-3 py-2.5 text-base transition-colors placeholder:opacity-30 focus:outline-none"
@@ -468,7 +479,7 @@ export function LegendHome() {
                     Ahora vacio = superficie con tinta plena (lee accionable, que es la verdad:
                     hay que escribir algo), y solo el estado de carga se apaga. */}
                 <button
-                  onClick={lookup}
+                  onClick={runLookup}
                   disabled={loading || !value}
                   className="rs-focus rs-press mt-5 flex w-full items-center justify-center gap-2 rounded-[11px] px-6 py-3 text-sm font-bold transition-colors disabled:cursor-not-allowed"
                   style={
@@ -580,7 +591,16 @@ export function LegendHome() {
           </Reveal>
         </section>
 
-        {/* AQUI CORRIA UN MARQUEE, Y SE FUE.
+        {/* EL ACTA. Aca corrio primero un MARQUEE de slogans (fuera: dispositivo de memecoin que
+            ademas repetia el titular de 100px mas abajo) y despues un DIAGRAMA GEOMETRICO de la
+            marca a escala — una barra con una porcion que se separaba con el scroll. El diagrama
+            se fue por la unica razon que importa: Jose lo miro y dijo "no entiendo esta parte que
+            quisiste mostrar". La autopsia completa esta en SetAsideDeed.tsx; el resumen es que una
+            geometria estatica puede mostrar una proporcion pero no puede mostrar PROCEDENCIA ni
+            TITULARIDAD, y "una persona nombrada" es todo el producto.
+
+            El resto del comentario historico del marquee se conserva porque su argumento sigue
+            valiendo para cualquier build del vertical:
             La tira decia "RobinShare on Robinhood Chain · every trade pays the builder · only they
             can claim it" en loop. Un juez visual del vertical lo mando a sacar con tres razones
             que no tienen vuelta: (1) el marquee tiene un origen semantico unico, el ticker
@@ -596,7 +616,18 @@ export function LegendHome() {
             describirlo. Es el unico dibujo que este producto puede tener y que no se puede pegar
             en otro sitio, y se mueve con el scroll del visitante, no en autoplay. */}
         <section className="mx-auto max-w-6xl px-6 py-14 sm:py-20">
-          <SetAsideBand />
+          <Reveal variant="settle">
+            <SetAsideDeed
+              named={named}
+              rows={rows}
+              loading={loading}
+              onFocusSearch={() => {
+                const el = document.getElementById("rs-lookup");
+                el?.scrollIntoView({ block: "center", behavior: "smooth" });
+                el?.focus({ preventScroll: true });
+              }}
+            />
+          </Reveal>
         </section>
 
         {/* EL MECANISMO. Antes eran tres filas de `py-24` con un numeral de 7.5rem al costado:
