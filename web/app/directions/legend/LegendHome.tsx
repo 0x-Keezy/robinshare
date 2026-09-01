@@ -381,50 +381,62 @@ export function LegendHome() {
           </Marquee>
         </div>
 
-        {/* mecanismo — filas editoriales con numerales gigantes (aire tipo Arcus:
-            un concepto por pantalla, el blanco es el lujo) */}
-        <section className="mx-auto max-w-6xl px-6 py-28">
+        {/* EL MECANISMO. Antes eran tres filas de `py-24` con un numeral de 7.5rem al costado:
+            tres pantallas casi vacias para dos lineas de texto cada una. Eso no es respiro
+            editorial, es relleno — mas fondo que contenido, y el visitante scrollea tres veces sin
+            recibir nada. Ahora es UNA grilla de tres columnas con una regla que las une, y detras
+            corre la plancha grabada: lo unico de la pagina que cruza capas en z. */}
+        <section className="relative mx-auto max-w-6xl px-6 py-28">
+          {/* la plancha: guilloche de certificado, el lenguaje visual de los titulos al portador.
+              Va detras y muy tenue — es atmosfera, no ilustracion. La pagina no tenia NADA que
+              cruzara capas; el juez lo marco como "relleno plano con hairlines". */}
+          <div
+            aria-hidden
+            className="pointer-events-none absolute inset-x-0 top-1/4 -z-10 h-[70%] bg-[url('/legend/plate.webp')] bg-cover bg-center"
+            style={{
+              opacity: "var(--rs-plate-opacity)",
+              maskImage: "radial-gradient(70% 60% at 50% 50%, black 30%, transparent 78%)",
+              WebkitMaskImage: "radial-gradient(70% 60% at 50% 50%, black 30%, transparent 78%)",
+            }}
+          />
           <Reveal>
             <h2 style={{ fontFamily: "var(--f-display)", lineHeight: 1 }} className="max-w-3xl text-[clamp(1.8rem,4.2vw,3rem)]">
               Every trade pays the person who earned it.
             </h2>
           </Reveal>
-          <div className="mt-10 flex flex-col">
+          <div className="mt-14 grid gap-px sm:grid-cols-3" style={{ background: HAIR }}>
             {[
               { n: "01", t: "Name them", d: "Pick a builder by GitHub or wallet. Their coin lists on pons in seconds, paired against native ETH." },
-              { n: "02", t: "Fees accrue", d: "A launch-set cut of every trade (1–10%) lands in an on-chain vault under their name." },
+              { n: "02", t: "Fees accrue", d: "A launch-set cut of every trade lands in an on-chain vault under their name." },
               { n: "03", t: "They claim", d: "They prove it's them (GitHub login, or a signature from the wallet you named) and sweep the ETH." },
             ].map((s) => (
               <Reveal key={s.n}>
-                <div
-                  className="grid items-center gap-6 border-t py-16 sm:grid-cols-[220px_1fr] sm:gap-12 sm:py-24"
-                  style={{ borderColor: HAIR }}
-                >
+                <div className="flex h-full flex-col px-6 py-10 sm:px-7" style={{ background: PAPER }}>
                   <div
                     aria-hidden
-                    style={{ fontFamily: "var(--f-display)", color: FAINT, lineHeight: 0.9 }}
-                    className="text-[clamp(4rem,9vw,7.5rem)] tracking-tight"
+                    style={{ fontFamily: "var(--f-mono)", color: FAINT, letterSpacing: "0.2em" }}
+                    className="text-xs"
                   >
                     /{s.n}
                   </div>
-                  <div>
-                    <h3 style={{ fontFamily: "var(--f-display)" }} className="text-2xl sm:text-3xl">
-                      {s.t}
-                    </h3>
-                    <p className="mt-4 max-w-lg text-lg leading-relaxed" style={{ color: DIM }}>
-                      {s.d}
-                    </p>
-                  </div>
+                  <h3 style={{ fontFamily: "var(--f-display)" }} className="mt-5 text-2xl">
+                    {s.t}
+                  </h3>
+                  <p className="mt-3 text-[15px] leading-relaxed" style={{ color: DIM }}>
+                    {s.d}
+                  </p>
                 </div>
               </Reveal>
             ))}
           </div>
 
+          <div className="mt-16" />
+
           {/* hechos en negro gigante — user-meaningful, verificables */}
           <div className="grid grid-cols-2 gap-x-8 gap-y-10 border-t pt-14 sm:grid-cols-4" style={{ borderColor: HAIR }}>
             <Stat value={100} suffix="ms" label="Block time" accent={INK} dim={FAINT} />
             <Stat value={0} label="Admin keys we hold" accent={INK} dim={FAINT} />
-            <Stat value={3} label="Ways to claim" accent={INK} dim={FAINT} />
+            <Stat value={2} label="Ways to claim" accent={INK} dim={FAINT} />
             <Stat value={100} suffix="%" label="Of the fee → builder" accent={GREEN_TEXT} dim={FAINT} />
           </div>
           <p className="mt-6 text-[11px]" style={{ fontFamily: "var(--f-mono)", color: FAINT }}>

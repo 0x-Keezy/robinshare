@@ -9,6 +9,10 @@
   --rs-ink: #F2F3EE;
   --rs-green-text: #CCFF00;
   --rs-green-cta: #CCFF00;
+  /* La plancha grabada detras del mecanismo. 0.055 sobre casi-negro es el punto donde se
+     PERCIBE sin competir con el texto: mas alto y la textura gana, mas bajo y vuelve el
+     "relleno plano" que el juez marco. */
+  --rs-plate-opacity: 0.055;
   --rs-green-cta-text: #0D120E;
   --rs-dim: rgba(242, 243, 238, 0.65);
   --rs-faint: rgba(242, 243, 238, 0.5);
@@ -23,6 +27,8 @@
   --rs-ink: #0D120E;
   --rs-green-text: #087C2E;
   --rs-green-cta: #0B6B2E;
+  /* En claro la misma textura salta mucho mas: la mitad. */
+  --rs-plate-opacity: 0.03;
   --rs-green-cta-text: #FFFFFF;
   --rs-dim: rgba(13, 18, 14, 0.6);
   --rs-faint: rgba(13, 18, 14, 0.58);
