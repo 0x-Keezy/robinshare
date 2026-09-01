@@ -325,6 +325,34 @@ body::after {
   }
 }
 
+/* EL GOLPE DEL SELLO.
+   Un sello no aparece: BAJA, golpea y se asienta. Por eso arranca grande y arriba (la mano
+   todavia no llego al papel), cae rapido, se pasa apenas, y vuelve. La curva es de impacto —
+   casi todo el recorrido en el primer tercio— y no la misma ease-out suave que usa el resto de
+   la pagina: si el sello entrara como entra un panel, no seria un sello, seria otro panel.
+   El paso al 62% con el brillo es la tinta asentandose en el papel. */
+@keyframes rsStamp {
+  0% {
+    transform: rotate(-9deg) scale(1.5) translateY(-9px);
+    opacity: 0;
+    filter: blur(1.5px);
+  }
+  38% {
+    transform: rotate(-3deg) scale(0.955) translateY(0);
+    opacity: 1;
+    filter: blur(0);
+  }
+  62% {
+    transform: rotate(-4.6deg) scale(1.022);
+  }
+  100% {
+    transform: rotate(-4deg) scale(1);
+  }
+}
+.rs-stamp {
+  animation: rsStamp 620ms cubic-bezier(0.2, 0.9, 0.25, 1) both;
+}
+
 /* El numero que acaba de cambiar parpadea una vez. Sin esto, un contador en
    vivo y uno congelado se ven identicos. */
 .rs-tick {
@@ -503,6 +531,10 @@ body::after {
   .rs-skeleton::after,
   .rs-live-dot,
   .rs-tick {
+    animation: none !important;
+  }
+  /* El sello aparece SELLADO, no apagado: es contenido (atestigua un bloque real), no adorno. */
+  .rs-stamp {
     animation: none !important;
   }
   .demo-spinner,

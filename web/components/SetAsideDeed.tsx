@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { robinhoodChain } from "@/lib/chain";
+import { DeedSeal } from "@/components/DeedSeal";
 import type { IdType, VaultRow } from "@/lib/useVaultLookup";
 
 /// EL ACTA — el mecanismo dicho en una oración que se completa.
@@ -63,12 +64,16 @@ export function SetAsideDeed({
   rows,
   loading,
   onFocusSearch,
+  sealedAt,
 }: {
   /// Lo que el visitante buscó de verdad (no lo que está tipeando).
   named: { value: string; type: IdType } | null;
   rows: VaultRow[] | null;
   loading: boolean;
   onFocusSearch: () => void;
+  /// Altura de bloque CONGELADA en el instante en que se leyo la cadena. Congelada y no viva a
+  /// proposito: un sello atestigua un momento, y un numero que sigue corriendo no atestigua nada.
+  sealedAt: bigint | null;
 }) {
   const label = named ? (named.type === "github" ? `@${named.value}` : named.value) : null;
   const field = label ? fieldText(label) : null;
@@ -91,6 +96,13 @@ export function SetAsideDeed({
         boxShadow: "var(--rs-sheet)",
       }}
     >
+      {/* EL SELLO. Apoyado sobre el canto inferior derecho de la hoja y CRUZANDO la regla del pie,
+          que es donde cae un sello de verdad: sobre el texto, no en una celda reservada al lado.
+          `pointer-events-none` porque es evidencia, no un control. */}
+      <div className="pointer-events-none absolute -bottom-3 right-3 sm:-bottom-5 sm:right-7" style={{ color: "var(--rs-ink)" }}>
+        <DeedSeal atBlock={sealedAt} className="aspect-square w-[86px] sm:w-[134px]" />
+      </div>
+
       {/* DOS VOCES en los smalls, no una. El título del instrumento va en la serif con versalitas
           —es el encabezado de un documento— y las condiciones en mono, que es la voz de los datos.
           Antes los cuatro smalls eran la misma mono caps tracked y el conjunto leía como textura
@@ -115,7 +127,7 @@ export function SetAsideDeed({
           peor fallo posible de este bloque. */}
       <p
         style={{ fontFamily: "var(--f-display)", lineHeight: 1.34, letterSpacing: "-0.014em" }}
-        className="mt-8 text-[clamp(1.6rem,4.6vw,2.9rem)]"
+        className="relative z-10 mt-8 text-[clamp(1.6rem,4.6vw,2.9rem)]"
       >
         <span className="block">A cut of every trade on their coin</span>
         <span className="block">
@@ -133,7 +145,7 @@ export function SetAsideDeed({
       </p>
 
       <div
-        className="mt-9 flex flex-col gap-2 border-t pt-5 sm:flex-row sm:items-baseline sm:justify-between sm:gap-6"
+        className="mt-9 flex flex-col gap-2 border-t pt-5 sm:flex-row sm:items-baseline sm:justify-between sm:gap-6 pr-[96px] sm:pr-40"
         style={{ borderColor: "var(--rs-hair)" }}
       >
         <span

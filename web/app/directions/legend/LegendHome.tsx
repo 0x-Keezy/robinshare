@@ -83,10 +83,15 @@ export function LegendHome() {
   // tecla). El acta se llena con esto: si se llenara con `value`, el documento se escribiría solo
   // letra por letra mientras alguien tipea, que es justo lo contrario de un instrumento.
   const [named, setNamed] = useState<{ value: string; type: IdType } | null>(null);
+  // La altura a la que se leyo la cadena, congelada al disparar la busqueda. El sello del acta
+  // atestigua ESE momento; si le pasaramos el bloque vivo, el numero seguiria corriendo dentro del
+  // sello y dejaria de atestiguar nada.
+  const [sealedAt, setSealedAt] = useState<bigint | null>(null);
   const runLookup = () => {
     const v = value.trim();
     if (!v) return;
     setNamed({ value: v, type });
+    setSealedAt(block);
     lookup();
   };
   const inkFeather = useRef<HTMLDivElement>(null);
@@ -617,6 +622,7 @@ export function LegendHome() {
               named={named}
               rows={rows}
               loading={loading}
+              sealedAt={sealedAt}
               onFocusSearch={() => {
                 const el = document.getElementById("rs-lookup");
                 el?.scrollIntoView({ block: "center", behavior: "smooth" });
