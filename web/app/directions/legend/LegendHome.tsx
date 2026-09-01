@@ -143,18 +143,20 @@ export function LegendHome() {
       className={`${display.variable} ${body.variable} ${mono.variable} relative`}
       style={{ background: PAPER, color: INK, fontFamily: "var(--f-body)" }}
     >
-      {/* LA PLUMA, DIBUJADA — no un render enmascarado.
-          Antes era /legend/feather-ink.png con glow verde y specks de humo, y el comentario que
-          estaba aca lo admitia: se le habia puesto una mascara radial porque "sin mascara leia a
-          render de IA". Enmascarar un tell no lo quita, solo le recorta los bordes. Ahora es trazo
-          autorado (QuillMark): barbas finas, tinta sobre papel, cero fosforo. Y cambia de sentido
-          con la marca nueva — ya no es el sombrero de Robin Hood, es el instrumento con que se
-          firma el apartado. */}
-      <div aria-hidden className="pointer-events-none fixed right-[4%] top-[-6%] z-0 w-[min(22vw,300px)]">
-        <div ref={inkFeather} className="will-change-transform">
-          <QuillMark className="w-full" stroke={INK} opacity={0.26} />
-        </div>
-      </div>
+      {/* LA PLUMA: SACADA DE ESTE BUILD, a proposito.
+          El concept spine (el acta) es bueno y la pluma es la metafora correcta, pero una pluma a
+          medias es PEOR que ninguna. El juez visual la leyo como "helecho / fronda de palmera" y
+          diagnostico por que, con precision: no tiene MASA (92 trazos abiertos sin contorno que los
+          ate leen como peine, no como vano), la asimetria 1:1.39 es opticamente simetria, y el
+          perfil sin(t^0.6·π) dibuja una LENTE — ancha al medio y apagada en los dos extremos —
+          cuando una pluma es ancha abajo y termina en punta arriba.
+          Y peor que el dibujo: estaba `fixed` en el gutter, o sea una calcomania pegada al viewport
+          que aparecia recortada por algo distinto en cada seccion, y en mobile se cruzaba con el
+          cuerpo de texto.
+          Vuelve cuando este dibujada con silueta cerrada y COMPUESTA en una seccion —el lugar
+          natural es echada bajo "One vault. One identity. No keys of ours.", como la pluma apoyada
+          sobre un acta ya firmada—, no flotando de wallpaper. QuillMark.tsx queda en el repo con el
+          diagnostico escrito. */}
 
       {/* nav claro */}
       <nav
@@ -219,7 +221,7 @@ export function LegendHome() {
               <br />
               to builders.
               <br />
-              <span style={{ color: GREEN_TEXT }}>Automatically.</span>
+              Automatically.
             </h1>
             <p className="mt-6 max-w-md text-lg" style={{ color: DIM }}>
               Launch a coin for any builder. Every trade sets a cut aside for their GitHub or
@@ -309,7 +311,7 @@ export function LegendHome() {
               </div>
             </div>
             <p className="mt-2 text-right text-[11px]" style={{ fontFamily: "var(--f-mono)", color: FAINT }}>
-              Illustrative — live with the first launch
+              Illustrative. Live with the first launch
             </p>
           </Reveal>
         </section>
@@ -323,11 +325,11 @@ export function LegendHome() {
           <Marquee duration={34}>
             <span style={{ fontFamily: "var(--f-mono)", letterSpacing: "0.1em", color: DIM }} className="inline-flex items-center gap-3 text-xs">
               <span>RobinShare on Robinhood Chain</span>
-              <SetAsideMark size={13} color={DIM} accent={GREEN_TEXT} />
+              <SetAsideMark size={13} color={DIM} accent={GREEN} />
               <span>every trade pays the builder</span>
-              <SetAsideMark size={13} color={DIM} accent={GREEN_TEXT} />
+              <SetAsideMark size={13} color={DIM} accent={GREEN} />
               <span>only they can claim it</span>
-              <SetAsideMark size={13} color={DIM} accent={GREEN_TEXT} />
+              <SetAsideMark size={13} color={DIM} accent={GREEN} />
               <span className="pr-3" />
             </span>
           </Marquee>
@@ -338,7 +340,7 @@ export function LegendHome() {
         <section className="mx-auto max-w-6xl px-6 py-28">
           <Reveal>
             <h2 style={{ fontFamily: "var(--f-display)", lineHeight: 1 }} className="max-w-3xl text-[clamp(1.8rem,4.2vw,3rem)]">
-              Every trade pays the <span style={{ color: GREEN_TEXT }}>person</span> who earned it.
+              Every trade pays the person who earned it.
             </h2>
           </Reveal>
           <div className="mt-10 flex flex-col">
@@ -354,7 +356,7 @@ export function LegendHome() {
                 >
                   <div
                     aria-hidden
-                    style={{ fontFamily: "var(--f-display)", color: GREEN_TEXT, lineHeight: 0.9 }}
+                    style={{ fontFamily: "var(--f-display)", color: FAINT, lineHeight: 0.9 }}
                     className="text-[clamp(4rem,9vw,7.5rem)] tracking-tight"
                   >
                     /{s.n}
@@ -399,13 +401,13 @@ export function LegendHome() {
               <h2 style={{ fontFamily: "var(--f-display)", lineHeight: 1 }} className="text-[clamp(1.8rem,4.2vw,3rem)]">
                 One vault. One identity.
                 <br />
-                <span style={{ color: GREEN_TEXT }}>No keys of ours.</span>
+                No keys of ours.
               </h2>
             </Reveal>
             <Reveal delay={120}>
               <div>
                 <p className="max-w-md text-lg leading-relaxed" style={{ color: DIM }}>
-                  The vault is fixed at launch — no owner, no upgrades, no emergency hatch. The
+                  The vault is fixed at launch: no owner, no upgrades, no emergency hatch. The
                   money only moves to the wallet that proves the name, and the economics are
                   frozen the second the coin exists. Whoever launched it can never redirect the
                   fees, and can only ever reclaim them if they set a recovery window at launch —
@@ -413,7 +415,7 @@ export function LegendHome() {
                 </p>
                 <p className="mt-4 max-w-md text-sm leading-relaxed" style={{ color: FAINT }}>
                   Two things are not ours to promise, and we would rather say them than let you
-                  read &ldquo;zero keys&rdquo; and find out later. pons — the launchpad the coin
+                  read &ldquo;zero keys&rdquo; and find out later. pons, the launchpad the coin
                   lives on — can point a coin&apos;s creator fees somewhere else: a 2-of-3
                   multisig, behind a public 3-day timelock anyone can watch on-chain before it
                   lands, and it applies retroactively to anything not yet swept. Sweeping is permissionless: anyone can shrink that
@@ -441,7 +443,7 @@ export function LegendHome() {
         {/* ledger — formulario de brokerage */}
         <section id="ledger" className="mx-auto max-w-3xl px-6 py-32">
           <Reveal>
-            <div style={{ fontFamily: "var(--f-mono)", letterSpacing: "0.24em", color: GREEN_TEXT }} className="text-xs font-medium uppercase">
+            <div style={{ fontFamily: "var(--f-mono)", letterSpacing: "0.24em", color: DIM }} className="text-xs font-medium uppercase">
               Balance check
             </div>
             <h2 style={{ fontFamily: "var(--f-display)", lineHeight: 1 }} className="mt-3 text-[clamp(1.9rem,4.4vw,3rem)]">
@@ -493,7 +495,13 @@ export function LegendHome() {
                   style={
                     loading || !value
                       ? { background: "transparent", borderColor: FAINT, color: FAINT }
-                      : { background: GREEN_CTA, borderColor: GREEN_CTA, color: "#fff" }
+                      : // `#fff` hardcodeado daba **1,18:1** sobre el lima (#CCFF00): el label
+                        // del boton principal era practicamente invisible. Todos los demas CTA de
+                        // la pagina usan el token correcto; este era el unico que lo salteaba, y
+                        // le tocaba justo al boton del que depende el trabajo entero de la pagina
+                        // ("un extrano escribe su handle y descubre que hay un vault suyo").
+                        // GREEN_CTA_TEXT da 16,10:1. Medido con la formula, no a ojo.
+                        { background: GREEN_CTA, borderColor: GREEN_CTA, color: GREEN_CTA_TEXT }
                   }
                 >
                   {loading ? "Checking…" : "Check balance"}
@@ -539,7 +547,7 @@ export function LegendHome() {
           <div className="mx-auto flex max-w-6xl flex-col items-center px-6 py-32 text-center">
             <Reveal>
               <h2 style={{ fontFamily: "var(--f-display)", lineHeight: 0.98 }} className="text-[clamp(2.2rem,5.4vw,4.2rem)]">
-                Back the one <span style={{ color: GREEN_TEXT }}>who ships.</span>
+                Back the one who ships.
               </h2>
             </Reveal>
             <Reveal delay={120}>

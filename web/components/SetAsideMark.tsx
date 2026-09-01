@@ -1,15 +1,29 @@
 /// La marca de RobinShare: **el apartado**.
 ///
-/// Una barra larga —el trade— con una porción separada y sostenida aparte: lo que se guarda a
-/// nombre del builder. Dibuja lo que el producto hace, en dos formas y sin metáfora prestada.
+/// Una barra —el trade— con una porción cortada y **desplazada fuera del eje**: lo que se guarda a
+/// nombre del builder. Dibuja lo que el producto hace, sin metáfora prestada.
 ///
-/// POR QUÉ REEMPLAZA AL ARCO. `BowMark` era un arco tensado, el guiño a Robin Hood. Dos problemas:
-/// el chiste del nombre no dice nada sobre lo que el producto HACE, y sobre todo **converge con
-/// Recurve** — el otro launchpad de Jose, en la MISMA cadena y el mismo vertical, que ya usa un
-/// mark de arco bespoke y que se llama, literalmente, por un arco recurvo. Dos marcas hermanas con
-/// el mismo símbolo no son una familia: son una confusión.
+/// POR QUÉ NO ES EL ARCO. `BowMark` era un arco tensado, el guiño a Robin Hood. El chiste del
+/// nombre no dice nada de lo que el producto HACE, y sobre todo **convergía con Recurve** — el otro
+/// launchpad de Jose, en la MISMA cadena y el mismo vertical, que ya usa un mark de arco bespoke y
+/// se llama, literalmente, por un arco recurvo. Dos marcas hermanas con el mismo símbolo no son una
+/// familia: son una confusión.
 ///
-/// El corte queda a la izquierda a propósito: se aparta ANTES, no con lo que sobra al final.
+/// SEGUNDA PASADA. La primera versión leía como **ícono de batería con poca carga**, y el juez
+/// visual dio las dos causas exactas:
+///
+///  1. **Dos tratamientos distintos** (una pieza rellena, la otra en contorno). El ojo veía dos
+///     objetos de naturaleza distinta, no un objeto cortado. Ahora las dos van rellenas: es una
+///     barra partida, no una caja con algo adentro.
+///  2. **El hueco solo codifica "dos cosas", no "algo apartado".** Para leer *apartado* hace falta
+///     evidencia de remoción Y desplazamiento: la porción tiene que estar visiblemente **fuera de
+///     la línea de la que salió**. Por eso ahora baja media altura y se sostiene sola.
+///
+/// Y había una inversión semántica que contaba la historia al revés: la pieza chica rellena y el
+/// resto como contorno vacío leía "la plata SALIÓ del vault" — lo contrario de lo que vende el
+/// producto.
+///
+/// Verificada a 16 px antes que a 20: si a 16 no lee, no es una marca.
 export function SetAsideMark({
   size = 20,
   color = "currentColor",
@@ -17,16 +31,17 @@ export function SetAsideMark({
 }: {
   size?: number;
   color?: string;
-  /// La porción apartada, cuando el contexto permite dos tintas. Sin esto, la marca es de un solo
-  /// trazo y funciona igual en un favicon de 16 px.
+  /// La porción apartada, cuando el contexto permite dos tintas. Sin esto la marca es de una sola
+  /// tinta y funciona igual: la lectura la da la geometría, no el color.
   accent?: string;
 }) {
   return (
     <svg width={size} height={size} viewBox="0 0 24 24" fill="none" aria-hidden>
-      {/* la porción apartada: separada del cuerpo por el hueco, no por un borde */}
-      <rect x="2.5" y="8.5" width="4.5" height="7" rx="1" fill={accent ?? color} />
-      {/* el resto del trade, que sigue de largo */}
-      <rect x="10" y="8.5" width="11.5" height="7" rx="1" stroke={color} strokeWidth="1.6" />
+      {/* el resto del trade, en su eje */}
+      <rect x="9.5" y="8" width="12" height="5.5" rx="1.2" fill={color} />
+      {/* la porción apartada: mismo tratamiento, mismo alto, DESPLAZADA hacia abajo y separada.
+          El desplazamiento es lo que codifica "se apartó"; el hueco solo, no. */}
+      <rect x="2.5" y="12.5" width="5" height="5.5" rx="1.2" fill={accent ?? color} />
     </svg>
   );
 }
