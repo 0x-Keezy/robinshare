@@ -78,9 +78,6 @@ export function LegendHome() {
   // demo interactivo del tape (producto-como-héroe, lección Arcus): el visitante
   // tipea un handle y ve SU vault llenarse — el feed enfoca ese nombre y el
   // total acumula fill a fill. Ilustrativo, como todo el tape.
-  const [routeTo, setRouteTo] = useState("");
-  const [routed, setRouted] = useState(0);
-  const focusHandle = routeTo.trim() ? "@" + routeTo.trim().replace(/^@+/, "").toLowerCase() : undefined;
 
   // block number REAL de Robinhood Chain en el header del tape — el único dato
   // del panel que no es ilustrativo: se lee del RPC en vivo (~100ms/block, el
@@ -204,7 +201,7 @@ export function LegendHome() {
 
       <div className="relative z-10">
         {/* HERO — titular negro + panel terminal oscuro */}
-        <section className="mx-auto grid max-w-6xl gap-10 px-6 pb-16 pt-28 lg:grid-cols-[1.15fr_1fr] lg:items-center lg:pt-32">
+        <section id="ledger" className="mx-auto grid max-w-6xl gap-10 px-6 pb-16 pt-28 lg:grid-cols-[1.15fr_1fr] lg:items-center lg:pt-32">
           <div>
             <div style={{ fontFamily: "var(--f-mono)", letterSpacing: "0.24em", color: FAINT }} className="text-xs uppercase">
               Social fee escrow · Robinhood Chain
@@ -233,23 +230,41 @@ export function LegendHome() {
                   Launch a coin
                 </Link>
               </Magnetic>
-              <a href="#ledger" className="text-base font-semibold underline decoration-2 underline-offset-4" style={{ color: INK }}>
+              {/* El "I was funded" mandaba a #ledger, que ahora ES esta misma sección: era un
+                  link a sí mismo. Hace lo único útil que puede desde acá — poner el cursor en el
+                  campo del lookup, que está al lado. */}
+              <button
+                type="button"
+                onClick={() => document.getElementById("rs-lookup")?.focus()}
+                className="text-base font-semibold underline decoration-2 underline-offset-4"
+                style={{ color: INK }}
+              >
                 I was funded →
-              </a>
+              </button>
             </div>
           </div>
 
-          {/* la única zona oscura: el terminal con la pluma + el feed */}
+          {/* EL LOOKUP ES EL HERO. Antes acá había un panel-terminal con handles inventados
+              (@peblo, @aveline, @nkoto) y montos falso-precisos (+0.0143 ETH), o sea una UI de
+              mentira como elemento de prueba principal — en el vertical cuyo gate dice "dato real
+              o placeholder honesto". El disclaimer existía, pero en 11px al 50% de opacidad: MENOS
+              contraste que los datos que desmentía. Y encima estaba mezclado con un input real en
+              el mismo panel, así que el visitante no podía saber qué parte del producto existe.
+
+              Ahora ese lugar lo ocupa el lookup DE VERDAD: escribís tu handle y la cadena
+              contesta. Es el producto, era el wow declarado en el brief, y estaba enterrado al 85%
+              del scroll como un formulario. El único dato del panel sigue siendo real —el block
+              number del RPC— y ahora es lo que ancla el "esto está vivo" en vez de una maqueta. */}
           <Reveal>
-            <div className="overflow-hidden rounded-2xl shadow-2xl" style={{ background: "#080D0A", border: "1px solid rgba(13,18,14,0.2)" }}>
-              <div className="flex items-center gap-2 border-b px-4 py-2.5" style={{ borderColor: "rgba(247,248,244,0.12)" }}>
-                <span className="h-2.5 w-2.5 rounded-full" style={{ background: "rgba(247,248,244,0.25)" }} />
-                <span className="h-2.5 w-2.5 rounded-full" style={{ background: "rgba(247,248,244,0.25)" }} />
-                <span className="h-2.5 w-2.5 rounded-full" style={{ background: GREEN }} />
-                <span className="ml-2 text-[11px]" style={{ fontFamily: "var(--f-mono)", color: "rgba(247,248,244,0.55)" }}>
-                  robinshare://tape
+            <div
+              className="overflow-hidden rounded-2xl"
+              style={{ background: "#080D0A", border: "1px solid rgba(247,248,244,0.12)" }}
+            >
+              <div className="flex items-center gap-2 border-b px-5 py-3" style={{ borderColor: "rgba(247,248,244,0.12)" }}>
+                <span className="h-1.5 w-1.5 rounded-full" style={{ background: GREEN }} />
+                <span className="text-[11px] uppercase tracking-[0.18em]" style={{ fontFamily: "var(--f-mono)", color: "rgba(247,248,244,0.55)" }}>
+                  Balance check
                 </span>
-                {/* dato VIVO real (no ilustrativo): block number del RPC de Robinhood Chain */}
                 {block !== null && (
                   <span
                     className="ml-auto text-[11px] tabular-nums"
@@ -260,59 +275,90 @@ export function LegendHome() {
                   </span>
                 )}
               </div>
-              {/* Jose: la pluma de luz sobre el tape quedaba incómoda pese a los
-                  ajustes (mascara/tamaño/brillo) — la sacamos del todo, el terrario
-                  queda solo para el feed. La pluma de tinta del hero es la que se
-                  queda como motivo de marca. */}
-              <div className="px-5 py-3">
-                <LiveVaultFeed
-                  accent={GREEN}
-                  gold="#9ff0b5"
-                  dim="rgba(247,248,244,0.55)"
-                  hair="rgba(247,248,244,0.08)"
-                  verb="fill"
-                  focusHandle={focusHandle}
-                  onFill={(d) => setRouted((r) => r + d)}
-                />
-              </div>
-              {/* demo interactivo: tipeá un handle y mirá SU vault llenarse */}
-              <div
-                className="flex flex-wrap items-baseline gap-x-3 gap-y-1 border-t px-5 py-3 text-[12px] sm:text-[13px]"
-                style={{ borderColor: "rgba(247,248,244,0.12)", fontFamily: "var(--f-mono)" }}
-              >
-                <label className="flex items-baseline gap-2" style={{ color: "rgba(247,248,244,0.55)" }}>
-                  <span aria-hidden style={{ color: GREEN }}>→</span>
-                  route fees to
-                  <span className="flex items-baseline" style={{ color: "#F2F3EE" }}>
-                    @
-                    <input
-                      value={routeTo}
-                      onChange={(e) => {
-                        setRouteTo(e.target.value);
-                        setRouted(0);
-                      }}
-                      placeholder="your-handle"
-                      spellCheck={false}
+
+              <div className="px-5 py-6">
+                <p className="text-[15px] leading-relaxed" style={{ color: "rgba(247,248,244,0.72)" }}>
+                  Someone may have launched a coin for you. Search your GitHub or wallet.
+                </p>
+
+                <div className="mt-5 flex items-end gap-3">
+                  <label className="flex flex-col gap-1.5">
+                    <span className="text-[10px] uppercase tracking-[0.16em]" style={{ fontFamily: "var(--f-mono)", color: "rgba(247,248,244,0.4)" }}>
+                      Identity
+                    </span>
+                    <select
                       suppressHydrationWarning
-                      className="w-32 border-0 border-b bg-transparent pb-0.5 placeholder:opacity-40 focus:outline-none"
+                      value={type}
+                      onChange={(e) => setType(e.target.value as typeof type)}
+                      className="border-0 border-b bg-transparent py-1.5 pr-5 text-sm focus:outline-none"
+                      style={{ borderColor: "rgba(247,248,244,0.3)", color: "#F2F3EE", fontFamily: "var(--f-mono)" }}
+                    >
+                      <option value="github" style={{ color: "#000" }}>GitHub</option>
+                      <option value="wallet" style={{ color: "#000" }}>Wallet</option>
+                    </select>
+                  </label>
+                  <label className="flex flex-1 flex-col gap-1.5">
+                    <span className="text-[10px] uppercase tracking-[0.16em]" style={{ fontFamily: "var(--f-mono)", color: "rgba(247,248,244,0.4)" }}>
+                      Name on the vault
+                    </span>
+                    <input
+                      id="rs-lookup"
+                      suppressHydrationWarning
+                      value={value}
+                      onChange={(e) => setValue(e.target.value)}
+                      onKeyDown={(e) => e.key === "Enter" && lookup()}
+                      placeholder={type === "wallet" ? "0x…" : "your-handle"}
+                      spellCheck={false}
+                      className="w-full border-0 border-b bg-transparent py-1.5 text-base placeholder:opacity-30 focus:outline-none"
                       style={{ borderColor: "rgba(247,248,244,0.3)", color: "#F2F3EE", fontFamily: "var(--f-mono)" }}
                     />
-                  </span>
-                </label>
-                {focusHandle && (
-                  <span className="ml-auto tabular-nums" style={{ color: "#9ff0b5" }}>
-                    {focusHandle}&apos;s vault&nbsp;
-                    <span className="font-medium" style={{ color: GREEN }}>
-                      +{routed.toFixed(4)} ETH
-                    </span>
-                    &nbsp;and counting
-                  </span>
+                  </label>
+                </div>
+
+                <button
+                  onClick={lookup}
+                  disabled={loading || !value}
+                  className="mt-5 w-full rounded-full border-2 px-6 py-2.5 text-sm font-bold transition-colors disabled:cursor-not-allowed"
+                  style={
+                    loading || !value
+                      ? { background: "transparent", borderColor: "rgba(247,248,244,0.3)", color: "rgba(247,248,244,0.45)" }
+                      : { background: GREEN_CTA, borderColor: GREEN_CTA, color: GREEN_CTA_TEXT }
+                  }
+                >
+                  {loading ? "Checking…" : "Check balance"}
+                </button>
+
+                {error && <p className="mt-4 text-sm" style={{ color: "#ff8f7a" }}>{error}</p>}
+                {rows && rows.length === 0 && (
+                  <p className="mt-5 text-sm" style={{ color: "rgba(247,248,244,0.55)" }}>
+                    No vault under this identity yet.
+                  </p>
+                )}
+                {rows && rows.length > 0 && (
+                  <ul className="mt-5 flex flex-col">
+                    {rows.map((r) => (
+                      <li key={r.vault} className="flex items-center justify-between gap-3 border-t py-3" style={{ borderColor: "rgba(247,248,244,0.12)" }}>
+                        <div className="min-w-0">
+                          <div className="text-[11px]" style={{ fontFamily: "var(--f-mono)", color: "rgba(247,248,244,0.4)" }}>
+                            {r.vault.slice(0, 10)}…{r.vault.slice(-6)}
+                          </div>
+                          <div className="text-lg tabular-nums" style={{ fontFamily: "var(--f-mono)", color: "#F2F3EE" }}>
+                            {r.pendingLabel} ETH
+                          </div>
+                        </div>
+                        <Link
+                          href={`/claim/${r.vault}`}
+                          className="whitespace-nowrap rounded-full px-4 py-1.5 text-xs font-bold"
+                          style={{ background: GREEN_CTA, color: GREEN_CTA_TEXT }}
+                        >
+                          {r.bound === ZERO ? "Claim it" : "Open"}
+                        </Link>
+                      </li>
+                    ))}
+                  </ul>
                 )}
               </div>
             </div>
-            <p className="mt-2 text-right text-[11px]" style={{ fontFamily: "var(--f-mono)", color: FAINT }}>
-              Illustrative. Live with the first launch
-            </p>
           </Reveal>
         </section>
 
@@ -440,107 +486,10 @@ export function LegendHome() {
           </div>
         </section>
 
-        {/* ledger — formulario de brokerage */}
-        <section id="ledger" className="mx-auto max-w-3xl px-6 py-32">
-          <Reveal>
-            <div style={{ fontFamily: "var(--f-mono)", letterSpacing: "0.24em", color: DIM }} className="text-xs font-medium uppercase">
-              Balance check
-            </div>
-            <h2 style={{ fontFamily: "var(--f-display)", lineHeight: 1 }} className="mt-3 text-[clamp(1.9rem,4.4vw,3rem)]">
-              Someone may have launched you a coin.
-            </h2>
-            <p className="mt-3 max-w-md" style={{ color: DIM }}>
-              Search your GitHub or wallet. If there&apos;s a vault, it&apos;s yours to claim.
-            </p>
-
-            <div className="mt-10 flex flex-col gap-6 sm:flex-row sm:items-end">
-              <label className="flex flex-col gap-2">
-                <span style={{ fontFamily: "var(--f-mono)", color: FAINT, letterSpacing: "0.16em" }} className="text-[10px] uppercase">
-                  Identity
-                </span>
-                <select
-                  suppressHydrationWarning
-                  value={type}
-                  onChange={(e) => setType(e.target.value as typeof type)}
-                  className="border-0 border-b-2 bg-transparent py-2 pr-6 focus:outline-none"
-                  style={{ borderColor: INK, color: INK, fontFamily: "var(--f-mono)" }}
-                >
-                  <option value="github">GitHub</option>
-                  <option value="wallet">Wallet</option>
-                </select>
-              </label>
-              <label className="flex flex-1 flex-col gap-2">
-                <span style={{ fontFamily: "var(--f-mono)", color: FAINT, letterSpacing: "0.16em" }} className="text-[10px] uppercase">
-                  Name on the vault
-                </span>
-                <input
-                  suppressHydrationWarning
-                  value={value}
-                  onChange={(e) => setValue(e.target.value)}
-                  onKeyDown={(e) => e.key === "Enter" && lookup()}
-                  placeholder={type === "wallet" ? "0x…" : "handle"}
-                  className="border-0 border-b-2 bg-transparent py-2 text-lg placeholder:opacity-35 focus:outline-none"
-                  style={{ borderColor: INK, color: INK, fontFamily: "var(--f-mono)" }}
-                />
-              </label>
-              <Magnetic>
-                <button
-                  onClick={lookup}
-                  disabled={loading || !value}
-                  className="rounded-full border-2 px-7 py-3 font-bold transition-colors disabled:cursor-not-allowed"
-                  // estado disabled ya NO es un opacity-40 del fill verde (leia a boton
-                  // roto) — es un outline explicito que comunica "todavia no accionable".
-                  // Borde subido de HAIR(0.14) a 0.3 tras el audit: al filo de HAIR el
-                  // ghost quedaba tan tenue que la accion principal leia a fantasma.
-                  style={
-                    loading || !value
-                      ? { background: "transparent", borderColor: FAINT, color: FAINT }
-                      : // `#fff` hardcodeado daba **1,18:1** sobre el lima (#CCFF00): el label
-                        // del boton principal era practicamente invisible. Todos los demas CTA de
-                        // la pagina usan el token correcto; este era el unico que lo salteaba, y
-                        // le tocaba justo al boton del que depende el trabajo entero de la pagina
-                        // ("un extrano escribe su handle y descubre que hay un vault suyo").
-                        // GREEN_CTA_TEXT da 16,10:1. Medido con la formula, no a ojo.
-                        { background: GREEN_CTA, borderColor: GREEN_CTA, color: GREEN_CTA_TEXT }
-                  }
-                >
-                  {loading ? "Checking…" : "Check balance"}
-                </button>
-              </Magnetic>
-            </div>
-
-            {error && <p className="mt-4 text-sm" style={{ color: "#c0392b" }}>{error}</p>}
-            {rows && rows.length === 0 && (
-              <p className="mt-8" style={{ color: DIM }}>
-                No vault under this identity yet.
-              </p>
-            )}
-            {rows && rows.length > 0 && (
-              <ul className="mt-8 flex flex-col">
-                {rows.map((r) => (
-                  <li key={r.vault} className="flex items-center justify-between gap-4 border-t py-4" style={{ borderColor: HAIR }}>
-                    <div>
-                      <div className="text-xs" style={{ fontFamily: "var(--f-mono)", color: FAINT }}>
-                        {r.vault}
-                      </div>
-                      <div style={{ fontFamily: "var(--f-display)", color: INK, fontVariantNumeric: "tabular-nums" }} className="mt-1 text-2xl">
-                        {r.pendingLabel} ETH
-                      </div>
-                      {r.bound !== ZERO && (
-                        <div className="mt-1 text-xs" style={{ color: FAINT }}>
-                          bound to {r.bound}
-                        </div>
-                      )}
-                    </div>
-                    <Link href={`/claim/${r.vault}`} className="rounded-full px-5 py-2 font-bold" style={{ background: GREEN_CTA, color: GREEN_CTA_TEXT }}>
-                      Claim
-                    </Link>
-                  </li>
-                ))}
-              </ul>
-            )}
-          </Reveal>
-        </section>
+        {/* La sección "Balance check" que vivía acá se MUDÓ AL HERO. Era el producto y el wow
+            declarado del brief, y estaba al 85% del scroll como un formulario: el visitante tenía
+            que atravesar toda la página de venta para llegar a la única acción que le sirve a ÉL.
+            El ancla #ledger apunta ahora al hero, así que los links de la nav siguen andando. */}
 
         {/* CTA final + footer claro */}
         <section className="border-t" style={{ borderColor: HAIR, background: PAPER }}>
