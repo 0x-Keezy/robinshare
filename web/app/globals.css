@@ -47,9 +47,13 @@
      luminancia bajo el hero, cayendo a nada. Elíptico y enorme a proposito —
      si el degradado se ve como degradado, es glow; tiene que leerse como que
      la pagina esta iluminada desde algun lado. */
+  --rs-fx: 50%;
+  --rs-fy: -6%;
+  --rs-gx: 88%;
+  --rs-gy: 8%;
   --rs-field:
-    radial-gradient(120% 62% at 50% -6%, rgba(242, 243, 238, 0.055), transparent 62%),
-    radial-gradient(80% 40% at 88% 8%, rgba(0, 200, 5, 0.035), transparent 70%);
+    radial-gradient(120% 62% at var(--rs-fx) var(--rs-fy), rgba(242, 243, 238, 0.055), transparent 62%),
+    radial-gradient(80% 40% at var(--rs-gx) var(--rs-gy), rgba(0, 200, 5, 0.035), transparent 70%);
   /* Regla de tinta: la hairline plana de 1px es lo unico que separaba
      secciones. Una regla real se apaga en las puntas. */
   --rs-rule: linear-gradient(90deg, transparent, rgba(242, 243, 238, 0.18) 12%, rgba(242, 243, 238, 0.18) 88%, transparent);
@@ -108,8 +112,8 @@
     inset 0 1px 0 rgba(255, 255, 255, 0.8),
     0 18px 34px -18px rgba(13, 18, 14, 0.5);
   --rs-field:
-    radial-gradient(120% 62% at 50% -6%, rgba(13, 18, 14, 0.04), transparent 62%),
-    radial-gradient(80% 40% at 88% 8%, rgba(0, 200, 5, 0.03), transparent 70%);
+    radial-gradient(120% 62% at var(--rs-fx) var(--rs-fy), rgba(13, 18, 14, 0.04), transparent 62%),
+    radial-gradient(80% 40% at var(--rs-gx) var(--rs-gy), rgba(0, 200, 5, 0.03), transparent 70%);
   --rs-rule: linear-gradient(90deg, transparent, rgba(13, 18, 14, 0.18) 12%, rgba(13, 18, 14, 0.18) 88%, transparent);
   /* En claro la porcion es un bloque de TINTA sobre papel, con la misma caida de luz desde
      arriba. Y el hueco no puede ser una sombra negra —sobre papel eso se ve sucio—: es un

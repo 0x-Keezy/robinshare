@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { Fraunces, Archivo, IBM_Plex_Mono } from "next/font/google";
 import { Reveal, stagIndex } from "@/components/Reveal";
@@ -9,11 +9,12 @@ import { SetAsideDeed } from "@/components/SetAsideDeed";
 import { OnChainStrip } from "@/components/OnChainStrip";
 import { Magnetic } from "@/components/Magnetic";
 import { useVaultLookup, type IdType } from "@/lib/useVaultLookup";
-import { Scroll, useScrollSync } from "@/lib/scrollProgress";
+import { useScrollSync } from "@/lib/scrollProgress";
 import { useHideNav } from "@/lib/useHideNav";
 import { useTheme } from "@/lib/useTheme";
 import { Wordmark } from "@/components/Wordmark";
 import { Signature } from "@/components/Signature";
+import { LivingField } from "@/components/LivingField";
 import { publicClient, robinhoodChain } from "@/lib/chain";
 import { CUSTODY_LINE_PARTS } from "@/lib/claims";
 
@@ -60,22 +61,9 @@ const ZERO = "0x0000000000000000000000000000000000000000";
 /// lugar y no en cinco.
 const EXPLORER = robinhoodChain.blockExplorers.default.url;
 
-function useReducedMotion() {
-  const [reduce, setReduce] = useState(false);
-  useEffect(() => {
-    const mq = window.matchMedia("(prefers-reduced-motion: reduce)");
-    setReduce(mq.matches);
-    const on = (e: MediaQueryListEvent) => setReduce(e.matches);
-    mq.addEventListener("change", on);
-    return () => mq.removeEventListener("change", on);
-  }, []);
-  return reduce;
-}
-
 export function LegendHome() {
   useScrollSync();
   const navHidden = useHideNav();
-  const reduce = useReducedMotion();
   const { theme, toggle: toggleTheme } = useTheme();
   const { type, setType, value, setValue, rows, error, loading, lookup } = useVaultLookup();
 
@@ -87,22 +75,9 @@ export function LegendHome() {
   // atestigua ESE momento; si le pasaramos el bloque vivo, el numero seguiria corriendo dentro del
   // sello y dejaria de atestiguar nada.
   const [sealedAt, setSealedAt] = useState<bigint | null>(null);
-  const runLookup = () => {
-    const v = value.trim();
-    if (!v) return;
-    setNamed({ value: v, type });
-    setSealedAt(block);
-    lookup();
-  };
-  const inkFeather = useRef<HTMLDivElement>(null);
 
-  // demo interactivo del tape (producto-como-héroe, lección Arcus): el visitante
-  // tipea un handle y ve SU vault llenarse — el feed enfoca ese nombre y el
-  // total acumula fill a fill. Ilustrativo, como todo el tape.
-
-  // block number REAL de Robinhood Chain en el header del tape — el único dato
-  // del panel que no es ilustrativo: se lee del RPC en vivo (~100ms/block, el
-  // salto entre polls se ve subir). Si el RPC no responde, no se muestra.
+  // block number REAL de Robinhood Chain: se lee del RPC en vivo (~100ms/block, el salto entre
+  // polls se ve subir). Si el RPC no responde, no se muestra.
   const [block, setBlock] = useState<bigint | null>(null);
   useEffect(() => {
     let alive = true;
@@ -132,60 +107,28 @@ export function LegendHome() {
     const t = setTimeout(() => setBlockBumped(false), 420);
     return () => clearTimeout(t);
   }, [block]);
-
-  // La pluma de TINTA cae por el papel con el scroll, rotando, como pluma de
-  // verdad. (Su gemela de luz vivía dentro del terminal — Jose la sacó del
-  // todo por pedirlo incómoda; el motivo de marca queda solo en esta.)
-  useEffect(() => {
-    if (reduce) return;
-    let raf = 0;
-    let cur = 0;
-    const mouse = { x: 0 };
-    const onMove = (e: MouseEvent) => {
-      mouse.x = (e.clientX / window.innerWidth - 0.5) * 2;
-    };
-    window.addEventListener("mousemove", onMove, { passive: true });
-    const tick = () => {
-      raf = requestAnimationFrame(tick);
-      const t = performance.now() / 1000;
-      cur += (Scroll.progress - cur) * 0.08;
-      const p = cur;
-      if (inkFeather.current) {
-        // sway oscila (no acumula) — el drift direccional (p*-7vw) SÍ acumulaba y
-        // terminaba metiendo la pluma en la columna de contenido (tapaba el stat
-        // "51 · TESTS GREEN"). Confinada al gutter derecho: solo cae y oscila.
-        const sway = Math.sin(t * 0.5) * 2 + Math.sin(p * Math.PI * 2.4) * 8;
-        const fall = p * 78; // vh que cae a lo largo de la página
-        inkFeather.current.style.transform =
-          `translate3d(${mouse.x * 12}px, ${fall}vh, 0) rotate(${-10 + sway}deg)`;
-      }
-    };
-    raf = requestAnimationFrame(tick);
-    return () => {
-      cancelAnimationFrame(raf);
-      window.removeEventListener("mousemove", onMove);
-    };
-  }, [reduce]);
+  const runLookup = () => {
+    const v = value.trim();
+    if (!v) return;
+    setNamed({ value: v, type });
+    setSealedAt(block);
+    lookup();
+  };
 
   return (
     <main
       className={`${display.variable} ${body.variable} ${mono.variable} relative`}
       style={{ background: PAPER, color: INK, fontFamily: "var(--f-body)" }}
     >
-      {/* EL CAMPO. El fondo deja de ser un color y pasa a ser una superficie.
-          Un juez visual externo midio la pagina y su defecto #1 no fue un elemento: fue que en
-          cuatro pantallas de desktop **no habia un solo asset** —ni gradiente, ni sombra, ni
-          textura, ni profundidad— y que cuando no hay material, el ojo lee "esto no se construyo,
-          se escribio". Esto es la capa mas barata de esa deuda y la que mas rinde: +5% de
-          luminancia bajo el hero cayendo a nada, y un soplo del verde de la cadena arriba a la
-          derecha. Enorme y eliptico a proposito: si el degradado se PERCIBE como degradado es
-          glow, y el glow es el tell que hay que evitar; tiene que leerse como que la pagina esta
-          iluminada desde algun lado. Fijo al viewport y detras de todo (-z-10). */}
-      <div
-        aria-hidden
-        className="pointer-events-none fixed inset-0 -z-10"
-        style={{ background: "var(--rs-field)" }}
-      />
+      {/* EL CAMPO, y ahora VIVO. El fondo dejo de ser un color y paso a ser una superficie
+          iluminada — esa fue la capa que un juez visual marco como el defecto #1 (en cuatro
+          pantallas de desktop no habia un solo gradiente, sombra ni textura). Pero seguia CLAVADO,
+          y Jose lo noto: "creo que el background es muy estatico". Como la luz venia siempre del
+          mismo punto, el ojo la dejaba de registrar a los dos segundos y volvia a leer fondo plano.
+          Ahora la mueven el scroll (la fuente principal, y la unica que existe en mobile), el
+          puntero con mucha inercia, y una respiracion de ~34s que existe para que un visitante
+          quieto no vea una imagen congelada. El porque de cada numero, en LivingField.tsx. */}
+      <LivingField />
       {/* LA PLUMA: SACADA DE ESTE BUILD, a proposito.
           El concept spine (el acta) es bueno y la pluma es la metafora correcta, pero una pluma a
           medias es PEOR que ninguna. El juez visual la leyo como "helecho / fronda de palmera" y
