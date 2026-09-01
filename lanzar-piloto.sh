@@ -46,25 +46,51 @@ export LOGO="${LOGO-https://github.com/0x-keezy.png}"
 export DESCRIPTION="${DESCRIPTION-fees routed to a builder}"
 
 echo "== 1/3 - en que fase estamos =="
-IDH=$(cast call "$FACTORY" "identityHashFor(uint8,string,address)(bytes32)" \
-      "$IDENTITY_TYPE" "$IDENTITY_VALUE" 0x0000000000000000000000000000000000000000 --rpc-url "$RPC")
-VAULTS=$(cast call "$FACTORY" "getVaults(bytes32)(address[])" "$IDH" --rpc-url "$RPC" | tr -d '[] ')
-if [ -z "$VAULTS" ]; then
-  echo "   no hay vault para '$IDENTITY_VALUE' todavia -> esta corrida CREA EL VAULT y para."
+# La fase se deduce del ESTADO DE LA CADENA, no de un flag que haya que recordar.
+#
+# Antes esto miraba solo el PRIMER vault de la identidad: si ese ya tenia moneda, el script salia
+# diciendo "no hay nada que lanzar" — aunque se hubiera pedido ALLOW_SECOND_VAULT para lanzar el
+# oficial despues de un token de prueba. O sea que el comando del lanzamiento real no hacia nada,
+# y lo hacia en silencio y con exit 0.
+#
+# Ahora se listan TODOS los vaults de la identidad y se busca el que NO tiene moneda atada: ese es,
+# sin ambiguedad, el que hay que lanzar. Y se le pasa explicito a forge con VAULT=, para que los
+# dos scripts no puedan discrepar sobre cual es.
+IDH=$(cast call "$FACTORY" "identityHashFor(uint8,string,address)(bytes32)" "$IDENTITY_TYPE" "$IDENTITY_VALUE" 0x0000000000000000000000000000000000000000 --rpc-url "$RPC")
+TODOS=$(cast call "$FACTORY" "getVaults(bytes32)(address[])" "$IDH" --rpc-url "$RPC" | tr -d "[]" | tr "," " ")
+
+LIBRES=""; OCUPADOS=0
+for v in $TODOS; do
+  t=$(cast call "$v" "token()(address)" --rpc-url "$RPC" 2>/dev/null || echo "")
+  if [ "$t" = "0x0000000000000000000000000000000000000000" ]; then LIBRES="$LIBRES $v"; else OCUPADOS=$((OCUPADOS+1)); fi
+done
+LIBRES=$(echo $LIBRES)
+N_LIBRES=$(echo $LIBRES | wc -w)
+N_TOT=$(echo $TODOS | wc -w)
+
+echo "   identidad github:$IDENTITY_VALUE -> $N_TOT vault(s): $OCUPADOS con moneda, $N_LIBRES sin moneda"
+
+if [ "${ALLOW_SECOND_VAULT:-false}" = "true" ]; then
+  echo "   ALLOW_SECOND_VAULT=true -> esta corrida CREA UN VAULT NUEVO y para."
+  FASE=1
+elif [ "$N_LIBRES" -eq 1 ]; then
+  VAULTS="$LIBRES"
+  export VAULT="$LIBRES"
+  echo "   vault sin moneda: $VAULTS  -> esta corrida LANZA LA MONEDA."
+  FASE=2
+elif [ "$N_LIBRES" -eq 0 ] && [ "$OCUPADOS" -gt 0 ]; then
+  echo "   todos los vaults de esta identidad YA tienen moneda."
+  echo "   Para lanzar otra:  ALLOW_SECOND_VAULT=true bash lanzar-piloto.sh"
+  exit 0
+elif [ "$N_LIBRES" -eq 0 ]; then
+  echo "   no hay vault para esta identidad todavia -> esta corrida CREA EL VAULT y para."
   FASE=1
 else
-  echo "   vault encontrado: $VAULTS"
-  TOK=$(cast call "$VAULTS" "token()(address)" --rpc-url "$RPC" 2>/dev/null || echo "")
-  if [ "$TOK" != "0x0000000000000000000000000000000000000000" ] && [ -n "$TOK" ]; then
-    echo "   y YA tiene moneda atada: $TOK"
-    echo "   No hay nada que lanzar. El piloto ya esta hecho."
-    echo "   Claim: https://www.robinshareapp.com/claim/$VAULTS"
-    exit 0
-  fi
-  echo "   sin moneda atada -> esta corrida LANZA LA MONEDA."
-  FASE=2
+  echo "   hay $N_LIBRES vaults sin moneda para esta identidad:"
+  for v in $LIBRES; do echo "      $v"; done
+  echo "   Elegi cual con:  VAULT=0x... bash lanzar-piloto.sh"
+  exit 1
 fi
-
 if [ "$FASE" = "2" ]; then
   echo
   echo "   ============================================================"
