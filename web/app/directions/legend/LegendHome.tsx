@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import { Archivo_Black, Archivo, IBM_Plex_Mono } from "next/font/google";
+import { Fraunces, Archivo, IBM_Plex_Mono } from "next/font/google";
 import { Reveal } from "@/components/Reveal";
 import { LiveVaultFeed } from "@/components/LiveVaultFeed";
 import { Marquee } from "@/components/Marquee";
@@ -12,7 +12,8 @@ import { useVaultLookup } from "@/lib/useVaultLookup";
 import { Scroll, useScrollSync } from "@/lib/scrollProgress";
 import { useHideNav } from "@/lib/useHideNav";
 import { useTheme } from "@/lib/useTheme";
-import { BowMark } from "@/components/BowMark";
+import { SetAsideMark } from "@/components/SetAsideMark";
+import { QuillMark } from "@/components/QuillMark";
 import { publicClient } from "@/lib/chain";
 import { CUSTODY_LINE } from "@/lib/claims";
 
@@ -21,11 +22,20 @@ import { CUSTODY_LINE } from "@/lib/claims";
  * Registro suizo-snappy: tipografía negra gigante, grid denso, hairlines.
  * Oscuro por defecto (tokens var(--rs-*), toggle a claro en el nav). El lima
  * es el acento de marca; el verde Robinhood puro queda SOLO en el tape en
- * vivo. La marca es el arco (BowMark) — el guiño a Robin Hood: compartir
- * con los que lo merecen. Cero dolly — motion snappy.
+ * vivo. La marca es el APARTADO (SetAsideMark): una barra con una porcion
+ * separada y sostenida aparte — lo que el producto hace, sin metafora
+ * prestada. El arco se fue: convergia con Recurve, el otro launchpad de
+ * Jose en esta misma cadena, que se llama literalmente por un arco.
  */
 
-const display = Archivo_Black({ weight: "400", subsets: ["latin"], variable: "--f-display" });
+// Fraunces variable, no Archivo Black. Ver BRIEF-facelift.md: el display anterior era el del molde
+// suizo-snappy por defecto y no decia nada del producto. La serif de autoridad es el registro del
+// acta — que es lo que este producto es: una parte apartada a nombre de alguien.
+const display = Fraunces({
+  subsets: ["latin"],
+  variable: "--f-display",
+  axes: ["SOFT", "WONK", "opsz"],
+});
 const body = Archivo({ subsets: ["latin"], variable: "--f-body" });
 const mono = IBM_Plex_Mono({ weight: ["400", "500"], subsets: ["latin"], variable: "--f-mono" });
 
@@ -133,24 +143,16 @@ export function LegendHome() {
       className={`${display.variable} ${body.variable} ${mono.variable} relative`}
       style={{ background: PAPER, color: INK, fontFamily: "var(--f-body)" }}
     >
-      {/* la pluma de TINTA: cae por el papel con el scroll (detrás del contenido).
-          Sin máscara leía a render de IA (glow neón + specks de humo sin recortar
-          en el borde, "chevrons" sueltos) — misma máscara radial de la pluma de
-          luz + filtro que la hunde hacia tinta oscura en vez de fósforo brillante. */}
-      <div aria-hidden className="pointer-events-none fixed right-[5%] top-[-8%] z-0 w-[min(24vw,340px)]">
+      {/* LA PLUMA, DIBUJADA — no un render enmascarado.
+          Antes era /legend/feather-ink.png con glow verde y specks de humo, y el comentario que
+          estaba aca lo admitia: se le habia puesto una mascara radial porque "sin mascara leia a
+          render de IA". Enmascarar un tell no lo quita, solo le recorta los bordes. Ahora es trazo
+          autorado (QuillMark): barbas finas, tinta sobre papel, cero fosforo. Y cambia de sentido
+          con la marca nueva — ya no es el sombrero de Robin Hood, es el instrumento con que se
+          firma el apartado. */}
+      <div aria-hidden className="pointer-events-none fixed right-[4%] top-[-6%] z-0 w-[min(22vw,300px)]">
         <div ref={inkFeather} className="will-change-transform">
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
-            src="/legend/feather-ink.png"
-            alt=""
-            className="w-full opacity-80"
-            style={{
-              filter: "var(--rs-feather-ink-filter)",
-              maskImage: "radial-gradient(64% 70% at 54% 48%, black 50%, transparent 85%)",
-              WebkitMaskImage: "radial-gradient(64% 70% at 54% 48%, black 50%, transparent 85%)",
-            }}
-            draggable={false}
-          />
+          <QuillMark className="w-full" stroke={INK} opacity={0.26} />
         </div>
       </div>
 
@@ -164,7 +166,7 @@ export function LegendHome() {
       >
         <div className="mx-auto flex max-w-6xl items-center justify-between px-6 py-4">
           <div className="flex items-center gap-2" style={{ color: INK }}>
-            <BowMark color={GREEN} />
+            <SetAsideMark color={INK} accent={GREEN} />
             <span style={{ fontFamily: "var(--f-mono)", letterSpacing: "0.26em" }} className="text-xs font-medium uppercase">
               RobinShare
             </span>
@@ -205,12 +207,13 @@ export function LegendHome() {
             <div style={{ fontFamily: "var(--f-mono)", letterSpacing: "0.24em", color: FAINT }} className="text-xs uppercase">
               Social fee escrow · Robinhood Chain
             </div>
-            {/* lg+: el titular convive con el panel en un grid — "AUTOMATICALLY." no
-                quiebra (801px a 86px), así que el tamaño se acota para que palabra +
-                gap + min-content del panel (367px) quepan en el contenedor (1064px) */}
+            {/* lg+: el titular convive con el panel en un grid. En minusculas "Automatically." ocupa
+                bastante menos ancho que en versales, asi que el clamp pudo subir sin que la
+                palabra quiebre contra el min-content del panel (367px). Se verifica midiendo
+                el ancho real en el QA, no a ojo. */}
             <h1
               style={{ fontFamily: "var(--f-display)", lineHeight: 0.96 }}
-              className="mt-5 text-[clamp(2rem,9vw,5.4rem)] uppercase tracking-tight lg:text-[clamp(3rem,5.5vw,4.35rem)]"
+              className="mt-5 text-[clamp(2.2rem,9.5vw,5.8rem)] lg:text-[clamp(3.2rem,5.8vw,4.7rem)]"
             >
               Route fees
               <br />
@@ -311,13 +314,21 @@ export function LegendHome() {
           </Reveal>
         </section>
 
-        {/* tape ticker claro */}
+        {/* LA TIRA. El separador era un triangulo verde repetido — el tell exacto que un lector
+            externo fotografio como "AI slop": el adorno de relleno que aparece en cualquier landing
+            generada. Ahora separa LA MARCA (el apartado), que es el unico simbolo que este producto
+            puede usar sin pedirselo prestado a nadie. Y el texto deja de gritar en versales: la
+            serif del sistema pide caja mixta. */}
         <div className="border-y py-2.5" style={{ borderColor: HAIR }}>
-          <Marquee duration={26}>
-            <span style={{ fontFamily: "var(--f-mono)", letterSpacing: "0.14em", color: DIM }} className="text-xs uppercase">
-              RobinShare on Robinhood Chain <span style={{ color: GREEN_TEXT }}>▲</span> every trade
-              pays the builder <span style={{ color: GREEN_TEXT }}>▲</span> only they can claim it{" "}
-              <span style={{ color: GREEN_TEXT }}>▲</span>&nbsp;
+          <Marquee duration={34}>
+            <span style={{ fontFamily: "var(--f-mono)", letterSpacing: "0.1em", color: DIM }} className="inline-flex items-center gap-3 text-xs">
+              <span>RobinShare on Robinhood Chain</span>
+              <SetAsideMark size={13} color={DIM} accent={GREEN_TEXT} />
+              <span>every trade pays the builder</span>
+              <SetAsideMark size={13} color={DIM} accent={GREEN_TEXT} />
+              <span>only they can claim it</span>
+              <SetAsideMark size={13} color={DIM} accent={GREEN_TEXT} />
+              <span className="pr-3" />
             </span>
           </Marquee>
         </div>
@@ -326,7 +337,7 @@ export function LegendHome() {
             un concepto por pantalla, el blanco es el lujo) */}
         <section className="mx-auto max-w-6xl px-6 py-28">
           <Reveal>
-            <h2 style={{ fontFamily: "var(--f-display)", lineHeight: 1 }} className="max-w-3xl text-[clamp(1.8rem,4.2vw,3rem)] uppercase">
+            <h2 style={{ fontFamily: "var(--f-display)", lineHeight: 1 }} className="max-w-3xl text-[clamp(1.8rem,4.2vw,3rem)]">
               Every trade pays the <span style={{ color: GREEN_TEXT }}>person</span> who earned it.
             </h2>
           </Reveal>
@@ -349,7 +360,7 @@ export function LegendHome() {
                     /{s.n}
                   </div>
                   <div>
-                    <h3 style={{ fontFamily: "var(--f-display)" }} className="text-2xl uppercase sm:text-3xl">
+                    <h3 style={{ fontFamily: "var(--f-display)" }} className="text-2xl sm:text-3xl">
                       {s.t}
                     </h3>
                     <p className="mt-4 max-w-lg text-lg leading-relaxed" style={{ color: DIM }}>
@@ -385,7 +396,7 @@ export function LegendHome() {
         <section className="border-y" style={{ borderColor: HAIR, background: PAPER }}>
           <div className="mx-auto grid max-w-6xl gap-10 px-6 py-28 lg:grid-cols-2 lg:items-center">
             <Reveal>
-              <h2 style={{ fontFamily: "var(--f-display)", lineHeight: 1 }} className="text-[clamp(1.8rem,4.2vw,3rem)] uppercase">
+              <h2 style={{ fontFamily: "var(--f-display)", lineHeight: 1 }} className="text-[clamp(1.8rem,4.2vw,3rem)]">
                 One vault. One identity.
                 <br />
                 <span style={{ color: GREEN_TEXT }}>No keys of ours.</span>
@@ -433,7 +444,7 @@ export function LegendHome() {
             <div style={{ fontFamily: "var(--f-mono)", letterSpacing: "0.24em", color: GREEN_TEXT }} className="text-xs font-medium uppercase">
               Balance check
             </div>
-            <h2 style={{ fontFamily: "var(--f-display)", lineHeight: 1 }} className="mt-3 text-[clamp(1.9rem,4.4vw,3rem)] uppercase">
+            <h2 style={{ fontFamily: "var(--f-display)", lineHeight: 1 }} className="mt-3 text-[clamp(1.9rem,4.4vw,3rem)]">
               Someone may have launched you a coin.
             </h2>
             <p className="mt-3 max-w-md" style={{ color: DIM }}>
@@ -527,7 +538,7 @@ export function LegendHome() {
         <section className="border-t" style={{ borderColor: HAIR, background: PAPER }}>
           <div className="mx-auto flex max-w-6xl flex-col items-center px-6 py-32 text-center">
             <Reveal>
-              <h2 style={{ fontFamily: "var(--f-display)", lineHeight: 0.98 }} className="text-[clamp(2.2rem,5.4vw,4.2rem)] uppercase">
+              <h2 style={{ fontFamily: "var(--f-display)", lineHeight: 0.98 }} className="text-[clamp(2.2rem,5.4vw,4.2rem)]">
                 Back the one <span style={{ color: GREEN_TEXT }}>who ships.</span>
               </h2>
             </Reveal>
@@ -555,7 +566,7 @@ export function LegendHome() {
             <div className="relative grid gap-10 border-t pb-6 pt-10 sm:grid-cols-3" style={{ borderColor: HAIR }}>
               <div>
                 <span className="flex items-center gap-2 text-xs uppercase tracking-[0.26em]" style={{ fontFamily: "var(--f-mono)" }}>
-                  <BowMark size={14} color={GREEN} /> RobinShare
+                  <SetAsideMark size={14} color={INK} accent={GREEN} /> RobinShare
                 </span>
                 <p className="mt-3 max-w-xs text-sm leading-relaxed" style={{ color: DIM }}>
                   A coin&apos;s trading fees, routed to the builder who earned them. On Robinhood Chain.

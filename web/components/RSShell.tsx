@@ -1,8 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { Archivo_Black, Archivo, IBM_Plex_Mono } from "next/font/google";
-import { BowMark } from "@/components/BowMark";
+import { Fraunces, Archivo, IBM_Plex_Mono } from "next/font/google";
+import { SetAsideMark } from "@/components/SetAsideMark";
 import { useTheme } from "@/lib/useTheme";
 import { CUSTODY_LINE } from "@/lib/claims";
 
@@ -12,7 +12,14 @@ import { CUSTODY_LINE } from "@/lib/claims";
  * IBM Plex Mono, arco como marca, toggle de tema) sin el peso del hero.
  */
 
-const display = Archivo_Black({ weight: "400", subsets: ["latin"], variable: "--f-display" });
+// Fraunces, no Archivo Black. La serif de autoridad es el registro que el vertical DeFi permite y
+// que ningun hermano del cluster usa; Archivo Black era el display por defecto del molde
+// suizo-snappy que hace que la pagina se lea como generada. Ver BRIEF-facelift.md.
+const display = Fraunces({
+  subsets: ["latin"],
+  variable: "--f-display",
+  axes: ["SOFT", "WONK", "opsz"],
+});
 const body = Archivo({ subsets: ["latin"], variable: "--f-body" });
 const mono = IBM_Plex_Mono({ weight: ["400", "500"], subsets: ["latin"], variable: "--f-mono" });
 
@@ -39,7 +46,7 @@ export function RSShell({ children }: { children: React.ReactNode }) {
       <nav className="border-b" style={{ borderColor: RS.HAIR }}>
         <div className="mx-auto flex w-full max-w-2xl items-center justify-between px-6 py-4">
           <Link href="/" className="flex items-center gap-2 hover:opacity-80" style={{ color: RS.INK }}>
-            <BowMark color={RS.GREEN} />
+            <SetAsideMark color={RS.INK} accent={RS.GREEN} />
             <span style={{ fontFamily: "var(--f-mono)", letterSpacing: "0.26em" }} className="text-xs font-medium uppercase">
               RobinShare
             </span>
