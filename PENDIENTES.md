@@ -238,7 +238,7 @@ barrió 15.
 Pero hoy eso existe sólo como una línea de `cast send` en el runbook con un `$KEEPER_PK` que no está
 definido en ninguna parte. **No hay keeper.**
 
-> **ACTUALIZADO 2026-08-31 — YA ESTÁ CONSTRUIDO.** `web/scripts/keeper.mjs`. Recorre los vaults
+> **ACTUALIZADO 2026-08-31 — YA ESTÁ CONSTRUIDO.** `web/lib/keeper.ts` (compartido por el cron de Vercel y `scripts/keeper.mts`). Recorre los vaults
 > de la factory, simula `harvest()` en cada uno (gratis) para saber cuánto saldría —incluido lo
 > que está en la curva, que `pendingAmount()` no ve— y sólo manda los que superan un piso.
 > Dry-run por default; hay que pedir `--send`.

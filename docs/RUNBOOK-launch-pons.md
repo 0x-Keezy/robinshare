@@ -340,10 +340,11 @@ recorre todos los vaults de la factory y barre sólo los que valen la pena:
 ```bash
 cd web
 # dry-run: dice qué barrería y no manda nada
-NEXT_PUBLIC_FACTORY_ADDRESS=$FACTORY node scripts/keeper.mjs
+NEXT_PUBLIC_FACTORY_ADDRESS=$FACTORY npx tsx scripts/keeper.mts
 
 # de verdad, y cada 15 minutos
-KEEPER_PK=0x... NEXT_PUBLIC_FACTORY_ADDRESS=$FACTORY node scripts/keeper.mjs --send --watch 900
+KEEPER_PK=0x... NEXT_PUBLIC_FACTORY_ADDRESS=$FACTORY npx tsx scripts/keeper.mts --send
+#   (o mejor: no lo corras a mano — el cron de Vercel lo hace cada 15 min, ver vercel.json)
 ```
 
 Decide simulando `harvest()` en cada vault (un `eth_call`, gratis), que devuelve **exactamente**
