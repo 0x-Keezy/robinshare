@@ -189,8 +189,14 @@ Si no está, la ruta responde 503 y la UI ofrece el camino normal. Se prende des
 código.
 
 **Keeper** — en pons las fees se quedan en la curva hasta que alguien las empuja, y el cambio de
-recipient de pons es **retroactivo sobre lo no barrido**. Ya corre solo como **cron de Vercel**
-(`vercel.json`, cada 15 minutos). Para prenderlo, dos variables:
+recipient de pons es **retroactivo sobre lo no barrido**. Ya corre solo, en dos lugares:
+
+- **GitHub Actions** cada 15 minutos (`.github/workflows/keeper.yml`) — es lo que hace el trabajo.
+  Va ahí y no en Vercel porque el plan **Hobby sólo permite crons diarios**: un `*/15` hace fallar
+  el deploy entero. En un repo público, Actions es gratis.
+- **Cron de Vercel** una vez por día (`vercel.json`) — el piso, por si el workflow se rompe.
+
+Para prenderlo, dos variables en Vercel:
 
 ```
 CRON_SECRET=<openssl rand -hex 32>
@@ -200,6 +206,10 @@ KEEPER_PK=0x<wallet dedicada con ~0,01 ETH>
 Sin `KEEPER_PK` el cron corre igual en **dry-run** y reporta cuánto habría barrido — se puede ver
 el tamaño del problema antes de fondear nada. `harvest()` es permissionless: esa wallet no necesita
 ningún privilegio.
+
+Y los mismos dos valores como **secrets del repo** en GitHub (Settings → Secrets and variables →
+Actions): `CRON_SECRET` (el mismo) y `KEEPER_URL` = `https://www.robinshareapp.com/api/cron/keeper`.
+Sin ellos el workflow no falla: se saltea y lo dice.
 
 A mano, cuando haga falta mirar sin tocar:
 

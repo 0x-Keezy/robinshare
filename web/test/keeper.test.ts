@@ -40,7 +40,12 @@ describe("keeper", () => {
     expect(cron, "no hay cron declarado para el keeper").toBeTruthy();
     // Cada 15 min: mas seguido gasta gas en pasadas vacias, menos seguido deja crecer la ventana
     // de exposicion al redirect de pons.
-    expect(cron!.schedule).toBe("*/15 * * * *");
+    // DIARIO, no cada 15 min: el plan Hobby de Vercel **solo permite crons diarios** y
+    // `*/15 * * * *` hace FALLAR EL DEPLOY ENTERO con "Hobby accounts are limited to daily cron
+    // jobs". Lo descubri rompiendo un deploy. Este cron es el PISO; el barrido frecuente lo hace
+    // .github/workflows/keeper.yml, que en un repo publico es gratis.
+    expect(cron!.schedule).toBe("0 12 * * *");
+    expect(cron!.schedule, "un schedule sub-diario rompe el deploy en Hobby").not.toMatch(/^\*\//);
   });
 
   it("el piso por vault cubre el costo del harvest", () => {
@@ -57,5 +62,15 @@ describe("keeper", () => {
   it("espacia las llamadas al RPC", () => {
     // El RPC publico esta detras de Cloudflare y corta las rafagas devolviendo HTML.
     expect(DEFAULT_RPC_GAP_MS).toBeGreaterThanOrEqual(200);
+  });
+
+  it("hay un barrido frecuente fuera de Vercel, porque Hobby no lo permite", () => {
+    // El cron de vercel.json es diario por limitacion del plan. Sin este workflow, las fees se
+    // quedan en la curva hasta 24 h — y ese saldo sin barrer es lo que pons puede reapuntar
+    // retroactivamente.
+    const wf = readFileSync(join(process.cwd(), "..", ".github", "workflows", "keeper.yml"), "utf8");
+    expect(wf).toMatch(/cron:\s*"\*\/15 \* \* \* \*"/);
+    expect(wf, "sin concurrency, dos corridas superpuestas pagan gas por barrer cero").toMatch(/concurrency:/);
+    expect(wf).toMatch(/CRON_SECRET/);
   });
 });
