@@ -129,20 +129,11 @@ export function LegendHome() {
           puntero con mucha inercia, y una respiracion de ~34s que existe para que un visitante
           quieto no vea una imagen congelada. El porque de cada numero, en LivingField.tsx. */}
       <LivingField />
-      {/* LA PLUMA: SACADA DE ESTE BUILD, a proposito.
-          El concept spine (el acta) es bueno y la pluma es la metafora correcta, pero una pluma a
-          medias es PEOR que ninguna. El juez visual la leyo como "helecho / fronda de palmera" y
-          diagnostico por que, con precision: no tiene MASA (92 trazos abiertos sin contorno que los
-          ate leen como peine, no como vano), la asimetria 1:1.39 es opticamente simetria, y el
-          perfil sin(t^0.6·π) dibuja una LENTE — ancha al medio y apagada en los dos extremos —
-          cuando una pluma es ancha abajo y termina en punta arriba.
-          Y peor que el dibujo: estaba `fixed` en el gutter, o sea una calcomania pegada al viewport
-          que aparecia recortada por algo distinto en cada seccion, y en mobile se cruzaba con el
-          cuerpo de texto.
-          Vuelve cuando este dibujada con silueta cerrada y COMPUESTA en una seccion —el lugar
-          natural es echada bajo "One vault. One identity. No keys of ours.", como la pluma apoyada
-          sobre un acta ya firmada—, no flotando de wallpaper. QuillMark.tsx queda en el repo con el
-          diagnostico escrito. */}
+      {/* LA PLUMA VOLVIO, y cumpliendo la condicion que habia quedado escrita cuando se saco:
+          "con silueta cerrada y COMPUESTA en una seccion, como la pluma apoyada sobre un acta ya
+          firmada". Vive en la seccion de custodia y FIRMA el acta al scrollear. El diagnostico de
+          por que la version vieja no funcionaba (92 trazos abiertos sin masa, perfil de lente,
+          `fixed` al viewport) esta en Signature.tsx. */}
 
       {/* nav claro */}
       <nav
@@ -581,18 +572,10 @@ export function LegendHome() {
             recibir nada. Ahora es UNA grilla de tres columnas con una regla que las une, y detras
             corre la plancha grabada: lo unico de la pagina que cruza capas en z. */}
         <section className="relative mx-auto max-w-6xl px-6 py-28">
-          {/* la plancha: guilloche de certificado, el lenguaje visual de los titulos al portador.
-              Va detras y muy tenue — es atmosfera, no ilustracion. La pagina no tenia NADA que
-              cruzara capas; el juez lo marco como "relleno plano con hairlines". */}
-          <div
-            aria-hidden
-            className="pointer-events-none absolute inset-x-0 top-1/4 -z-10 h-[70%] bg-[url('/legend/plate.webp')] bg-cover bg-center"
-            style={{
-              opacity: "var(--rs-plate-opacity)",
-              maskImage: "radial-gradient(70% 60% at 50% 50%, black 30%, transparent 78%)",
-              WebkitMaskImage: "radial-gradient(70% 60% at 50% 50%, black 30%, transparent 78%)",
-            }}
-          />
+          {/* La plancha local se fue: ahora es una capa GLOBAL que gira y hace parallax (ver
+              LivingField.tsx). Dos copias del mismo patron radial fino, a escalas y rotaciones
+              distintas, hacen moire — y un moire sobre un guilloche no se lee como profundidad, se
+              lee como un bug de render. */}
           <Reveal variant="set" stagger={0}>
             <h2
               style={{ fontFamily: "var(--f-display)", lineHeight: 1, letterSpacing: "-0.018em" }}

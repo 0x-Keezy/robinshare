@@ -28,13 +28,43 @@ import { useEffect, useRef } from "react";
 /// mirás fijo no ves nada moverse, pero si comparás dos capturas separadas por unos segundos, los
 /// centros cambiaron.
 ///
+/// EL BUG QUE ESTO DESTAPÓ, y que hay que no repetir: las dos capas estaban en **z-index
+/// NEGATIVO** dentro de un `<main>` que pinta un fondo **opaco**. Un hijo con z negativo se pinta
+/// ANTES que el fondo en flujo de su ancestro, así que quedaban tapadas: el campo de luz —la capa
+/// de material que un juez visual había pedido como defecto #1— **nunca se vio en producción**.
+/// Probado sin ambigüedad: pintando la capa de rojo sólido en `-z-20` el píxel de la esquina no
+/// cambiaba ni un dígito (17.7,22.4,18.6), y la misma capa a `z-index: 0` daba (84.6,17.4,14.6).
+/// Lo que yo venía midiendo como "el fondo se aclaró" era el grano global, que vive en `z-60`.
+/// Van a `z-0`, que las deja sobre el fondo de `main` y bajo el contenido, que ya es `relative z-10`.
+///
 /// TÉCNICA. Escribe custom properties (`--rs-fx/fy/gx/gy`) sobre su propio elemento, y `--rs-field`
 /// las consume. La sustitución de custom properties es **perezosa** —se resuelve en el elemento que
 /// usa la variable, no donde se declara— así que mover cuatro números acá mueve el degradado sin
 /// tocar el token ni re-renderizar React. Todo por rAF y sin estado: un `setState` a 60fps por un
 /// fondo sería absurdo.
+/// SEGUNDA CAPA: LA PLANCHA GRABADA.
+///
+/// La luz sola no alcanzaba. Movida, medía: los centros cambian de verdad (probado leyendo las
+/// custom properties computadas). Pero el degradado es enorme y vive al 5,5% de opacidad, así que
+/// un desplazamiento del centro produce un cambio **real y casi imperceptible** — y si la queja es
+/// "se ve estático", algo que sólo se nota amplificando el contraste 9× no la responde.
+///
+/// Lo que falta no es más luz, es **material que se vea moverse**. Y el material ya existía en el
+/// repo sin usarse a fondo: `plate.webp`, un guilloché — la roseta grabada del papel de seguridad de
+/// un billete o un certificado. Es exactamente el sustrato de un acta, así que no es textura
+/// decorativa: es el papel sobre el que está escrito todo lo demás.
+///
+/// Gira, y gira porque es una ROSETA: un patrón radial girando lentísimo se lee como un mecanismo
+/// de relojería, no como una animación. Más un parallax vertical contra el scroll, que es lo que
+/// hace que se perciba como una capa detrás y no como parte de la página.
+///
+/// POR QUÉ SE SACÓ LA COPIA LOCAL. La plancha ya vivía enmascarada detrás del mecanismo. Dos copias
+/// del MISMO patrón radial fino, a escalas y rotaciones distintas, hacen **moiré** — y un moiré
+/// sobre un guilloché no se lee como profundidad, se lee como un bug de render. Queda una sola,
+/// global.
 export function LivingField() {
   const ref = useRef<HTMLDivElement>(null);
+  const plate = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const el = ref.current;
@@ -85,6 +115,17 @@ export function LivingField() {
       el.style.setProperty("--rs-fy", `${fy.toFixed(2)}%`);
       el.style.setProperty("--rs-gx", `${gx.toFixed(2)}%`);
       el.style.setProperty("--rs-gy", `${gy.toFixed(2)}%`);
+
+      // LA PLANCHA. Parallax vertical contra el scroll (se mueve MENOS que la pagina, que es lo
+      // que la delata como capa de atras) mas un giro continuo lentisimo. 0,55 grados por segundo
+      // = una vuelta cada ~11 minutos: si te quedas mirando lo notas, si estas leyendo no te
+      // molesta. El scroll suma otros 16 grados a lo largo de toda la pagina.
+      if (plate.current) {
+        const deg = t * 0.55 + cur.sc * 16;
+        const shift = cur.sc * -90; // px; negativo = sube mientras la pagina baja
+        plate.current.style.transform =
+          `translate3d(${(cur.mx * 10).toFixed(1)}px, ${shift.toFixed(1)}px, 0) rotate(${deg.toFixed(2)}deg) scale(1.7)`;
+      }
     };
     raf = requestAnimationFrame(tick);
 
@@ -109,11 +150,30 @@ export function LivingField() {
   }, []);
 
   return (
-    <div
-      ref={ref}
-      aria-hidden
-      className="pointer-events-none fixed inset-0 -z-10"
-      style={{ background: "var(--rs-field)" }}
-    />
+    <>
+      {/* LA PLANCHA, detras de todo. `scale(1.7)` para que al girar los cantos del cuadrado nunca
+          entren al viewport, y la mascara elipsoide la apaga en el centro —justo donde vive el
+          texto— y la deja respirar en los bordes: asi hay material visible sin pelearle a la
+          lectura. `will-change` porque es la unica capa que transforma en cada frame. */}
+      <div
+        ref={plate}
+        aria-hidden
+        className="pointer-events-none fixed inset-0 z-0 bg-[url('/legend/plate.webp')] bg-cover bg-center"
+        style={{
+          opacity: "var(--rs-plate-bg)",
+          mixBlendMode: "var(--rs-plate-blend)" as React.CSSProperties["mixBlendMode"],
+          filter: "var(--rs-plate-filter)",
+          maskImage: "radial-gradient(52% 46% at 50% 42%, transparent 22%, black 88%)",
+          WebkitMaskImage: "radial-gradient(52% 46% at 50% 42%, transparent 22%, black 88%)",
+          willChange: "transform",
+        }}
+      />
+      <div
+        ref={ref}
+        aria-hidden
+        className="pointer-events-none fixed inset-0 z-0"
+        style={{ background: "var(--rs-field)" }}
+      />
+    </>
   );
 }

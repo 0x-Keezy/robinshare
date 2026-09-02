@@ -13,6 +13,17 @@
      PERCIBE sin competir con el texto: mas alto y la textura gana, mas bajo y vuelve el
      "relleno plano" que el juez marco. */
   --rs-plate-opacity: 0.055;
+  /* La plancha GLOBAL (la que gira de fondo) va bastante mas fuerte que la local que habia antes:
+     al 5,5% no se percibia, y una textura que no se percibe no responde a "el fondo es estatico".
+     Puede subir porque su mascara la vacia justo en el centro, que es donde vive el texto. */
+  --rs-plate-bg: 0.55;
+  /* CLAVE: la plancha es una imagen OSCURA sobre oscuro (fondo casi negro, lineas apenas mas
+     claras). Componerla con `opacity` sobre una pagina casi negra no aporta nada — sus propios
+     pixeles de fondo ya son del color de la pagina, medido: la esquina daba varianza 1,8 y a 1:1
+     no se veia mas que el grano. Con `screen`, los pixeles oscuros de la imagen se vuelven
+     transparentes y SOLO las lineas suman luz, que es exactamente como se compone un grabado. */
+  --rs-plate-blend: screen;
+  --rs-plate-filter: none;
   --rs-green-cta-text: #0D120E;
   --rs-dim: rgba(242, 243, 238, 0.65);
   --rs-faint: rgba(242, 243, 238, 0.5);
@@ -88,6 +99,13 @@
   --rs-green-cta: #445C00;
   /* En claro la misma textura salta mucho mas: la mitad. */
   --rs-plate-opacity: 0.03;
+  /* Sobre papel la misma trama salta mucho mas: poco mas de la mitad. */
+  --rs-plate-bg: 0.42;
+  /* Sobre papel el grabado tiene que RESTAR luz, no sumarla, asi que se invierte la imagen (queda
+     fondo claro + lineas oscuras) y se multiplica: el fondo claro no altera el papel y las lineas
+     lo entintan. Sin el invert, `multiply` oscureceria el papel entero. */
+  --rs-plate-blend: multiply;
+  --rs-plate-filter: invert(1);
   --rs-green-cta-text: #FFFFFF;
   --rs-dim: rgba(13, 18, 14, 0.6);
   --rs-faint: rgba(13, 18, 14, 0.58);
