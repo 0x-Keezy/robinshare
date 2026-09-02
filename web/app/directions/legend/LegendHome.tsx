@@ -680,7 +680,9 @@ export function LegendHome() {
         </section>
 
         {/* custodia */}
-        <section className="border-y" style={{ borderColor: HAIR, background: PAPER }}>
+        {/* sin `background: PAPER`: repintaba el papel opaco ENCIMA de la plancha y cortaba la
+            trama en seco a mitad de pagina. La separacion ya la da el borde. */}
+        <section className="border-y" style={{ borderColor: HAIR }}>
           {/* `items-center` centraba las dos columnas verticalmente y, como la izquierda solo
               tenia el titular, dejaba ~400px vacios de alto por media pagina de ancho mientras la
               derecha corria un parrafo de nueve lineas. Eso no es aire editorial: es una columna
@@ -777,7 +779,7 @@ export function LegendHome() {
             El ancla #ledger apunta ahora al hero, así que los links de la nav siguen andando. */}
 
         {/* CTA final + footer claro */}
-        <section className="border-t" style={{ borderColor: HAIR, background: PAPER }}>
+        <section className="border-t" style={{ borderColor: HAIR }}>
           {/* py-32 dejaba ~500px muertos entre el boton y la regla del footer. El cierre es la
               UNICA seccion que se gana el aire maximo de la pagina (es el silencio antes del pie),
               pero el aire va ARRIBA del bloque, no debajo del boton. */}
