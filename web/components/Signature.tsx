@@ -83,6 +83,7 @@ export function Signature({ className = "" }: { className?: string }) {
         {/* LA FIRMA. Sin `fill` — un path abierto con fill pinta el area encerrada por sus curvas
             y el garabato queda relleno de manchones. */}
         <path
+          id="rs-sig-path"
           className="rs-sig-ink"
           d={SIG}
           pathLength={100}
@@ -92,13 +93,21 @@ export function Signature({ className = "" }: { className?: string }) {
           strokeLinecap="round"
           strokeLinejoin="round"
         />
-      </svg>
 
-      {/* LA PLUMA, montada sobre el MISMO path. El pico queda donde nace la tinta porque los dos
-          recorren la misma curva; animados por separado se despegarían y se notaria enseguida. */}
-      <div className="rs-sig-quill">
-        <Quill />
-      </div>
+        {/* LA PLUMA, DENTRO DEL MISMO SVG. Antes vivía afuera, montada con `offset-path`, y ahí
+            estaba el bug: `path()` de CSS se interpreta en PÍXELES mientras el SVG escala por
+            viewBox. En desktop el desfase era del 2,4% y no se veía; a 390px el contenedor mide
+            342, así que la tinta terminaba en x=342 y la pluma estacionaba en x=398 — **56px
+            afuera**, recortada por el borde y flotando sin tocar el trazo. Adentro del SVG los dos
+            comparten sistema de coordenadas y el pico cae exacto a cualquier ancho.
+            El `translate(-32.5,-188)` lleva el PICO al origen, así que el `rotate` de afuera gira
+            alrededor del pico y no del centro del vano. */}
+        <g className="rs-sig-quill">
+          <g transform="rotate(-22) scale(0.4) translate(-32.5,-188)">
+            <Quill />
+          </g>
+        </g>
+      </svg>
     </div>
   );
 }
@@ -108,7 +117,7 @@ export function Signature({ className = "" }: { className?: string }) {
 /// trazo suelto y por eso leía como peine.
 function Quill() {
   return (
-    <svg viewBox="0 0 64 190" width="100%" height="100%" fill="none">
+    <g fill="none">
       {/* el vano: punta arriba, ancho abajo del medio, y despues se corta — la pluma se queda sin
           barbas y sigue como cañon desnudo. Los dos lados difieren de verdad (el interno mucho mas
           angosto), que es lo que separa una pluma de una hoja. */}
@@ -141,6 +150,6 @@ function Quill() {
         d="M30 141 C 33 152, 35 163, 34.5 176 L 32.5 188 L 30.5 176 C 29 163, 27 152, 27 142 Z"
         fill="currentColor"
       />
-    </svg>
+    </g>
   );
 }

@@ -1,7 +1,7 @@
 # RobinShare — route trading fees to the builders who earned them
 
 **RobinShare** lets anyone launch a coin on **[pons](https://pons.fun) v2** (Robinhood Chain)
-whose trading fees accrue to **one person** — identified by their **GitHub, X handle, or wallet** —
+whose trading fees accrue to **one person** — identified by their **GitHub handle or wallet** —
 without that person needing a wallet up front. They claim later by proving the identity.
 
 Robin Hood is about sharing with others. Here, that means sharing with the devs who actually
@@ -12,13 +12,23 @@ earned it.
 - **Contracts:** `RobinShareVault` + `RobinShareVaultFactory`
 - **X:** [@RobinShareApp](https://x.com/RobinShareApp)
 
-> **Status: not deployed, and not audited.** The contracts are written, tested against the live
-> pons contracts in a fork, and waiting on an audit plus a handful of decisions listed in
-> [`PENDIENTES.md`](PENDIENTES.md). Nothing is live on-chain.
+> **Status: LIVE on Robinhood Chain mainnet, and NOT audited.**
+>
+> - **Site:** <https://www.robinshareapp.com>
+> - **Factory:** [`0xBf25E1d9082B5Ad0b8C68f072E94C797028c6855`](https://robinhoodchain.blockscout.com/address/0xBf25E1d9082B5Ad0b8C68f072E94C797028c6855)
+> - **Attester** (the trusted key on the GitHub path, disclosed on purpose):
+>   [`0x1E047B17BF45aE7D29287bd6389De4982C343f0A`](https://robinhoodchain.blockscout.com/address/0x1E047B17BF45aE7D29287bd6389De4982C343f0A)
+>
+> The full cycle has been exercised on mainnet: launch → trade → harvest → prove identity with the
+> real GitHub OAuth → claim. **This contract has not been audited**, and that is an accepted risk,
+> not a pending task. Remaining decisions are in [`PENDIENTES.md`](PENDIENTES.md).
+>
+> **Disclosure:** the person who builds RobinShare also works on PonsVault, a competing product on
+> this chain.
 
 ## How it works
 
-1. **Name them** — pick a builder by GitHub, X, or wallet. Their coin launches on pons in
+1. **Name them** — pick a builder by GitHub or wallet. Their coin launches on pons in
    seconds, always paired against native ETH.
 2. **Fees accrue** — a creator tax set at launch (up to the cap pons enforces, today 10%) lands
    in an immutable vault under that identity's name. Steady-state that's **10.7% of trade

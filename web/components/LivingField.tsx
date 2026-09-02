@@ -124,7 +124,7 @@ export function LivingField() {
         const deg = t * 0.55 + cur.sc * 16;
         const shift = cur.sc * -90; // px; negativo = sube mientras la pagina baja
         plate.current.style.transform =
-          `translate3d(${(cur.mx * 10).toFixed(1)}px, ${shift.toFixed(1)}px, 0) rotate(${deg.toFixed(2)}deg) scale(1.7)`;
+          `translate(-50%, -50%) translate3d(${(cur.mx * 10).toFixed(1)}px, ${shift.toFixed(1)}px, 0) rotate(${deg.toFixed(2)}deg)`;
       }
     };
     raf = requestAnimationFrame(tick);
@@ -151,23 +151,43 @@ export function LivingField() {
 
   return (
     <>
-      {/* LA PLANCHA, detras de todo. `scale(1.7)` para que al girar los cantos del cuadrado nunca
-          entren al viewport, y la mascara elipsoide la apaga en el centro —justo donde vive el
-          texto— y la deja respirar en los bordes: asi hay material visible sin pelearle a la
-          lectura. `will-change` porque es la unica capa que transforma en cada frame. */}
+      {/* LA PLANCHA, detras de todo. DOS elementos, y cada uno hace UNA cosa:
+
+          · el de AFUERA es del tamano del viewport y lleva la MASCARA. Tiene que ser asi: la
+            mascara apaga el centro —donde vive el texto— y la deja respirar en los bordes, o sea
+            que su geometria esta definida contra la PANTALLA. Puesta sobre el cuadrado gigante de
+            adentro, ese "centro" pasaria a medir 1,5 viewports y taparia todo lo visible.
+
+          · el de ADENTRO es un CUADRADO de 150vmax centrado, y es el que gira. Un cuadrado de lado
+            >= la diagonal cubre CUALQUIER rotacion en CUALQUIER viewport sin calcular nada. Antes
+            era un `inset-0` con `scale(1.7)`, y la cuenta hay que hacerla contra la diagonal, no
+            contra el ancho: 1,7 alcanzaba justo para 1440x900 y se quedaba corto en 390x844 (hace
+            falta 2,16), asi que en mobile asomaba una **costura diagonal dura** en la esquina
+            inferior derecha. Lo cazo un juez mirando las capturas.
+
+          El `transform` base va tambien en el style: sin el, el primer paint (antes de que corra el
+          primer frame del rAF, y siempre con reduced-motion) dibujaria el cuadrado con su esquina
+          en el centro de la pantalla. */}
       <div
-        ref={plate}
         aria-hidden
-        className="pointer-events-none fixed inset-0 z-0 bg-[url('/legend/plate.webp')] bg-cover bg-center"
+        className="pointer-events-none fixed inset-0 z-0 overflow-hidden"
         style={{
-          opacity: "var(--rs-plate-bg)",
-          mixBlendMode: "var(--rs-plate-blend)" as React.CSSProperties["mixBlendMode"],
-          filter: "var(--rs-plate-filter)",
           maskImage: "radial-gradient(52% 46% at 50% 42%, transparent 22%, black 88%)",
           WebkitMaskImage: "radial-gradient(52% 46% at 50% 42%, transparent 22%, black 88%)",
-          willChange: "transform",
         }}
-      />
+      >
+        <div
+          ref={plate}
+          className="absolute left-1/2 top-1/2 h-[150vmax] w-[150vmax] bg-[url('/legend/plate.webp')] bg-cover bg-center"
+          style={{
+            transform: "translate(-50%, -50%)",
+            opacity: "var(--rs-plate-bg)",
+            mixBlendMode: "var(--rs-plate-blend)" as React.CSSProperties["mixBlendMode"],
+            filter: "var(--rs-plate-filter)",
+            willChange: "transform",
+          }}
+        />
+      </div>
       <div
         ref={ref}
         aria-hidden

@@ -1,6 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { parseAbi } from "viem";
+import { publicClient } from "@/lib/chain";
 import { factoryAddress, robinhoodChain } from "@/lib/chain";
 
 /// LAS COORDENADAS. Donde vive esto, en la cadena, con las direcciones de verdad.
@@ -26,8 +28,35 @@ import { factoryAddress, robinhoodChain } from "@/lib/chain";
 const EXPLORER = robinhoodChain.blockExplorers.default.url;
 const REPO = "https://github.com/0x-Keezy/robinshare";
 
+/// LA LLAVE DEL ATTESTER, leida de la cadena.
+///
+/// Un juez de confianza lo puso como el hueco mas caro: la pagina **confiesa** que en la ruta de
+/// GitHub la firma del attester es lo que prueba la identidad —o sea que esa llave es de
+/// confianza— y despues **no dice cual es**. No se puede vigilar una llave que no se puede
+/// identificar: una confesion sin direccion es media confesion.
+///
+/// Se LEE de la factory en vez de hardcodearse, por la misma razon que todo lo demas en esta
+/// pagina: si algun dia rota, el sitio dice la verdad solo. Es literalmente lo que el copy promete
+/// — "which this site reads off the chain, not off a promise".
+const factoryAttesterAbi = parseAbi(["function attester() view returns (address)"]);
+
 export function OnChainStrip({ block }: { block: bigint | null }) {
   const factory = factoryAddress();
+  const [attester, setAttester] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!factory) return;
+    let alive = true;
+    publicClient
+      .readContract({ address: factory, abi: factoryAttesterAbi, functionName: "attester" })
+      .then((a) => {
+        if (alive) setAttester(a as string);
+      })
+      .catch(() => {});
+    return () => {
+      alive = false;
+    };
+  }, [factory]);
   const [copied, setCopied] = useState(false);
   const [bumped, setBumped] = useState(false);
 
@@ -106,6 +135,32 @@ export function OnChainStrip({ block }: { block: bigint | null }) {
         ) : (
           <span style={{ color: "var(--rs-faint)" }}>not configured</span>
         )}
+      </Field>
+
+      {/* LA LLAVE QUE SI EXISTE. El titular de la seccion de custodia dice "One key, and we name
+          it" — esto es donde se la nombra. */}
+      <Field label="Attester key (trusted on GitHub vaults)">
+        {attester ? (
+          <a
+            href={`${EXPLORER}/address/${attester}`}
+            target="_blank"
+            rel="noreferrer"
+            className="rs-focus underline decoration-1 underline-offset-4 transition-opacity hover:opacity-70"
+            style={{ color: "var(--rs-ink)" }}
+          >
+            {attester.slice(0, 8)}…{attester.slice(-6)}
+          </a>
+        ) : (
+          <span className="rs-skeleton inline-block h-[1.1em] w-28 align-middle" />
+        )}
+      </Field>
+
+      {/* EL DATO QUE LA PAGINA TENIA Y NO COBRABA. `withdraw()` transfiere `address(this).balance`
+          ENTERO al boundWallet: RobinShare no se queda con nada. Es el hecho mas duro y mas
+          verificable del producto y estaba enterrado como cuarto de cuatro stats, dicho al reves
+          ("100% para ellos") en vez de derecho ("0% para nosotros"). */}
+      <Field label="Our cut">
+        <span className="tabular-nums">0% — the vault pays out its full balance</span>
       </Field>
 
       <Field label="Source">

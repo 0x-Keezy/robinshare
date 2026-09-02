@@ -301,7 +301,7 @@ export function LegendHome() {
                 borderLeft: "1px solid rgba(247,248,244,0.10)",
                 borderRight: "1px solid rgba(247,248,244,0.10)",
                 borderBottom: "1px solid var(--rs-edge-bot)",
-                boxShadow: "var(--rs-lift-hi)",
+                boxShadow: "var(--rs-panel-lift)",
               }}
             >
               <div
@@ -699,7 +699,7 @@ export function LegendHome() {
                     One vault. One identity.
                   </span>
                   <span className="block" style={stagIndex(1)}>
-                    No keys of ours.
+                    One key, and we name it.
                   </span>
                 </h2>
               </Reveal>
@@ -714,7 +714,10 @@ export function LegendHome() {
                   "esto se clickea"— cuando no son controles sino dos hechos. Un juez visual lo
                   fallo por nombre. Como jerarquia tipografica dicen lo mismo, no mienten sobre su
                   interactividad, y de paso llenan la columna que estaba vacia. */}
-              <Reveal variant="lift" stagger={120} delay={260} className="mt-8 flex flex-col">
+              {/* mt-14 y no mt-8: la regla del renglon de la firma y el border-top de la primera
+                  ruta quedaban a ~50px una de otra, sin nada en medio — una doble regla huerfana
+                  que nadie dibuja a proposito. */}
+              <Reveal variant="lift" stagger={120} delay={260} className="mt-14 flex flex-col">
                 {[
                   { k: "Wallet signature", v: "The wallet you named signs. Nothing else is involved." },
                   { k: "GitHub OAuth", v: "They log in as themselves, and we attest it on-chain." },
@@ -757,7 +760,7 @@ export function LegendHome() {
                   fees, and can only ever reclaim them if they set a recovery window at launch,
                   which this site reads off the chain, not off a promise.
                 </p>
-                <p className="mt-5 max-w-md text-[15px] leading-relaxed" style={{ color: FAINT }}>
+                <p className="mt-5 max-w-md text-[15px] leading-relaxed" style={{ color: DIM }}>
                   Two things are not ours to promise, and we would rather say them than let you
                   read &ldquo;zero keys&rdquo; and find out later. pons, the launchpad the coin
                   lives on, can point a coin&rsquo;s creator fees somewhere else: a 2-of-3

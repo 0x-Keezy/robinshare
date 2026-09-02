@@ -85,6 +85,11 @@
      un boton sin borde legible, sobre todo en claro, donde el secundario quedaba blanco sobre
      blanco. */
   --rs-edge-strong: rgba(242, 243, 238, 0.24);
+  /* El panel del lookup es OSCURO en los dos temas (decision deliberada: instrumento oscuro sobre
+     papel, el move de Stripe). Por eso no puede usar `--rs-lift-hi`, que en claro trae un
+     `inset 0 1px 0 rgba(255,255,255,.8)` — una linea blanca al 80% cruzando el canto superior de
+     un panel negro. Sombra propia, sin inset claro. */
+  --rs-panel-lift: inset 0 1px 0 rgba(242, 243, 238, 0.1), 0 30px 60px -26px rgba(0, 0, 0, 0.95);
 }
 
 [data-robinshare-theme="light"] {
@@ -107,7 +112,12 @@
   --rs-plate-blend: multiply;
   --rs-plate-filter: invert(1);
   --rs-green-cta-text: #FFFFFF;
-  --rs-dim: rgba(13, 18, 14, 0.6);
+  /* EL ESCALON DE JERARQUIA SE HABIA COLAPSADO EN CLARO. En oscuro dim da 7,59:1 y faint 4,93:1,
+     o sea un salto del 54%. En claro estaban en 0.60 y 0.58: un salto del **6%**, dos niveles
+     leyendose como uno. El 0.58 estaba puesto para pasar AA raspando (4,54:1) y arrastro al dim
+     con el. El arreglo no es bajar el tercero, es SUBIR el segundo: 0.78 da ~9,2:1 y el escalon
+     vuelve, con AA intacto en los dos. */
+  --rs-dim: rgba(13, 18, 14, 0.78);
   --rs-faint: rgba(13, 18, 14, 0.58);
   --rs-hair: rgba(13, 18, 14, 0.14);
   --rs-nav-gradient: linear-gradient(to bottom, rgba(247, 248, 244, 0.97) 0%, rgba(247, 248, 244, 0.85) 60%, transparent);
@@ -146,6 +156,7 @@
   --rs-sheet: 0 1px 0 rgba(13, 18, 14, 0.1), 0 12px 22px -18px rgba(13, 18, 14, 0.45);
   --rs-field-rule: rgba(13, 18, 14, 0.5);
   --rs-edge-strong: rgba(13, 18, 14, 0.26);
+  --rs-panel-lift: inset 0 1px 0 rgba(242, 243, 238, 0.1), 0 22px 44px -24px rgba(13, 18, 14, 0.55);
 }
 
 @theme inline {
@@ -160,6 +171,21 @@ html {
 ::selection {
   background: rgba(0, 200, 5, 0.35);
   color: #f4f7f2;
+}
+
+/* VIUDAS Y HUERFANAS. No habia una sola aparicion de `text-wrap` en el repo, y el costo se veia en
+   seis lugares distintos: "Every trade pays the person who / earned it.", "…nobody pays / them.",
+   "Back the one who / ships." con la palabra de pago sola, "we attest it on-/chain.". `balance`
+   reparte las lineas de un titular; `pretty` evita la viuda de una palabra al final de un parrafo;
+   y `hyphens: none` mata el corte de "on-chain", que es un termino, no una palabra. */
+h1,
+h2,
+h3 {
+  text-wrap: balance;
+}
+p {
+  text-wrap: pretty;
+  hyphens: none;
 }
 
 body {
@@ -385,63 +411,44 @@ body::after {
   }
 }
 
+/* LA PLUMA, ahora un <g> DENTRO del SVG: se anima con `motion-path` en unidades del viewBox, que
+   es el mismo sistema en el que se dibuja la tinta. Antes iba por `offset-path` sobre un div de
+   afuera, y `path()` de CSS se interpreta en PIXELES: a 390px la pluma terminaba 56px fuera del
+   trazo. `offset-rotate: 0deg` porque una mano que firma INCLINA la pluma, no la voltea; la
+   inclinacion la da el `rotate(-22)` del propio grupo. */
 .rs-sig-quill {
-  position: absolute;
-  top: 0;
-  left: 0;
-  /* la caja respeta la proporcion del dibujo (64:190) para que el pico caiga EXACTAMENTE en el
-     100% de altura, que es donde apunta `offset-anchor` */
-  width: 28px;
-  height: 83px;
-  /* el path esta en coordenadas del viewBox (410 de ancho); el contenedor mide 100%, asi que la
-     pluma se posiciona en % del mismo sistema y acompaña cualquier ancho */
   offset-path: path(
     "M6,62 C26,22 50,12 61,32 C70,49 55,73 45,61 C36,50 58,25 90,29 C119,33 117,64 105,67 C95,69 95,51 115,43 C139,33 167,51 185,57 C205,63 223,43 235,29 C247,15 267,17 275,35 C281,49 267,63 257,57 C249,52 257,37 283,37 C314,37 337,51 398,24"
   );
   offset-rotate: 0deg;
-  /* el pico de la pluma esta abajo del dibujo, asi que hay que subir el ancla hasta el: sin esto
-     firma con el medio del vano y el trazo sale de la nada */
-  offset-anchor: 50% 100%;
   offset-distance: 0%;
   opacity: 0;
-  /* el giro tiene que ser ALREDEDOR DEL PICO, no del centro: rotando por el centro el pico se va
-     del trazo y la pluma escribe desde el aire */
-  transform: rotate(-22deg);
-  transform-origin: 50% 100%;
   color: var(--rs-ink);
+}
+.rs-sig.is-on .rs-sig-quill {
+  animation:
+    rsQuillRide 2200ms cubic-bezier(0.42, 0, 0.3, 1) 420ms forwards,
+    rsQuillLift 2900ms ease-out 300ms forwards;
 }
 @keyframes rsQuillRide {
   to {
     offset-distance: 100%;
   }
 }
-/* entra, firma, y al terminar se levanta del papel: la mano se va */
-.rs-sig.is-on .rs-sig-quill {
-  animation:
-    rsQuillRide 2200ms cubic-bezier(0.42, 0, 0.3, 1) 420ms forwards,
-    rsQuillLift 2900ms ease-out 300ms forwards;
-}
-/* Al terminar NO desaparece: se APOYA. La condicion de regreso que quedo escrita cuando se saco
-   la pluma decia "como la pluma apoyada sobre un acta ya firmada", y una pluma que se esfuma deja
-   la seccion sin nada que mirar el 95% del tiempo. Se acuesta un poco mas (de -22° a -38°, girando
-   sobre el PICO para no despegarse del final del trazo) y baja a media tinta: sigue ahi, pero ya
-   no es la protagonista — la firma si. */
+/* Al terminar NO desaparece: se APOYA, a media tinta. Desvanecerla dejaba la seccion sin nada que
+   mirar el 95% del tiempo, que es lo contrario de lo que se pidio. */
 @keyframes rsQuillLift {
   0% {
     opacity: 0;
-    transform: rotate(-22deg);
   }
   12% {
     opacity: 0.92;
-    transform: rotate(-22deg);
   }
   76% {
     opacity: 0.92;
-    transform: rotate(-22deg);
   }
   100% {
     opacity: 0.5;
-    transform: rotate(-38deg);
   }
 }
 

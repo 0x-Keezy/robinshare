@@ -152,7 +152,11 @@ export function SetAsideDeed({
           className="text-[10px] uppercase sm:text-[11px]"
           style={{ fontFamily: "var(--f-mono)", letterSpacing: "0.18em", color: "var(--rs-faint)" }}
         >
-          Fixed at launch · cannot be redirected
+          {/* Antes decia "cannot be redirected", a secas y en versales, y el footer de la propia
+              pagina admite dos excepciones (la ventana de recovery del lanzador y el multisig de
+              pons). El claim mas ruidoso del sitio era el que su letra chica desmentia. Esto SI es
+              cierto sin asterisco: RobinShare no puede reapuntarlo. */}
+          Fixed at launch · we cannot redirect it
         </span>
 
         {/* A la derecha va SÓLO lo que es verdad y comprobable. Si la cadena devolvió un vault, su
@@ -163,15 +167,20 @@ export function SetAsideDeed({
             href={`${EXPLORER}/address/${vault.vault}`}
             target="_blank"
             rel="noreferrer"
-            className="rs-focus text-[10px] uppercase underline decoration-1 underline-offset-4 transition-opacity hover:opacity-70 sm:text-[11px]"
+            className="rs-focus text-[10px] underline decoration-1 underline-offset-4 transition-opacity hover:opacity-70 sm:text-[11px]"
             style={{ fontFamily: "var(--f-mono)", letterSpacing: "0.18em", color: "var(--rs-dim)" }}
           >
-            Vault {vault.vault.slice(0, 8)}…{vault.vault.slice(-6)}
+            {/* SIN `uppercase`: se leia `VAULT 0XCED117…B8C2F3`, con el `0x` en mayuscula y el
+                mixed-case del checksum EIP-55 destruido por un `text-transform`. En un producto
+                cuya tesis es "comparalo vos contra el explorer", eso no es un detalle de estilo:
+                es un error de contenido que cualquier cripto-nativo caza en un segundo. */}
+            <span className="uppercase tracking-[0.18em]">Vault</span>{" "}
+            {vault.vault.slice(0, 6)}…{vault.vault.slice(-4)}
           </a>
         ) : searchedButEmpty ? (
           <Link
             href="/create"
-            className="rs-focus text-[10px] uppercase underline decoration-1 underline-offset-4 transition-opacity hover:opacity-70 sm:text-[11px]"
+            className="rs-focus text-[10px] underline decoration-1 underline-offset-4 transition-opacity hover:opacity-70 sm:text-[11px]"
             style={{ fontFamily: "var(--f-mono)", letterSpacing: "0.18em", color: "var(--rs-dim)" }}
           >
             No vault yet · launch one →

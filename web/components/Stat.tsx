@@ -39,7 +39,13 @@ export function Stat({
   index?: number;
 }) {
   const ref = useRef<HTMLDivElement>(null);
-  const [n, setN] = useState(0);
+  // ARRANCA EN EL VALOR FINAL, no en cero. Antes era `useState(0)`, y eso significa que el HTML
+  // SERVIDO decia `0ms`, `0`, `0`, `0%`: un scraper, una preview de link, un lector sin JS o
+  // cualquiera con la red lenta leia **"0ms chain block time"** y **"0% of the vault, to them"** en
+  // una pagina cuyo argumento entero es que los numeros son reales. Es el peor modo de falla
+  // posible para este vertical, y no se veia en ninguna captura porque el JS siempre llegaba.
+  // Lo cazo un juez de confianza mirando el HTML crudo.
+  const [n, setN] = useState(value);
   const [done, setDone] = useState(false);
 
   useEffect(() => {
@@ -50,6 +56,16 @@ export function Stat({
       setDone(true);
       return;
     }
+    // Si al montar el bloque YA esta a la vista, no se anima: el visitante lo esta mirando y
+    // arrancarlo de cero seria mostrarle un dato falso durante un segundo. Solo se anima lo que
+    // entra por scroll, y para eso hay que bajarlo a cero recien cuando sabemos que esta afuera.
+    const enPantalla = el.getBoundingClientRect().top < window.innerHeight;
+    if (enPantalla) {
+      setDone(true);
+      return;
+    }
+    setN(0);
+
     const io = new IntersectionObserver(
       (es) => {
         if (!es.some((e) => e.isIntersecting)) return;

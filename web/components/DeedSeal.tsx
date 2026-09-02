@@ -102,9 +102,13 @@ export function DeedSeal({
         {/* el texto del aro, sobre el círculo: la marca de agua de cualquier sello real */}
         {/* `textLength` a la circunferencia exacta (2·π·r) con `lengthAdjust="spacing"`: sin eso el
             texto ocupa lo que mide y deja un tramo de aro vacio, que lee como sello a medio grabar.
-            Asi da la vuelta entera y el espaciado se reparte solo. */}
+            PERO el cuerpo tiene que estar cerca del natural o el motor reparte el sobrante como
+            tracking: a 5.9 los 41 caracteres median ~145u contra los 260,8 forzados, o sea **+0,49em
+            de espaciado** — y las letras del aro flotaban sueltas ("R O B I N H O O D"). Eso no lee
+            como sello, lee como guirnalda. A 9.4 el natural queda en ~231 y el estiramiento residual
+            baja a ~0,12em. */}
         <text
-          style={{ fontFamily: "var(--f-mono)", fontSize: 5.9 }}
+          style={{ fontFamily: "var(--f-mono)", fontSize: 9.4 }}
           fill="currentColor"
           opacity="0.8"
         >
@@ -123,6 +127,9 @@ export function DeedSeal({
           x="50"
           y="45.5"
           textAnchor="middle"
+          // SVG deja el tracking colgando DESPUES del ultimo glifo, asi que con `textAnchor=middle`
+          // la palabra queda corrida media letra a la izquierda respecto del numero de abajo.
+          dx=".1em"
           style={{ fontFamily: "var(--f-mono)", fontSize: 5.4, letterSpacing: "0.2em" }}
           fill="currentColor"
           opacity="0.65"
@@ -148,7 +155,10 @@ export function DeedSeal({
           }}
           fill="currentColor"
         >
-          {atBlock !== null ? `#${atBlock.toLocaleString("en-US")}` : "#—"}
+          {/* NO un em dash: es el tell #1 del gate del vertical y estaba en el estado por defecto,
+              o sea que lo veia el 100% de los visitantes. Guiones de cifra, que ademas ocupan el
+              ancho de un digito y dejan el hueco con la forma del dato que viene. */}
+          {atBlock !== null ? `#${atBlock.toLocaleString("en-US")}` : "#‒‒‒‒‒‒"}
         </text>
       </svg>
     </div>
