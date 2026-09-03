@@ -171,9 +171,19 @@ export function LegendHome() {
                 <path d="M12 4.5a7.5 7.5 0 0 1 0 15Z" fill="currentColor" />
               </svg>
             </button>
+            {/* Los dos secundarios del nav. "Docs" entra recien en sm porque a 320-430 el nav ya
+                lleva wordmark + toggle + el CTA, y un cuarto elemento empuja al boton fuera. En
+                telefono la puerta a docs es el link del pie, que ahi si tiene lugar. */}
+            <Link
+              href="/docs"
+              className="rs-focus hidden text-sm font-medium underline-offset-4 transition-opacity hover:underline sm:block"
+              style={{ color: DIM }}
+            >
+              Docs
+            </Link>
             <a
               href="#ledger"
-              className="rs-focus hidden text-sm font-medium underline-offset-4 transition-opacity hover:underline sm:block"
+              className="rs-focus hidden text-sm font-medium underline-offset-4 transition-opacity hover:underline md:block"
               style={{ color: DIM }}
             >
               Check a balance
@@ -874,11 +884,17 @@ export function LegendHome() {
                   A coin&rsquo;s trading fees, routed to the builder who earned them. On Robinhood Chain.
                 </p>
               </div>
-              <div className="flex flex-col items-start gap-2.5 text-sm font-medium" style={{ color: INK }}>
-                <Link href="/create" className="rs-focus underline decoration-1 underline-offset-4 transition-opacity hover:opacity-70">
+              {/* gap-3.5 y `py-1`: eran links de 20px de alto separados por 10px — dos targets
+                  tactiles por debajo del minimo, uno encima del otro. */}
+              <div className="flex flex-col items-start gap-3.5 text-sm font-medium" style={{ color: INK }}>
+                <Link href="/create" className="rs-focus inline-block py-1 underline decoration-1 underline-offset-4 transition-opacity hover:opacity-70">
                   Launch a coin →
                 </Link>
-                <a href="#ledger" className="rs-focus underline decoration-1 underline-offset-4 transition-opacity hover:opacity-70">
+                {/* La puerta a docs en telefono, donde el nav no tiene lugar para un cuarto item. */}
+                <Link href="/docs" className="rs-focus inline-block py-1 underline decoration-1 underline-offset-4 transition-opacity hover:opacity-70">
+                  Read the docs →
+                </Link>
+                <a href="#ledger" className="rs-focus inline-block py-1 underline decoration-1 underline-offset-4 transition-opacity hover:opacity-70">
                   Check a balance →
                 </a>
               </div>

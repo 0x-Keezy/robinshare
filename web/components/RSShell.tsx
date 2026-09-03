@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { Fraunces, Archivo, IBM_Plex_Mono } from "next/font/google";
 import { Wordmark } from "@/components/Wordmark";
 import { useTheme } from "@/lib/useTheme";
@@ -50,7 +51,15 @@ export function RSShell({ children }: { children: React.ReactNode }) {
       <nav className="border-b" style={{ borderColor: RS.HAIR }}>
         <div className="rs-shell flex items-center justify-between py-4">
           <Wordmark size={20} />
-          <button
+          <div className="flex items-center gap-4">
+            <Link
+              href="/docs"
+              className="rs-focus text-sm font-medium underline-offset-4 transition-opacity hover:underline"
+              style={{ color: RS.DIM }}
+            >
+              Docs
+            </Link>
+            <button
             type="button"
             onClick={toggle}
             aria-label={theme === "dark" ? "Switch to light mode" : "Switch to dark mode"}
@@ -61,7 +70,8 @@ export function RSShell({ children }: { children: React.ReactNode }) {
               <circle cx="12" cy="12" r="7.5" stroke="currentColor" strokeWidth="1.5" />
               <path d="M12 4.5a7.5 7.5 0 0 1 0 15Z" fill="currentColor" />
             </svg>
-          </button>
+            </button>
+          </div>
         </div>
       </nav>
 

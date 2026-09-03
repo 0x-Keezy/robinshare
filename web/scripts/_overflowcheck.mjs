@@ -1,7 +1,7 @@
 // Chequeo de overflow horizontal: rutas x viewports. Falla si scrollWidth > clientWidth.
 import { chromium } from "playwright";
 
-const routes = ["/", "/create", "/claim/0x000000000000000000000000000000000000dEaD"];
+const routes = ["/", "/create", "/docs", "/claim/0x000000000000000000000000000000000000dEaD"];
 const sizes = [[360, 740], [414, 896], [768, 1024], [1024, 768], [1280, 800], [1440, 900], [1920, 1080], [2560, 1440]];
 
 const browser = await chromium.launch({ channel: "chrome" });

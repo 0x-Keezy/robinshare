@@ -47,6 +47,9 @@ function pageFiles(): { name: string; src: string }[] {
 const pages = pageFiles();
 const shell = flat(readFileSync(join(WEB, "components", "RSShell.tsx"), "utf8"));
 const createPage = flat(readFileSync(join(WEB, "app", "create", "page.tsx"), "utf8"));
+/// `/docs` explica y matiza la promesa en prosa larga, que es exactamente la superficie donde una
+/// redaccion propia se desincroniza sin que nadie lo note. Entra al gate el dia que nace.
+const docsPage = flat(readFileSync(join(WEB, "app", "docs", "page.tsx"), "utf8"));
 const claimPage = flat(readFileSync(join(WEB, "app", "claim", "[vault]", "ClaimClient.tsx"), "utf8"));
 
 /// Toda superficie publica que hable de custodia. Incluye el shell A PROPOSITO: es lo que se
@@ -54,6 +57,7 @@ const claimPage = flat(readFileSync(join(WEB, "app", "claim", "[vault]", "ClaimC
 const surfaces: [string, string][] = [
   ...pages.map((p) => [p.name, p.src] as [string, string]),
   ["components/RSShell.tsx", shell],
+  ["app/docs/page.tsx", docsPage],
 ];
 
 describe("la promesa vive en UN solo lugar", () => {
