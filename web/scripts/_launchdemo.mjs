@@ -7,7 +7,7 @@ import fs from "node:fs";
 const OUT = process.argv[2];
 fs.mkdirSync(OUT, { recursive: true });
 const B = "http://localhost:3077";
-const HANDLE = "0x-keezy";
+const HANDLE = "ponsdotfamily";
 
 const b = await chromium.launch({ channel: "chrome" });
 

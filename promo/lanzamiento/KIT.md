@@ -24,10 +24,14 @@ RobinShare lanza una moneda con su handle de GitHub. El 0,70% de cada trade qued
 
 Media del fijado: `01-hero-desktop.png` **o** `robinshare-demo-4x5.mp4`.
 
+> El demo busca **@ponsdotfamily**, no un handle propio: la página contesta honestamente
+> *"Nothing set aside under this name yet"* y el acta ofrece *"No vault yet · launch one"*.
+> Es el primer uso real del producto, no alguien mirándose a sí mismo.
+
 
 ## B. Hilo (9 tweets) — ingles
 
-**1/** — 269/280 · media: 07-deed-sealed-desktop.png — el acta con @0x-keezy y el sello al bloque real
+**1/** — 269/280 · media: 03-deed-sealed.png — el acta con @ponsdotfamily y el sello al bloque real
 
 ```
 The maintainer whose library unblocked your build has no way to take your money. No address on the profile, and asking for one means asking them to do work first.
@@ -35,7 +39,7 @@ The maintainer whose library unblocked your build has no way to take your money.
 RobinShare launches a coin in their GitHub name. 0.70% of every trade waits in a vault addressed to them.
 ```
 
-**2/** — 243/280 · media: 09-explorer-vault-piloto.png — las 4 tx del vault en el explorer (el recibo)
+**2/** — 243/280 · media: 09-explorer-vault-recibo.png — las 4 tx del vault del piloto en el explorer, con sus fees
 
 ```
 That loop already ran on mainnet, Aug 31: launch, trade, harvest, GitHub login, claim.
@@ -43,7 +47,7 @@ That loop already ran on mainnet, Aug 31: launch, trade, harvest, GitHub login, 
 Don't take my word for it. Call totalPaid() on 0xcEd1174535C024BfEf0C9E6d2C2a825Cf5B8C2F3 and you get 214000000000000 wei. 0.000214 ETH. About fifty cents.
 ```
 
-**3/** — 233/280 · media: 03-claim-real-desktop.png — la pagina de claim: 0 ETH / 0.000214 paid out / IRREVOCABLE
+**3/** — 233/280 · media: (sin media, o 06-docs-desktop.png si el hilo va con imagen en todos)
 
 ```
 Two caveats before that number means anything. The only trader was me. And I ran the pilot with the creator tax maxed at 10%, so it captured 10.70% per trade, not the 0.70% a default launch gets.
@@ -59,7 +63,7 @@ That's the case for the relayer, which pays the gas instead of the builder. Buil
 The site used to say no wallet and no ETH needed. Half of that was false, so it went.
 ```
 
-**5/** — 270/280 · media: 05-trust-block-desktop.png — el bloque de confianza etiquetado del footer
+**5/** — 270/280 · media: 05-bloque-de-confianza.png — el bloque etiquetado del footer, con Audit y Conflict of interest
 
 ```
 The vault has no owner and no upgrade path. Nobody pauses it or drains it, me included, which also means nobody fixes it if it's wrong.
@@ -67,7 +71,7 @@ The vault has no owner and no upgrade path. Nobody pauses it or drains it, me in
 The launcher can arm a recovery window instead: after 30+ days they can pull the unclaimed balance. Off by default, written on chain.
 ```
 
-**6/** — 257/280 · media: 06-create-desktop.png — el formulario con un handle real escrito
+**6/** — 257/280 · media: 04-create-nombrando.png — el formulario nombrando a @ponsdotfamily
 
 ```
 Two ways to prove you're the name on it. Log in with GitHub and we sign a voucher the contract checks, or sign a message from the wallet it was made for.
@@ -75,7 +79,7 @@ Two ways to prove you're the name on it. Log in with GitHub and we sign a vouche
 There's no third. This factory shipped with the X verifier at the zero address, so that route reverts.
 ```
 
-**7/** — 265/280 · media: 08-explorer-factory-verified.png — 'verified (exact match)' en Blockscout
+**7/** — 265/280 · media: 08-explorer-factory-verificada.png — 'verified (exact match)' en Blockscout
 
 ```
 The contract has not been audited. My call, and no audit is booked. What it has: 56 unit tests, 10 fork tests against pons' live contracts, two adversarial review rounds.
@@ -93,7 +97,7 @@ pons' 2-of-3 multisig can also repoint fees, behind a 3-day timelock.
 Also: I build PonsVault.
 ```
 
-**9/** — 256/280 · media: robinshare-demo-16x9.mp4 — el demo de 21s, o 02-hero-mobile.png
+**9/** — 256/280 · media: robinshare-demo-16x9.mp4 — el demo de 23s, o 07-docs-mobile.png
 
 ```
 No takedown either. Anyone can already put your name on a coin anywhere. All that changes here is where the money goes, and you can ignore it forever.
@@ -245,13 +249,24 @@ I also build PonsVault, a competing product on this same chain, and RobinShare l
 
 Live on Robinhood Chain, chain id 4663. The factory is `0xBf25E1d9082B5Ad0b8C68f072E94C797028c6855`. Deploying it and running the pilot was budgeted at about 0.0065 ETH. No usage numbers here, because there are none: the only coin the factory has made so far is the pilot I ran myself.
 
-Site robinshareapp.com, code github.com/0x-Keezy/robinshare, everything on robinhoodchain.blockscout.com.
+Site robinshareapp.com. The full mechanics, including the parts this piece had to compress, are at robinshareapp.com/docs. Code at github.com/0x-Keezy/robinshare, and everything above is readable on robinhoodchain.blockscout.com.
 
 These are memecoins on a bonding curve. They can go to zero and most do, none of this is investment advice, and RobinShare is not affiliated with Robinhood, pons or Flap.
 
 
 
 ---
+
+## D-bis. La página de docs
+
+El sitio ahora tiene **`/docs`**, linkeada desde el nav (de 640px para arriba) y desde el pie de la
+home (que es la puerta en teléfono). Nueve secciones con todo lo que la landing no tiene lugar para
+decir, incluidas las tres cosas que hasta hoy no estaban en ninguna superficie: **qué hace la
+ventana de recovery** (es un clawback del saldo no reclamado), **qué pasa si la moneda gradúa** (el
+vault se queda sin ruta propia a las fees del pool) y que **no hay takedown**. El tope de tax, el
+fee del launch y la altura de bloque se leen de la cadena al cargar.
+
+El hilo y el artículo pueden linkear ahí en vez de arrastrar el detalle: `robinshareapp.com/docs`.
 
 ## E. Qué falta que decidas vos (nadie más puede)
 
@@ -278,5 +293,5 @@ These are memecoins on a bonding curve. They can go to zero and most do, none of
 ## H. Los archivos
 
 - Videos: `robinshare-demo-16x9.mp4` (X y artículo) · `robinshare-demo-4x5.mp4` (feed de X) · `robinshare-demo-9x16.mp4` (TikTok / Reels / Shorts). Los tres llenan su pantalla, ninguno tiene barras.
-- Imágenes: `01-hero-desktop` · `02-hero-mobile` · `03-claim-real-desktop` · `04-claim-real-mobile` · `05-trust-block-desktop` · `06-create-desktop` · `07-deed-sealed-desktop` · `08-explorer-factory-verified` · `09-explorer-vault-piloto`.
+- Imágenes: `01-hero-desktop` · `02-hero-mobile` · `03-deed-sealed` · `04-create-nombrando` · `05-bloque-de-confianza` · `06-docs-desktop` · `07-docs-mobile` · `08-explorer-factory-verificada` · `09-explorer-vault-recibo`.
 - Todo sale del producto corriendo contra la cadena real, con el vault del piloto de verdad. No hay una sola maqueta.

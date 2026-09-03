@@ -20,8 +20,6 @@ async function shot({ name, w, h, mobile = false, route = "/", act }) {
 
 await shot({ name: "01-hero-desktop", w: 1600, h: 900 });
 await shot({ name: "02-hero-mobile", w: 540, h: 960, mobile: true });
-await shot({ name: "03-claim-real-desktop", w: 1600, h: 900, route: `/claim/${VAULT}` });
-await shot({ name: "04-claim-real-mobile", w: 540, h: 960, mobile: true, route: `/claim/${VAULT}` });
 await shot({
   name: "05-trust-block-desktop", w: 1600, h: 900,
   act: async (p) => {
@@ -36,16 +34,16 @@ await shot({
 await shot({
   name: "06-create-desktop", w: 1600, h: 900, route: "/create",
   act: async (p) => {
-    await p.fill('input[placeholder="Aveline Coin"]', "Sindre Sorhus Coin");
-    await p.fill('input[placeholder="AVE"]', "SINDRE");
-    await p.fill('input[placeholder="github username"]', "sindresorhus");
+    await p.fill('input[placeholder="Aveline Coin"]', "Pons Family Coin");
+    await p.fill('input[placeholder="AVE"]', "PONS");
+    await p.fill('input[placeholder="github username"]', "ponsdotfamily");
     await p.waitForTimeout(1800);
   },
 });
 await shot({
   name: "07-deed-sealed-desktop", w: 1600, h: 900,
   act: async (p) => {
-    await p.fill("#rs-lookup", "0x-keezy");
+    await p.fill("#rs-lookup", "ponsdotfamily");
     await p.getByText("Check balance", { exact: true }).click();
     await p.waitForTimeout(4500);
     const y = await p.evaluate(() => {
@@ -58,4 +56,6 @@ await shot({
     await p.waitForTimeout(1800);
   },
 });
+await shot({ name: "07-docs-desktop", w: 1600, h: 900, route: "/docs" });
+await shot({ name: "10-docs-mobile", w: 540, h: 960, mobile: true, route: "/docs" });
 await b.close();
