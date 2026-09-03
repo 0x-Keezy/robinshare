@@ -97,7 +97,7 @@ pons' 2-of-3 multisig can also repoint fees, behind a 3-day timelock.
 Also: I build PonsVault.
 ```
 
-**9/** — 256/280 · media: robinshare-demo-16x9.mp4 — el demo de 23s, o 07-docs-mobile.png
+**9/** — 256/280 · media: robinshare-demo-16x9.mp4 — el demo explicativo de 38s (los tres pasos del producto)
 
 ```
 No takedown either. Anyone can already put your name on a coin anywhere. All that changes here is where the money goes, and you can ignore it forever.
@@ -292,6 +292,6 @@ El hilo y el artículo pueden linkear ahí en vez de arrastrar el detalle: `robi
 
 ## H. Los archivos
 
-- Videos: `robinshare-demo-16x9.mp4` (X y artículo) · `robinshare-demo-4x5.mp4` (feed de X) · `robinshare-demo-9x16.mp4` (TikTok / Reels / Shorts). Los tres llenan su pantalla, ninguno tiene barras.
+- Videos: **`robinshare-demo-16x9.mp4`** (38s, el de X y el del artículo: buscar a alguien → el acta → nombrarlo en /create con la aritmética del fee a la vista → cómo se cobra, en /docs). `robinshare-demo-16x9-con-recibo.mp4` (42s) agrega al final la página de claim del vault del piloto — es el único cobro real que existe y por eso lleva el handle de Jose en el encabezado. Los cortos de la primera versión quedan como `-corto` (4:5 y 9:16) por si hacen falta para TikTok / Reels.
 - Imágenes: `01-hero-desktop` · `02-hero-mobile` · `03-deed-sealed` · `04-create-nombrando` · `05-bloque-de-confianza` · `06-docs-desktop` · `07-docs-mobile` · `08-explorer-factory-verificada` · `09-explorer-vault-recibo`.
 - Todo sale del producto corriendo contra la cadena real, con el vault del piloto de verdad. No hay una sola maqueta.
