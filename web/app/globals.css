@@ -28,7 +28,15 @@
   --rs-dim: rgba(242, 243, 238, 0.65);
   --rs-faint: rgba(242, 243, 238, 0.5);
   --rs-hair: rgba(242, 243, 238, 0.14);
-  --rs-nav-gradient: linear-gradient(to bottom, rgba(13, 18, 14, 0.97) 0%, rgba(13, 18, 14, 0.85) 60%, transparent);
+  /* EL SCRIM DEL NAV CUBRE LA BANDA ENTERA. Antes el degradado moria en `transparent` DENTRO de
+     los 68px del propio nav, asi que su mitad inferior no tapaba nada: medido a 375x667, despues
+     de un scroll hacia arriba el CTA lima "Launch a coin" quedaba en top -9 / bottom 43 —dentro
+     de la banda— y el wordmark serif se dibujaba literalmente ENCIMA del boton. Dos textos
+     blancos superpuestos sobre el boton principal se leen como un bug de render, en una pagina
+     cuyo argumento es la autoridad. La pluma sigue existiendo, pero ahora cae DEBAJO del nav
+     (ver `.rs-nav::after`), que es donde no hay nada que tapar. */
+  --rs-nav-gradient: linear-gradient(to bottom, rgba(13, 18, 14, 0.96) 0%, rgba(13, 18, 14, 0.94) 100%);
+  --rs-nav-feather: linear-gradient(to bottom, rgba(13, 18, 14, 0.94), transparent);
   --rs-watermark: rgba(242, 243, 238, 0.045);
   --rs-feather-ink-filter: brightness(1.4) saturate(1.3) contrast(1.1);
 
@@ -120,7 +128,8 @@
   --rs-dim: rgba(13, 18, 14, 0.78);
   --rs-faint: rgba(13, 18, 14, 0.58);
   --rs-hair: rgba(13, 18, 14, 0.14);
-  --rs-nav-gradient: linear-gradient(to bottom, rgba(247, 248, 244, 0.97) 0%, rgba(247, 248, 244, 0.85) 60%, transparent);
+  --rs-nav-gradient: linear-gradient(to bottom, rgba(247, 248, 244, 0.96) 0%, rgba(247, 248, 244, 0.94) 100%);
+  --rs-nav-feather: linear-gradient(to bottom, rgba(247, 248, 244, 0.94), transparent);
   --rs-watermark: rgba(13, 18, 14, 0.045);
   --rs-feather-ink-filter: saturate(0.6) brightness(0.78) contrast(1.05);
 
@@ -168,9 +177,18 @@ html {
   scroll-behavior: smooth;
 }
 
+/* SELECCION POR TEMA. La regla era una sola —verde al 35% con texto casi BLANCO— y venia de
+   cuando la pagina existia solo en oscuro. En claro eso pinta texto blanco sobre un lavado verde
+   claro: al seleccionar una direccion de contrato para copiarla, el texto desaparece. Y copiar
+   una direccion es literalmente lo que este sitio le pide al visitante que haga. */
 ::selection {
   background: rgba(0, 200, 5, 0.35);
   color: #f4f7f2;
+}
+
+[data-robinshare-theme="light"] ::selection {
+  background: rgba(76, 102, 0, 0.22);
+  color: #0d120e;
 }
 
 /* VIUDAS Y HUERFANAS. No habia una sola aparicion de `text-wrap` en el repo, y el costo se veia en
@@ -308,6 +326,119 @@ body::after {
 .rs-draw.no-anim,
 .rs-lift-in.no-anim {
   transition: none !important;
+}
+
+/* ── EL CONTENEDOR Y LA ESCALERA ───────────────────────────────────────────
+   Las dos piezas que hacen que la pagina responda al ancho REAL de la pantalla, y no a los tres
+   anchos en los que se la miro mientras se construia. Viven en CSS y no en clases sueltas de
+   Tailwind porque las dos necesitan `min()`/`max()` con vh, que en utilidades arbitrarias queda
+   ilegible y se copia mal a la quinta seccion. */
+
+/* EL CONTENEDOR. Antes cada seccion repetia `mx-auto max-w-6xl px-6`, o sea: el mismo margen de
+   24px en un iPhone de 320 que en un laptop de 1152 (ahi el contenido corria pegado al bisel), y
+   un techo de 1152px que no se movia nunca — medido a 3440, el margen vacio de UN lado (1144px)
+   media casi lo mismo que todo el contenido junto. */
+.rs-shell {
+  width: 100%;
+  margin-inline: auto;
+  max-width: 72rem;
+  padding-inline: 1.25rem;
+}
+
+@media (min-width: 640px) {
+  .rs-shell {
+    padding-inline: 1.5rem;
+  }
+}
+
+@media (min-width: 1024px) {
+  .rs-shell {
+    padding-inline: 2rem;
+  }
+}
+
+/* El unico peldano de arriba. No es "usar toda la pantalla" —una medida de lectura de 2000px no
+   se lee— sino dejar de estar congelado: a partir de 1800px reales el contenido crece 128px y el
+   titular sigue subiendo (ver .rs-h1), asi la pagina no se lee como una captura de laptop pegada
+   en un monitor de 27". */
+@media (min-width: 1800px) {
+  .rs-shell {
+    max-width: 80rem;
+  }
+}
+
+/* LA ESCALERA DEL TITULAR, y por que tiene esta forma.
+   Lo que habia: `clamp(2.2rem,9.5vw,5.8rem)` con un override `lg:clamp(3.2rem,5.8vw,4.7rem)`.
+   Medido, eso hacia tres cosas mal a la vez:
+     · a 960px el h1 daba 91,2px y a 1024px caia a 59,4px — se ACHICABA un 35% cuando la pantalla
+       se agrandaba, y la tablet terminaba con el titular mas grande de todo el sitio;
+     · de 1440 a 3440 quedaba clavado en 75,2px (las cinco filas del reporte, identicas);
+     · con el telefono acostado (844x390) daba 80px y las tres lineas ocupaban 231px de los 390 de
+       alto: el primer viewport era el titular y NADA mas — ni subtitulo, ni los dos CTA, ni el
+       buscador, que es la unica herramienta del sitio.
+   Lo que hace ahora: una rampa monotona (nunca baja al crecer el ancho) con techo de 88px, y un
+   segundo techo atado al ALTO del viewport (11vh) que solo muerde cuando la pantalla es baja —
+   que es exactamente el caso del telefono acostado y de una ventana de escritorio a media altura. */
+.rs-h1 {
+  font-size: max(2rem, min(clamp(2.2rem, 9.2vw, 3.9rem), 11vh));
+}
+
+@media (min-width: 768px) {
+  .rs-h1 {
+    font-size: max(2rem, min(clamp(3.9rem, 3.4vw + 1.6rem, 5.5rem), 11vh));
+  }
+}
+
+/* El hero en una pantalla BAJA (telefono acostado, ventana a media altura): el aire de escritorio
+   es lo primero que sobra. Sin esto, los 112px de padding superior mas el titular no dejan lugar
+   para nada accionable. */
+@media (max-height: 560px) and (min-width: 640px) {
+  .rs-hero {
+    padding-top: 5.5rem;
+    padding-bottom: 2.5rem;
+    row-gap: 1.5rem;
+  }
+}
+
+/* AREA TACTIL SIN TOCAR EL DIBUJO. El minimo que piden Apple y Google es 44x44 CSS px, y en esta
+   pagina habia controles de 30x15 (el "Copy" de la direccion del contrato) y de 32 de alto (el
+   segmentado GitHub/Wallet, que es el primer control de la unica herramienta del sitio). Agrandar
+   el tipo cambiaria la jerarquia; lo que hace falta agrandar es la ZONA. Este pseudo-elemento
+   crece centrado sobre el control, asi que no mueve un pixel de layout y no desalinea al vecino.
+   Solo crece en el eje que hace falta: `max(100%, 44px)`. */
+.rs-tap {
+  position: relative;
+}
+
+.rs-tap::after {
+  content: "";
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: max(100%, 44px);
+  height: max(100%, 44px);
+  transform: translate(-50%, -50%);
+}
+
+/* EL NAV. Barra fija, y por lo tanto lo unico de la pagina que convive con TODO el contenido.
+   Dos piezas: el scrim opaco que ocupa su banda entera, y una pluma de 26px que cae por DEBAJO
+   del borde inferior — asi el borde sigue sin ser una linea dura (que era la intencion original)
+   sin que el contenido se lea a traves del propio nav. El blur es el cinturon: si algo de muy
+   alto contraste pasa justo debajo, llega desenfocado y no compite con el wordmark. */
+.rs-nav {
+  background: var(--rs-nav-gradient);
+  -webkit-backdrop-filter: blur(10px);
+  backdrop-filter: blur(10px);
+}
+
+.rs-nav::after {
+  content: "";
+  position: absolute;
+  inset-inline: 0;
+  top: 100%;
+  height: 26px;
+  background: var(--rs-nav-feather);
+  pointer-events: none;
 }
 
 /* ── MICRO-ESTADOS ─────────────────────────────────────────────────────────
@@ -695,3 +826,4 @@ body::after {
     animation: none !important;
   }
 }
+

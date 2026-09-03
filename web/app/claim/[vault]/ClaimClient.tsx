@@ -514,9 +514,33 @@ ${raw}` : raw);
               {isDemo && demoDrainEth !== null ? demoDrainEth.toFixed(4) : formatEther(s.pending)} ETH
             </div>
           </div>
-          <div className="mt-2 text-xs uppercase tracking-[0.14em]" style={{ fontFamily: "var(--f-mono)", color: RS.FAINT }}>
-            pending · {formatEther(s.totalPaid)} ETH paid out
-            {isBound ? ` · bound to ${s.bound.slice(0, 6)}…${s.bound.slice(-4)}` : ""}
+          {/* TRES HECHOS, NO UNA TIRA. Escrito como una sola cadena con puntos medios, en telefono
+              partia en cualquier lado: medido a 390px daba dos renglones y el segundo ARRANCABA
+              con el separador ("· BOUND TO 0X7DB1…14F0"), que es como nadie escribe una linea.
+              Peor: al partirse se perdia a que numero se referia cada palabra, y aca los dos
+              numeros dicen cosas opuestas (lo que queda por cobrar y lo que ya se cobro).
+              El punto medio ahora viaja PEGADO al hecho que lo precede (`after:`), asi que el
+              salto de linea cae siempre despues del punto y nunca antes. */}
+          <div
+            className="mt-2 flex flex-wrap gap-y-1 text-xs uppercase tracking-[0.14em]"
+            style={{ fontFamily: "var(--f-mono)", color: RS.FAINT }}
+          >
+            {[
+              "pending",
+              `${formatEther(s.totalPaid)} ETH paid out`,
+              ...(isBound ? [`bound to ${s.bound.slice(0, 6)}…${s.bound.slice(-4)}`] : []),
+            ].map((fact, i, all) => (
+              <span
+                key={fact}
+                className={
+                  i < all.length - 1
+                    ? "after:mx-2 after:opacity-60 after:content-['·']"
+                    : undefined
+                }
+              >
+                {fact}
+              </span>
+            ))}
           </div>
           {/* El badge sale de `recoveryAfter()` on-chain, no de una promesa: cualquiera puede
               leer el mismo numero en Blockscout y comprobarlo. */}
@@ -817,7 +841,9 @@ ${raw}` : raw);
         <p className="mt-10">
           <Link
             href="/"
-            className="text-sm font-medium underline decoration-1 underline-offset-4 hover:opacity-70"
+            /* Es la unica salida de esta pagina —si el vault no es tuyo, es literalmente lo unico
+               que podes hacer— y medía 178x15 px: un tercio del minimo tactil. */
+            className="rs-focus rs-tap inline-block py-1 text-sm font-medium underline decoration-1 underline-offset-4 hover:opacity-70"
             style={{ color: RS.DIM }}
           >
             ← All vaults

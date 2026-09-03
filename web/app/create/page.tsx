@@ -327,7 +327,7 @@ export default function CreatePage() {
 
   return (
     <RSShell>
-      <main className="mx-auto w-full max-w-2xl px-6 py-14">
+      <main className="mx-auto w-full max-w-2xl px-5 py-10 sm:px-6 sm:py-14">
         <div style={{ fontFamily: "var(--f-mono)", letterSpacing: "0.24em", color: RS.GREEN_TEXT }} className="text-xs font-medium uppercase">
           Launch · Robinhood Chain
         </div>
@@ -386,14 +386,17 @@ export default function CreatePage() {
               </p>
             )}
 
-            <div className="flex gap-6">
+            {/* A 320-390px el `w-32` fijo del ticker le ganaba al `flex-1` del nombre: el campo
+                de tres letras salia mas ancho que el del nombre del token. En telefono van uno
+                debajo del otro y recien de 480 para arriba comparten renglon. */}
+            <div className="flex flex-col gap-6 min-[480px]:flex-row">
               <label className="flex flex-1 flex-col gap-2">
                 <span className="text-[10px] uppercase" style={labelStyle}>
                   Token name
                 </span>
                 <input value={name} onChange={(e) => setName(e.target.value)} placeholder="Aveline Coin" className={inputCls} style={inputStyle} />
               </label>
-              <label className="flex w-32 flex-col gap-2">
+              <label className="flex flex-col gap-2 min-[480px]:w-32">
                 <span className="text-[10px] uppercase" style={labelStyle}>
                   Ticker
                 </span>
@@ -468,7 +471,10 @@ export default function CreatePage() {
                     value={wallet}
                     onChange={(e) => setWallet(e.target.value)}
                     placeholder={address ? `${address} (you, default)` : "0x recipient wallet"}
-                    className={`${inputCls} text-sm`}
+                    /* 16px y no 14: por debajo de eso iOS hace zoom solo al enfocar el campo, y
+                       este es justo donde se pega una direccion de 42 caracteres. Era el unico
+                       input del formulario por debajo del umbral. */
+                    className={`${inputCls} text-[15px] sm:text-base`}
                     style={inputStyle}
                   />
                 ) : (
@@ -493,12 +499,16 @@ export default function CreatePage() {
                 <div className="text-[10px] uppercase" style={labelStyle}>
                   Creator tax → vault
                 </div>
+                {/* Estas seis pildoras fijan un parametro que se congela para siempre al lanzar, y
+                    median 51x30 px: 32% por debajo del minimo tactil, en la unica pantalla del
+                    producto donde una equivocacion no se puede deshacer. El tipo no cambia; crece
+                    la caja (py-2.5) y `rs-tap` completa los 44px sin mover el layout. */}
                 <div className="mt-4 flex flex-wrap gap-2.5" style={{ fontFamily: "var(--f-mono)" }}>
                   {[0, 1, 2, 3, 5, 10].filter((pct) => pct <= maxPct).map((pct) => (
                     <button
                       key={pct}
                       onClick={() => setTaxPct(pct)}
-                      className="rounded-full border px-4 py-1.5 text-xs tracking-[0.12em] transition-colors"
+                      className="rs-focus rs-press rs-tap rounded-full border px-4 py-2.5 text-xs tracking-[0.12em] transition-colors"
                       style={
                         taxPct === pct
                           ? { background: RS.GREEN_CTA, borderColor: RS.GREEN_CTA, color: RS.GREEN_CTA_TEXT }
@@ -510,8 +520,13 @@ export default function CreatePage() {
                   ))}
                 </div>
                 <p className="mt-3 text-xs leading-relaxed" style={{ color: RS.INK }}>
-                  Traders will see <strong>{1 + taxPct}% tax</strong> on the coin&apos;s pons page,
-                  and the builder receives <strong>{(0.7 + taxPct).toFixed(2)}% of every trade</strong>.
+                  {/* El `{" "}` no es cosmetico: sin el, el compilador se comia el espacio que
+                      sigue al `</strong>` y la linea que dice cuanto paga el trader se leia
+                      "1% taxon the coin's pons page". Verificado en el DOM renderizado, no a ojo:
+                      `</strong>on the coin&apos;s`. */}
+                  Traders will see <strong>{1 + taxPct}% tax</strong>{" "}
+                  on the coin&apos;s pons page, and the builder receives{" "}
+                  <strong>{(0.7 + taxPct).toFixed(2)}% of every trade</strong>.
                 </p>
                 {/* El numero que nadie mostraba: al elegir "3%" la pagina de pons dice 4%, y con
                     0% el builder igual cobra 0,70%. Sin esto, quien lanza elige a ciegas algo que

@@ -137,13 +137,10 @@ export function LegendHome() {
 
       {/* nav claro */}
       <nav
-        className="fixed inset-x-0 top-0 z-40 transition-transform duration-300"
-        style={{
-          background: "var(--rs-nav-gradient)",
-          transform: navHidden ? "translateY(-100%)" : "none",
-        }}
+        className="rs-nav fixed inset-x-0 top-0 z-40 transition-transform duration-300"
+        style={{ transform: navHidden ? "translateY(-100%)" : "none" }}
       >
-        <div className="mx-auto flex max-w-6xl items-center justify-between px-6 py-4">
+        <div className="rs-shell flex items-center justify-between py-4">
           {/* La marca va en UNA sola tinta. Antes su porcion apartada iba en el verde Robinhood
               (#00C805) mientras el CTA de al lado iba en lima: dos verdes distintos a 40px de
               distancia, lo bastante cerca como para leerse como un error y lo bastante lejos como
@@ -166,7 +163,7 @@ export function LegendHome() {
               type="button"
               onClick={toggleTheme}
               aria-label={theme === "dark" ? "Switch to light mode" : "Switch to dark mode"}
-              className="rs-focus rs-press flex h-8 w-8 items-center justify-center rounded-[7px] transition-colors"
+              className="rs-focus rs-press rs-tap flex h-8 w-8 items-center justify-center rounded-[7px] transition-colors"
               style={{ color: INK, border: `1px solid ${HAIR}`, background: "var(--rs-surface)" }}
             >
               <svg width="15" height="15" viewBox="0 0 24 24" fill="none" aria-hidden>
@@ -196,15 +193,37 @@ export function LegendHome() {
 
       <div className="relative z-10">
         {/* HERO — titular negro + panel terminal oscuro */}
-        <section id="ledger" className="mx-auto grid max-w-6xl gap-10 px-6 pb-16 pt-28 lg:grid-cols-[1.15fr_1fr] lg:items-center lg:pt-32">
+        {/* EL HERO ARRANCA EN DOS COLUMNAS A 768, NO A 1024. Con el corte en `lg` toda la franja
+            640-1023 —o sea cualquier tablet, y cualquier telefono acostado— recibia el layout de
+            telefono estirado: medido, el campo del buscador daba 810px de ancho a 900 y 870px a
+            960 para escribir un handle de GitHub, con la mitad derecha de la pantalla vacia. La
+            segunda columna se pide con `minmax(320px, ...)` para que el panel no se aplaste
+            cuando el titular pide lugar. */}
+        <section
+          id="ledger"
+          className="rs-hero rs-shell grid gap-10 pb-16 pt-24 sm:pt-28 md:grid-cols-[1.15fr_minmax(320px,0.85fr)] md:items-center lg:pt-32"
+        >
           <div>
             {/* el eyebrow deja de ser una linea de texto suelta: lleva su regla, que se DIBUJA.
                 Una linea que aparece de golpe es un borde; una que se dibuja es un gesto. */}
-            <div className="flex items-center gap-3">
-              <div style={{ fontFamily: "var(--f-mono)", letterSpacing: "0.24em", color: FAINT }} className="text-xs uppercase sm:whitespace-nowrap">
+            {/* La regla se DIBUJA al lado del eyebrow, pero solo si le queda lugar de verdad.
+                Medido: a 768 quedaba en 13px y a 360 en 35px — un muñón que se lee como un guion
+                perdido, no como una regla. Con `flex-wrap` + un minimo de 3rem, cuando no entra
+                se baja a su propio renglon y ocupa el ancho de la columna, que es lo que hace
+                cualquiera dibujando esto a mano. Y el texto deja de encogerse: a 320 partia en
+                dos lineas por darle lugar a una regla de 0px. */}
+            <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
+              {/* A 390px exactos (la pantalla mas comun del trafico movil) esta linea partia y
+                  dejaba "CHAIN" sola en un segundo renglon, que ademas se comia la regla que va
+                  al lado. Un punto de cuerpo y algo de tracking menos en telefono la meten
+                  entera; de 640 para arriba vuelve a la medida de diseno. */}
+              <div
+                style={{ fontFamily: "var(--f-mono)", color: FAINT }}
+                className="shrink-0 whitespace-nowrap text-[10px] uppercase tracking-[0.18em] sm:text-xs sm:tracking-[0.24em]"
+              >
                 Social fee escrow · Robinhood Chain
               </div>
-              <Reveal variant="draw" className="h-px flex-1" delay={260}>
+              <Reveal variant="draw" className="h-px min-w-[3rem] flex-1" delay={260}>
                 <div className="h-px w-full" style={{ background: "var(--rs-rule)" }} />
               </Reveal>
             </div>
@@ -223,7 +242,7 @@ export function LegendHome() {
             <Reveal variant="set" stagger={110} className="mt-5">
               <h1
                 style={{ fontFamily: "var(--f-display)", lineHeight: 0.96, letterSpacing: "-0.022em" }}
-                className="text-[clamp(2.2rem,9.5vw,5.8rem)] lg:text-[clamp(3.2rem,5.8vw,4.7rem)]"
+                className="rs-h1"
               >
                 <span className="block" style={stagIndex(0)}>
                   Route fees
@@ -294,7 +313,7 @@ export function LegendHome() {
               masa que llega a su lugar. */}
           <Reveal variant="settle" delay={180}>
             <div
-              className="overflow-hidden rounded-[14px]"
+              className="w-full max-w-[560px] overflow-hidden rounded-[14px] md:max-w-none"
               style={{
                 background: "linear-gradient(180deg, #0C1310, #070B09)",
                 borderTop: "1px solid var(--rs-edge-top)",
@@ -370,7 +389,7 @@ export function LegendHome() {
                           type="button"
                           aria-pressed={on}
                           onClick={() => setType(t)}
-                          className="rs-focus rs-press rounded-[6px] py-1.5 text-[13px] font-medium transition-colors"
+                          className="rs-focus rs-press rs-tap rounded-[6px] py-2.5 text-[13px] font-medium transition-colors sm:py-2"
                           style={{
                             fontFamily: "var(--f-mono)",
                             background: on ? "rgba(247,248,244,0.11)" : "transparent",
@@ -550,7 +569,7 @@ export function LegendHome() {
             En su lugar va EL INSTRUMENTO: la marca a escala, mostrando el mecanismo en vez de
             describirlo. Es el unico dibujo que este producto puede tener y que no se puede pegar
             en otro sitio, y se mueve con el scroll del visitante, no en autoplay. */}
-        <section className="mx-auto max-w-6xl px-6 py-14 sm:py-20">
+        <section className="rs-shell py-12 sm:py-16 lg:py-20">
           <Reveal variant="settle">
             <SetAsideDeed
               named={named}
@@ -571,7 +590,11 @@ export function LegendHome() {
             editorial, es relleno — mas fondo que contenido, y el visitante scrollea tres veces sin
             recibir nada. Ahora es UNA grilla de tres columnas con una regla que las une, y detras
             corre la plancha grabada: lo unico de la pagina que cruza capas en z. */}
-        <section className="relative mx-auto max-w-6xl px-6 py-28">
+        {/* py-28 eran 112px arriba y abajo IGUALES en un iPhone SE que en un monitor de 27": en
+            telefono eso son dos bandas vacias de casi un tercio de la pantalla entre seccion y
+            seccion, y es la razon por la que la home mide 5.948px de alto a 390 contra 3.936 a
+            1440 sin tener un solo parrafo mas. */}
+        <section className="rs-shell relative py-20 sm:py-24 lg:py-28">
           {/* La plancha local se fue: ahora es una capa GLOBAL que gira y hace parallax (ver
               LivingField.tsx). Dos copias del mismo patron radial fino, a escalas y rotaciones
               distintas, hacen moire — y un moire sobre un guilloche no se lee como profundidad, se
@@ -596,7 +619,9 @@ export function LegendHome() {
               linea que AVANZA de izquierda a derecha con un nodo por paso, y que se dibuja al
               entrar — que es la misma informacion, dicha por el movimiento en vez de por un
               adorno. */}
-          <div className="mt-14 grid gap-x-10 gap-y-12 sm:grid-cols-3">
+          {/* Tres columnas recien en `md`. A 640 cada tarjeta media 170px y el texto caia a ~22
+              caracteres por renglon: una columna de esa medida no se lee, se descifra. */}
+          <div className="mt-12 grid gap-x-10 gap-y-12 md:grid-cols-3">
             {[
               {
                 t: "Name them",
@@ -688,7 +713,7 @@ export function LegendHome() {
               derecha corria un parrafo de nueve lineas. Eso no es aire editorial: es una columna
               que se quedo sin contenido. Ahora arranca arriba y la izquierda LLEVA algo — las dos
               rutas de identidad, que ademas es donde tienen que estar. */}
-          <div className="mx-auto grid max-w-6xl gap-x-10 gap-y-12 px-6 py-28 lg:grid-cols-2 lg:items-start">
+          <div className="rs-shell grid gap-x-10 gap-y-12 py-20 sm:py-24 md:grid-cols-2 md:items-start lg:py-28">
             <div>
               <Reveal variant="set" stagger={110}>
                 <h2
@@ -786,7 +811,7 @@ export function LegendHome() {
           {/* py-32 dejaba ~500px muertos entre el boton y la regla del footer. El cierre es la
               UNICA seccion que se gana el aire maximo de la pagina (es el silencio antes del pie),
               pero el aire va ARRIBA del bloque, no debajo del boton. */}
-          <div className="mx-auto flex max-w-6xl flex-col items-center px-6 pb-24 pt-32 text-center">
+          <div className="rs-shell flex flex-col items-center pb-20 pt-24 text-center sm:pb-24 sm:pt-32">
             <Reveal variant="set" stagger={0}>
               <h2
                 style={{ fontFamily: "var(--f-display)", lineHeight: 0.98, letterSpacing: "-0.024em" }}
@@ -812,7 +837,7 @@ export function LegendHome() {
               </Magnetic>
             </Reveal>
           </div>
-          <footer className="relative mx-auto max-w-6xl overflow-hidden px-6 pb-12 pt-8">
+          <footer className="rs-shell relative overflow-hidden pb-12 pt-8">
             {/* EL WORDMARK, AHORA CON DECISION.
                 Era la mejor jugada de art direction del sitio y estaba al 40% de su potencial:
                 pegado a la derecha, recortado por overflow y no por eleccion, sin cruzar ninguna

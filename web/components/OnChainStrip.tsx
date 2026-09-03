@@ -86,8 +86,14 @@ export function OnChainStrip({ block }: { block: bigint | null }) {
   };
 
   return (
+    // SEIS DATOS EN TRES COLUMNAS, no en cuatro. Con `lg:grid-cols-4` la segunda fila llevaba 2 de
+    // 4 celdas y el pie quedaba con un hueco en L —el tell de una grilla que nadie reviso—, y
+    // ademas la label mas larga ("Attester key (trusted on GitHub vaults)") no entraba en una
+    // columna de cuatro: wrapeaba a dos lineas y empujaba su valor ~15px por debajo de la linea
+    // de base de sus tres vecinas. Seis en tres columnas da dos filas llenas y celdas 33% mas
+    // anchas.
     <div
-      className="grid gap-x-10 gap-y-6 sm:grid-cols-2 lg:grid-cols-4"
+      className="grid gap-x-10 gap-y-7 sm:grid-cols-2 lg:grid-cols-3"
       style={{ fontFamily: "var(--f-mono)" }}
     >
       <Field label="Chain">
@@ -122,11 +128,20 @@ export function OnChainStrip({ block }: { block: bigint | null }) {
             >
               {factory.slice(0, 8)}…{factory.slice(-6)}
             </a>
+            {/* MEDIA 30x15 Y NO PARECIA UN BOTON. Es la unica via a la direccion completa del
+                contrato — o sea, a lo unico que un esceptico puede ir a comprobar— y era un
+                texto de 10px sin caja, a 12px de un link que te saca del sitio. Ahora tiene
+                caja propia (lee como control) y `rs-tap` le da los 44px tactiles sin agrandar
+                el tipo. */}
             <button
               type="button"
               onClick={copy}
-              className="rs-focus rs-press text-[10px] uppercase tracking-[0.16em] transition-opacity hover:opacity-100"
-              style={{ color: copied ? "var(--rs-green-text)" : "var(--rs-faint)", opacity: copied ? 1 : 0.85 }}
+              className="rs-focus rs-press rs-tap rounded-[6px] border px-2 py-1 text-[10px] uppercase tracking-[0.16em] transition-opacity hover:opacity-100"
+              style={{
+                color: copied ? "var(--rs-green-text)" : "var(--rs-dim)",
+                borderColor: copied ? "var(--rs-green-text)" : "var(--rs-hair)",
+                opacity: 1,
+              }}
               aria-label="Copy the factory address"
             >
               {copied ? "Copied" : "Copy"}
@@ -181,8 +196,10 @@ export function OnChainStrip({ block }: { block: bigint | null }) {
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <div className="flex flex-col gap-2">
+      {/* min-h de dos lineas: una label que wrapea no puede correr su valor fuera de la linea de
+          base de los vecinos de su fila. */}
       <span
-        className="text-[10px] uppercase"
+        className="min-h-[2.4em] text-[10px] uppercase leading-[1.2]"
         style={{ letterSpacing: "0.2em", color: "var(--rs-faint)" }}
       >
         {label}

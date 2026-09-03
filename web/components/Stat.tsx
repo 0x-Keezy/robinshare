@@ -127,10 +127,15 @@ export function Stat({
         {label}
       </div>
       {/* marca de "ya conto": una hairline corta que se dibuja al terminar. Es el acuse de recibo
-          del dato — sin ella, el numero final y un numero estatico se ven identicos. */}
+          del dato — sin ella, el numero final y un numero estatico se ven identicos.
+          El `mt-2.5` no es aire decorativo: cuando la label ocupa las DOS lineas que reserva el
+          min-h de arriba (pasa en las cuatro a 768 y en tres de cuatro en telefono), la regla
+          quedaba pegada al segundo renglon y se leia como el SUBRAYADO de la ultima palabra —
+          "…the VAULT", "IS YOU", "THEM" con aspecto de link roto. Verificado a 768 antes y
+          despues. */}
       <div
         aria-hidden
-        className="h-px w-6 origin-left transition-transform duration-500 ease-out"
+        className="mt-2.5 h-px w-6 origin-left transition-transform duration-500 ease-out"
         style={{ background: accent, transform: done ? "scaleX(1)" : "scaleX(0)", opacity: 0.5 }}
       />
     </div>

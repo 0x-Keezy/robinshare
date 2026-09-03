@@ -1,0 +1,11 @@
+import { chromium } from "playwright";
+const b = await chromium.launch({ channel: "chrome" });
+const ctx = await b.newContext({ viewport: { width: 1280, height: 800 } });
+const p = await ctx.newPage();
+const msgs = [];
+p.on("console", (m) => { if (m.type() === "error" || m.type() === "warning") msgs.push(m.text().slice(0, 200)); });
+p.on("pageerror", (e) => msgs.push("PAGEERROR " + String(e).slice(0, 200)));
+await p.goto(process.argv[2] ?? "http://localhost:3077/", { waitUntil: "load" });
+await p.waitForTimeout(3500);
+console.log(msgs.length ? msgs.join("\n---\n") : "SIN ERRORES NI WARNINGS EN CONSOLA");
+await b.close();

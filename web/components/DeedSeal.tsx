@@ -85,13 +85,21 @@ export function DeedSeal({
         {Array.from({ length: 60 }, (_, i) => {
           const a = (i / 60) * Math.PI * 2;
           const r1 = R - 1, r2 = R - 3.4;
+          // REDONDEO OBLIGATORIO, no cosmetico. Sin el, esta pagina tiraba un error de hidratacion
+          // en la consola de TODO visitante: el ultimo bit de `Math.cos`/`Math.sin` no coincide
+          // entre el runtime que hace el SSR y el motor del navegador, asi que React comparaba
+          // x2="31.046072432667714" (servidor) contra 31.046072432667717 (cliente) y avisaba
+          // "some attributes ... didn't match. This won't be patched up". A 4 decimales sobre un
+          // viewBox de 100 unidades el error maximo es 0,0001u ~= 0,00013px al tamano que se
+          // renderiza: invisible. Y de paso el HTML del sello pesa ~1,4 KB menos.
+          const q = (n: number) => +n.toFixed(4);
           return (
             <line
               key={i}
-              x1={50 + Math.cos(a) * r1}
-              y1={50 + Math.sin(a) * r1}
-              x2={50 + Math.cos(a) * r2}
-              y2={50 + Math.sin(a) * r2}
+              x1={q(50 + Math.cos(a) * r1)}
+              y1={q(50 + Math.sin(a) * r1)}
+              x2={q(50 + Math.cos(a) * r2)}
+              y2={q(50 + Math.sin(a) * r2)}
               stroke="currentColor"
               strokeWidth="0.8"
               opacity="0.55"
