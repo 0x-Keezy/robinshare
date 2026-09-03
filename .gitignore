@@ -21,3 +21,7 @@ promo/teaser-pinned/renders/
 # media-use: los binarios cacheados en .media/<tipo>/ no van al repo;
 # el ledger de texto (index.md, manifest.jsonl) si es fuente versionable.
 promo/teaser-pinned/.media/*/
+
+# promo del lanzamiento: el texto va al repo, los binarios no
+promo/lanzamiento/*.png
+promo/lanzamiento/*.mp4
