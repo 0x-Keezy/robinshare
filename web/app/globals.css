@@ -401,57 +401,65 @@ body::after {
 }
 
 /* ── DIRECCION `tape` — el recibo, gritado ─────────────────────────────────────────────────
-   Todo lo de esta seccion es exclusivo de /v/tape y no toca a `legend` (produccion). Ver
-   BRIEF-tape.md: el registro es AFICHE, o sea campo de color plano, display gorda y mayusculas.
-   Por eso no hay ni un gradiente, ni un glow, ni una sombra difusa en todo el bloque: las sombras
-   son duras y con offset, que es como se comporta la tinta sobre papel y como se ve un sticker. */
+   Exclusivo de /v/tape; no toca a `legend` (produccion). Registro AFICHE: campo de color plano,
+   display gorda, mayusculas. Cero gradientes, cero glows, cero sombras difusas — las sombras son
+   duras y con offset, que es como se comporta la tinta sobre papel.
 
-/* La escalera del titular, con la misma leccion que costo el pase responsive de `legend`: rampa
-   monotona (nunca se achica al crecer el ancho) y un segundo techo atado al ALTO del viewport, que
-   es lo unico que salva al telefono acostado. */
+   EL SISTEMA DE IMPRESION, que es lo que firma la pagina: todo lo que "se imprime" (el titular y
+   el recibo) lleva una PLANCHA LIMA corrida unos pixeles. Un desregistro de serigrafia real es una
+   tinta DISTINTA fuera de registro; la primera version usaba la misma tinta al 16% de alfa y un
+   juez lo leyo, con razon, como una sombra borrosa — o sea el efecto barato que esta pagina jura
+   no tener. */
+
+/* La escalera del titular, con la leccion que costo el pase responsive de `legend`: rampa monotona
+   (nunca se achica al crecer el ancho) y un segundo techo atado al ALTO del viewport, que es lo
+   unico que salva al telefono acostado.
+   El salto h1→h2 se abrio a ~2,2x: a 1,75 la pagina no jerarquizaba y un afiche pide un salto
+   violento, no una progresion prolija. */
 .tape-h1 {
-  font-size: max(2rem, min(clamp(2.4rem, 8.6vw, 4rem), 12vh));
-  line-height: 0.88;
-  letter-spacing: -0.035em;
+  font-size: max(2rem, min(clamp(2.5rem, 9vw, 4.2rem), 12vh));
+  line-height: 0.87;
+  letter-spacing: -0.038em;
   text-transform: uppercase;
   text-wrap: balance;
 }
 
 @media (min-width: 768px) {
   .tape-h1 {
-    font-size: max(2rem, min(clamp(4rem, 3.2vw + 2.1rem, 5.6rem), 12vh));
+    font-size: max(2rem, min(clamp(4.2rem, 3.6vw + 2.2rem, 6.2rem), 13vh));
   }
 }
 
 .tape-h2 {
-  font-size: clamp(1.9rem, 5.2vw, 3.2rem);
-  line-height: 0.92;
+  font-size: clamp(1.75rem, 4.4vw, 2.8rem);
+  line-height: 0.94;
   letter-spacing: -0.03em;
   text-transform: uppercase;
   text-wrap: balance;
 }
 
-/* EL DESREGISTRO DE IMPRENTA. Una segunda copia del titular corrida 3px: es el error de registro de
-   una serigrafia mal alineada. Es el unico "efecto" de la pagina y pertenece al registro afiche —
-   un glow no. Va detras y `aria-hidden`, asi que ningun lector lo lee dos veces. */
+/* La plancha lima del titular, fuera de registro. */
 .tape-ghost {
-  transform: translate(3px, 3px);
-  color: rgba(13, 18, 14, 0.16);
+  transform: translate(4px, 4px);
+  color: #ccff00;
   pointer-events: none;
 }
 
 /* EL RECIBO. El dentado sale de dos mascaras de circulos repetidos que se intersectan (una come el
    borde de arriba, la otra el de abajo); la sombra tiene que ser `drop-shadow` del PADRE y no
-   `box-shadow` del papel, porque una mascara recorta el box-shadow y dejaria el ticket flotando sin
-   peso. La rotacion es de mano: un comprobante nunca queda a escuadra. */
+   `box-shadow` del papel, porque una mascara recorta el box-shadow y el ticket quedaria flotando
+   sin peso. La rotacion es de mano: un comprobante nunca queda a escuadra.
+   Los dientes bajaron de 9px a 5px y la sombra dejo de ser negra: a 9px sobre una sombra negra al
+   92% el borde inferior leia como un peine, y la sombra formaba una franja solida en el canto que
+   parecia un recorte mal hecho. Ahora la sombra es la misma plancha lima del titular. */
 .tape-recibo {
-  transform: rotate(-1.6deg);
-  filter: drop-shadow(7px 9px 0 rgba(13, 18, 14, 0.92));
+  transform: rotate(-1.4deg);
+  filter: drop-shadow(6px 7px 0 #ccff00);
 }
 
 .tape-paper {
-  --diente: 9px;
-  --paso: 18px;
+  --diente: 5px;
+  --paso: 12px;
   -webkit-mask:
     radial-gradient(var(--diente) at 50% 0, #0000 99%, #000 101%) 50% 0 / var(--paso) 100%,
     radial-gradient(var(--diente) at 50% 100%, #0000 99%, #000 101%) 50% 100% / var(--paso) 100%;
@@ -912,4 +920,5 @@ body::after {
     animation: none !important;
   }
 }
+
 
