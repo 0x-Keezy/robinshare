@@ -1,7 +1,7 @@
 // Caza espacios comidos por el compilador de JSX: un tag de cierre pegado a la palabra
 // siguiente (o una palabra pegada a un tag de apertura) en el HTML ya renderizado.
 import { chromium } from "playwright";
-const routes = ["/", "/create", "/docs", "/claim/0xcEd1174535C024BfEf0C9E6d2C2a825Cf5B8C2F3"];
+const routes = ["/", "/create", "/docs", "/v/tape", "/claim/0xcEd1174535C024BfEf0C9E6d2C2a825Cf5B8C2F3"];
 const b = await chromium.launch({ channel: "chrome" });
 let bad = 0;
 for (const r of routes) {

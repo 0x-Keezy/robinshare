@@ -61,10 +61,10 @@ const surfaces: [string, string][] = [
 ];
 
 describe("la promesa vive en UN solo lugar", () => {
-  it("hay nueve direcciones de arte para revisar", () => {
+  it("hay diez direcciones de arte para revisar", () => {
     // Sin esto, agregar una decima direccion la dejaria fuera del gate en silencio: un `it.each`
     // sobre un glob pasa perfecto cuando el glob no matchea nada.
-    expect(pages.length).toBe(9);
+    expect(pages.length).toBe(10);
   });
 
   it.each(surfaces)("%s usa la constante compartida, no su propia redaccion", (_n, src) => {

@@ -8,11 +8,13 @@ import { HoodHome } from "../../directions/hood/HoodHome";
 import { DecreeHome } from "../../directions/decree/DecreeHome";
 import { TerminalHome } from "../../directions/terminal/TerminalHome";
 import { MangaHome } from "../../directions/manga/MangaHome";
+import { TapeHome } from "../../directions/tape/TapeHome";
 import { VersionSwitcher } from "@/components/VersionSwitcher";
 
 // Preview de TODAS las direcciones en un solo dev server: /v/sherwood, /v/legend, /v/hood…
 // (prod sigue eligiendo por NEXT_PUBLIC_DIRECTION en app/page.tsx)
 const DIRS: Record<string, React.ComponentType> = {
+  tape: TapeHome,
   sherwood: SherwoodHome,
   legend: LegendHome,
   hood: HoodHome,

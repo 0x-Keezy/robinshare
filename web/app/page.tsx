@@ -7,6 +7,7 @@ import { HoodHome } from "./directions/hood/HoodHome";
 import { DecreeHome } from "./directions/decree/DecreeHome";
 import { TerminalHome } from "./directions/terminal/TerminalHome";
 import { MangaHome } from "./directions/manga/MangaHome";
+import { TapeHome } from "./directions/tape/TapeHome";
 
 // La dirección de arte se elige al build por subdominio: NEXT_PUBLIC_DIRECTION.
 // LEGEND ganó el bake-off (2026-07-13) y es la identidad de RobinShare — default
@@ -30,6 +31,8 @@ export default function Home() {
       return <TerminalHome />;
     case "manga":
       return <MangaHome />;
+    case "tape":
+      return <TapeHome />;
     case "legend":
     default:
       return <LegendHome />;

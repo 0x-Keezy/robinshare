@@ -1,5 +1,6 @@
 /// Catálogo compartido del bake-off: hub + switcher leen de acá.
 export const DIRECTIONS = [
+  { code: "tape", name: "Tape", tag: "afiche · lima", gen: 2, d: "El recibo, gritado: campo lima, Gabarito 900 en mayusculas y un ticket dentado que se imprime con lo que escribis." },
   { code: "sherwood", name: "Sherwood", tag: "santuario · oscuro-frío", gen: 2, d: "Catedral fotográfica, serif editorial, la flecha macro se dispara hacia la luz." },
   { code: "legend", name: "Legend", tag: "brokerage · claro suizo", gen: 2, d: "Página blanca fintech, Archivo Black negro gigante, panel terminal con la pluma de luz." },
   { code: "hood", name: "Hood", tag: "película · dorado", gen: 2, d: "Film de dos escenas con letterbox: el arquero dispara, el ledger cae sobre el cofre." },
