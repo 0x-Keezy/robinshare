@@ -30,14 +30,23 @@ export function generateStaticParams() {
   return Object.keys(DIRS).map((dir) => ({ dir }));
 }
 
-export default async function DirectionPreview({ params }: { params: Promise<{ dir: string }> }) {
+export default async function DirectionPreview({
+  params,
+  searchParams,
+}: {
+  params: Promise<{ dir: string }>;
+  searchParams: Promise<{ embed?: string }>;
+}) {
   const { dir } = await params;
+  const { embed } = await searchParams;
   const Comp = DIRS[dir];
   if (!Comp) notFound();
+  // `?embed=1` lo usa /v/compare, que mete dos direcciones en iframes: adentro no puede dibujarse
+  // el switcher flotante o quedarian tres pastillas encimadas en la misma pantalla.
   return (
     <>
       <Comp />
-      <VersionSwitcher current={dir} />
+      {embed !== "1" && <VersionSwitcher current={dir} />}
     </>
   );
 }

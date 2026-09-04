@@ -21,12 +21,22 @@ export default function VersionsHub() {
           Elegí el mundo<span style={{ color: "#00C805" }}>.</span>
         </h1>
         <p className="mt-3 max-w-2xl text-[15px]" style={{ color: "rgba(237,241,234,0.65)" }}>
-          Seis registros del mismo producto — el movimiento es la mitad de la historia: entrá,
+          Registros distintos del mismo producto. El movimiento es la mitad de la historia: entrá,
           scrolleá, y saltá entre versiones con el switcher flotante de abajo.
         </p>
+        {/* Saltar de una version a otra sirve para navegar, no para JUZGAR: en el salto se pierde
+            el punto de comparacion. /v/compare las corre a las dos al mismo tiempo, con el scroll
+            sincronizado por fraccion. */}
+        <Link
+          href="/v/compare"
+          className="mt-6 inline-flex items-center gap-2 rounded-full border px-5 py-2.5 text-sm font-semibold"
+          style={{ borderColor: "#00C805", color: "#00C805" }}
+        >
+          ⇄ Comparar dos, lado a lado
+        </Link>
 
         <h2 style={{ fontFamily: "ui-monospace, monospace", letterSpacing: "0.22em", color: "rgba(237,241,234,0.5)" }} className="mt-12 text-[11px] uppercase">
-          Bake-off v2 — los seis
+          Bake-off v2
         </h2>
         <div className="mt-4 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
           {v2.map((d) => (
