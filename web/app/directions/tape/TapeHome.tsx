@@ -243,11 +243,22 @@ export function TapeHome() {
                 className="rs-focus w-full rounded-2xl border-2 px-5 py-4 text-base font-medium placeholder:opacity-40 focus:outline-none"
                 style={{ borderColor: TINTA, background: PAPEL, color: TINTA, fontFamily: "var(--t-mono)" }}
               />
+              {/* EL PRIMARIO NO PUEDE VESTIRSE DE ROTO EN REPOSO. El estado que ve TODO visitante al
+                  llegar es "campo vacio", y con `disabled:opacity-45` el boton lima sobre campo lima
+                  quedaba de un oliva sucio que no se lee como "escribi algo" sino como "esto se
+                  rompio". Es la misma leccion que costo una ronda en `legend`, del otro lado: vacio
+                  = superficie accionable con tinta plena, y solo la carga se apaga. */}
               <button
                 onClick={run}
                 disabled={loading || !value}
-                className="rs-focus rs-press shrink-0 rounded-2xl px-7 py-4 text-base font-bold uppercase tracking-[0.04em] disabled:opacity-45"
-                style={{ background: TINTA, color: LIMA }}
+                className="rs-focus rs-press shrink-0 rounded-2xl border-2 px-7 py-4 text-base font-bold uppercase tracking-[0.04em]"
+                style={
+                  loading
+                    ? { background: PAPEL, borderColor: TINTA, color: TINTA, opacity: 0.55 }
+                    : !value
+                      ? { background: PAPEL, borderColor: TINTA, color: TINTA }
+                      : { background: TINTA, borderColor: TINTA, color: LIMA }
+                }
               >
                 {loading ? "Reading…" : "Check"}
               </button>
