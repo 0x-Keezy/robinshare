@@ -16,7 +16,7 @@ export function VersionSwitcher({ current }: { current: string }) {
   const v1 = DIRECTIONS.filter((d) => d.gen === 1);
 
   return (
-    <div className="fixed bottom-4 left-1/2 z-[90] -translate-x-1/2" style={{ fontFamily: "ui-monospace, monospace" }}>
+    <div className="fixed bottom-4 right-4 z-[90] flex flex-col items-end" style={{ fontFamily: "ui-monospace, monospace" }}>
       {open && (
         <div
           className="mb-2 w-72 overflow-hidden rounded-xl border shadow-2xl"

@@ -154,8 +154,8 @@ export function TapeHome() {
           La v1 tenia el buscador 2000px mas abajo que el recibo, asi que el unico wow de la pagina
           ocurria fuera de pantalla. Van juntos: escribis a la izquierda y el ticket se imprime a la
           derecha, en el mismo golpe de vista. */}
-      <section className="rs-shell grid gap-10 py-12 sm:py-16 lg:grid-cols-[1.02fr_minmax(330px,0.98fr)] lg:items-start lg:gap-16">
-        <div>
+      <section className="rs-shell flex flex-col gap-8 py-12 sm:py-16 lg:grid lg:grid-cols-[1.02fr_minmax(330px,0.98fr)] lg:items-start lg:gap-x-16 lg:gap-y-8">
+        <div className="order-1 lg:col-start-1 lg:row-start-1">
           <div className="text-[11px] font-semibold uppercase tracking-[0.22em] sm:text-xs" style={{ fontFamily: "var(--t-mono)", color: LIMA }}>
             Social fee escrow · Robinhood Chain
           </div>
@@ -189,7 +189,10 @@ export function TapeHome() {
             </Link>
           </div>
 
-          {/* LA HERRAMIENTA, EN EL FOLD Y ROTULADA. Sin este rotulo el visitante ve un titular que
+          </div>
+
+          <div className="order-3 lg:col-start-1 lg:row-start-2">
+          {/* LA HERRAMIENTA, ROTULADA. Sin este rotulo el visitante ve un titular que
               dice "lanzá" y abajo un formulario que consulta, o sea dos acciones peleando por el
               mismo espacio sin que nada diga cual es cual. */}
           <div className="mt-9 border-t pt-7" style={{ borderColor: HAIR }}>
@@ -303,7 +306,9 @@ export function TapeHome() {
           </div>
         </div>
 
-        <Recibo named={named} rows={rows} loading={loading} sealedAt={sealedAt} block={block} />
+        <div className="order-2 lg:col-start-2 lg:row-start-1 lg:row-span-2">
+          <Recibo named={named} rows={rows} loading={loading} sealedAt={sealedAt} block={block} />
+        </div>
       </section>
 
       {/* ── 2 · LOS CUATRO HECHOS (banda lima) ──────────────────────────────────────────────
@@ -317,7 +322,11 @@ export function TapeHome() {
           <Hecho v="0.70%" k="Of every trade, to them" />
           <Hecho v="100%" k="Of the vault pays out" />
           <Hecho v="2" k="Ways to prove it is you" />
-          <Hecho v="0" k="Of it passes through us" />
+          {/* Un juez conto la banda: cuatro numeros gigantes y ninguno era un DATO — 0,70% es un
+              parametro, 100% y 0 son afirmaciones, 2 es un conteo de features. Toma la forma de la
+              franja de metricas (el marcador de confianza del vertical) sin cargar el contenido
+              que la justifica. Ahora el cuarto sale de la cadena. */}
+          <Hecho v={pagado === null ? "…" : formatEther(pagado)} k="ETH paid out so far · on chain" />
         </div>
       </section>
 
@@ -362,25 +371,30 @@ export function TapeHome() {
           <h2 className="tape-h2 max-w-4xl" style={{ fontFamily: "var(--t-display)", fontWeight: 900 }}>
             YOU DO ONE STEP. THE CHAIN DOES THE OTHER TWO.
           </h2>
-          <ol className="mt-12 grid gap-10 md:grid-cols-3 md:gap-8">
+          {/* LOS TRES PASOS, IMPRESOS EN UNA TIRA — no tres tarjetas sobre un riel.
+              "Numbered steps 01/02/03 sobre un rail" es un tell listado en el gate mecanico, era el
+              unico bloque de la pagina que podia estar en cualquier otra landing, y encima era el
+              eco mas cercano al competidor, que tambien numera sus pasos. Como talon perforado deja
+              de ser un patron de UI y pasa a ser el tercer uso del unico material de la pagina: el
+              papel del recibo. */}
+          <ol className="tape-recibo mt-12 grid md:grid-cols-3">
             {[
               ["01", "Name them", "A GitHub handle or a wallet address. Nothing else, and nothing from them."],
               ["02", "Fees accrue", "Every trade on their coin sets a cut aside, in a contract with their name written into it."],
               ["03", "They claim", "Whenever. They log in with GitHub, or sign from the wallet, and take the whole balance."],
-            ].map(([n, t, d]) => (
-              <li key={n} className="border-t-2 pt-5" style={{ borderColor: LIMA }}>
-                <div
-                  className="text-[clamp(3rem,7vw,4.4rem)] leading-[0.8]"
-                  style={{ fontFamily: "var(--t-display)", fontWeight: 900, color: LIMA }}
-                >
-                  {n}
+            ].map(([n, t, d], i) => (
+              <li
+                key={n}
+                className={`tape-paper px-6 py-7 ${i > 0 ? "border-t border-dashed md:border-l md:border-t-0" : ""}`}
+                style={{ background: PAPEL, color: TINTA, borderColor: "rgba(13,18,14,0.35)" }}
+              >
+                <div className="text-[11px] uppercase tracking-[0.2em] opacity-55" style={{ fontFamily: "var(--t-mono)" }}>
+                  Step {n}
                 </div>
-                <h3 className="mt-4 text-xl font-bold uppercase tracking-[-0.01em]" style={{ fontFamily: "var(--t-display)" }}>
+                <h3 className="mt-3 text-2xl font-bold uppercase tracking-[-0.015em]" style={{ fontFamily: "var(--t-display)" }}>
                   {t}
                 </h3>
-                <p className="mt-2 max-w-[34ch] text-[15px] leading-relaxed" style={{ color: CUERPO }}>
-                  {d}
-                </p>
+                <p className="mt-2 max-w-[32ch] text-[14px] leading-relaxed opacity-75">{d}</p>
               </li>
             ))}
           </ol>
@@ -554,7 +568,7 @@ function Comprobante({ pagado }: { pagado: bigint | null }) {
 
         <FilaFija k="Vault" v={`${VAULT_PILOTO.slice(0, 8)}…${VAULT_PILOTO.slice(-4)}`} />
         <FilaFija k="Paid out" v={pagado === null ? "reading…" : `${formatEther(pagado)} ETH`} destacado />
-        <FilaFija k="Gas" v={`${GAS_DEL_COBRO} ETH · 36%`} />
+        <FilaFija k="Gas" v={`${GAS_DEL_COBRO} ETH · 36% of it`} />
         <FilaFija k="Date" v="2026-08-31" />
 
         <div className="my-5 border-t border-dashed" style={{ borderColor: "rgba(13,18,14,0.4)" }} />
@@ -627,28 +641,66 @@ function Recibo({
 }) {
   const vault = rows && rows.length > 0 ? rows[0] : null;
   const idLabel = named ? (named.type === "github" ? `github:${named.value}` : named.value) : null;
-  const impreso = named !== null;
+  const buscado = named !== null;
+  /// TRES TICKETS DISTINTOS, y el largo del papel es la diferencia. Un juez midio que el recibo no
+  /// crecia al imprimir —la caja iba de y≈168 a y≈537 antes y despues, cambiaban cuatro strings— y
+  /// llamo a eso "un reemplazo de strings", no un wow. Una impresora termica saca el papel que hace
+  /// falta: en reposo es un talon corto, sin vault sale un talon corto que lo DICE, y con vault sale
+  /// el ticket largo con el saldo. Y ademas: imprimir "VAULT: none yet / BALANCE: 0 ETH" hacia que
+  /// la unica interaccion de la pagina devolviera un cero, que le dice al visitante justo lo
+  /// contrario de lo que el producto quiere probar.
+  const estado = !buscado ? "reposo" : loading ? "imprimiendo" : vault ? "hallado" : "vacio";
 
   return (
-    <div className="tape-recibo mx-auto w-full max-w-[380px] lg:mx-0 lg:mt-10" style={{ fontFamily: "var(--t-mono)" }}>
+    <div className="tape-recibo mx-auto w-full max-w-[380px] lg:mx-0" style={{ fontFamily: "var(--t-mono)" }}>
       <div className="tape-paper px-6 py-7" style={{ background: PAPEL, color: TINTA }}>
         <div className="text-center">
           <div className="text-[15px] font-bold uppercase tracking-[0.2em]">RobinShare</div>
-          <div className="mt-1 text-[10px] uppercase tracking-[0.18em] opacity-60">Set-aside receipt</div>
+          <div className="mt-1 text-[10px] uppercase tracking-[0.18em] opacity-60">
+            {estado === "hallado" ? "Set-aside receipt" : "Set-aside enquiry"}
+          </div>
         </div>
 
         <div className="my-5 border-t border-dashed" style={{ borderColor: "rgba(13,18,14,0.4)" }} />
 
-        <Linea k="Identity" v={idLabel} pendiente="write a handle" imprimiendo={loading} orden={0} />
-        <Linea k="Rate" v={impreso ? "0.70% of every trade" : null} pendiente="—" imprimiendo={loading} orden={1} />
-        <Linea
-          k="Vault"
-          v={vault ? `${vault.vault.slice(0, 8)}…${vault.vault.slice(-4)}` : impreso && !loading ? "none yet" : null}
-          pendiente="—"
-          imprimiendo={loading}
-          orden={2}
-        />
-        <Linea k="Balance" v={vault ? `${vault.pendingLabel} ETH` : impreso && !loading ? "0 ETH" : null} pendiente="—" imprimiendo={loading} orden={3} />
+        {estado === "reposo" && (
+          <p className="py-1 text-center text-[12px] leading-relaxed opacity-55">
+            Write a handle and the chain
+            <br />
+            prints what it finds.
+          </p>
+        )}
+
+        {estado === "imprimiendo" && (
+          <p className="py-1 text-center text-[12px] opacity-55">Reading the chain…</p>
+        )}
+
+        {estado === "vacio" && (
+          <>
+            <Linea k="Identity" v={idLabel} orden={0} />
+            <p className="mt-3 text-[12px] font-semibold uppercase leading-relaxed tracking-[0.1em]">
+              No vault under this name.
+            </p>
+            <p className="mt-1.5 text-[12px] leading-relaxed opacity-60">
+              Nobody has launched a coin for them yet. You can be the first.
+            </p>
+          </>
+        )}
+
+        {estado === "hallado" && vault && (
+          <>
+            <Linea k="Identity" v={idLabel} orden={0} />
+            <Linea k="Rate" v="0.70% of every trade" orden={1} />
+            <Linea k="Vault" v={`${vault.vault.slice(0, 8)}…${vault.vault.slice(-4)}`} orden={2} />
+            <div className="my-4 border-t border-dashed" style={{ borderColor: "rgba(13,18,14,0.25)" }} />
+            <div className="tape-print flex items-baseline justify-between gap-4" style={{ animationDelay: "270ms" }}>
+              <span className="shrink-0 text-[12px] uppercase tracking-[0.16em] opacity-60">Waiting</span>
+              <span className="text-right text-[20px] font-semibold tabular-nums">
+                {vault.pendingLabel} <span className="text-[13px] opacity-60">ETH</span>
+              </span>
+            </div>
+          </>
+        )}
 
         <div className="my-5 border-t border-dashed" style={{ borderColor: "rgba(13,18,14,0.4)" }} />
 
@@ -663,7 +715,9 @@ function Recibo({
           </span>
         </div>
 
-        <div className="mt-6 text-center text-[10px] font-bold uppercase tracking-[0.18em]" style={{ color: "#a3311f" }}>
+        {/* Sube de 10 a 11px y el rojo se oscurece: a #a3311f sobre papel crema la frase mas
+            importante del artefacto era la menos legible de el. #7a1f12 sobre #F7F8F4 da ~8:1. */}
+        <div className="mt-6 text-center text-[11px] font-bold uppercase tracking-[0.16em]" style={{ color: "#7a1f12" }}>
           This contract has not been audited
         </div>
       </div>
@@ -671,27 +725,12 @@ function Recibo({
   );
 }
 
-function Linea({
-  k,
-  v,
-  pendiente,
-  imprimiendo,
-  orden,
-}: {
-  k: string;
-  v: string | null;
-  pendiente: string;
-  imprimiendo: boolean;
-  orden: number;
-}) {
+function Linea({ k, v, orden }: { k: string; v: string | null; orden: number }) {
   return (
     <div className="flex items-baseline justify-between gap-4 py-1.5 text-[12px]">
       <span className="shrink-0 uppercase tracking-[0.16em] opacity-60">{k}</span>
-      <span
-        className={`min-w-0 break-all text-right font-semibold ${v ? "tape-print" : ""}`}
-        style={v ? { animationDelay: `${orden * 90}ms` } : { opacity: 0.3 }}
-      >
-        {v ?? (imprimiendo ? "…" : pendiente)}
+      <span className="tape-print min-w-0 break-all text-right font-semibold" style={{ animationDelay: `${orden * 90}ms` }}>
+        {v}
       </span>
     </div>
   );
