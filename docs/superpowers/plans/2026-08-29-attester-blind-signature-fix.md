@@ -15,7 +15,7 @@
 ## Global Constraints
 
 - **Este fix es independiente del port.** El bug existe en el código auditado y aplica a los dos rails. Se implementa en `main` y **se cherry-pickea a `flap-rail`** al terminar.
-- **NO pushear a `origin` hasta que este plan esté completo.** `0x-Keezy/robinshare` es un repo público y el spec documenta la cadena de ataque.
+- **NO pushear a `origin` hasta que este plan esté completo.** `robinshareapp/robinshare` es un repo público y el spec documenta la cadena de ataque.
 - **No cambiar contratos.** Todo el fix es de backend. La capa 2 usa el ABI ya desplegado.
 - **Dominio EIP-712 exacto del vault** (de `SocialFeeEscrow.sol`, `EIP712("SocialFeeEscrow", "1")`): `name: "SocialFeeEscrow"`, `version: "1"`, `chainId: 4663`, `verifyingContract: <vault>`.
 - **Typehash exacto** (de `BIND_TYPEHASH`): `Bind(address payoutWallet,uint256 nonce,uint256 deadline)`.

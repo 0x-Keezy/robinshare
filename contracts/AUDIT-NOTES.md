@@ -216,6 +216,6 @@ Everything under `src/flap/` is your own interfaces/bases vendored for compilati
 ## Build
 
 Foundry, `solc 0.8.26`, `optimizer_runs = 200`, `via_ir = true`. Deps: OpenZeppelin Contracts
-v5.4.0 + forge-std (tests). Full repo: <https://github.com/0x-Keezy/robinshare>.
+v5.4.0 + forge-std (tests). Full repo: <https://github.com/robinshareapp/robinshare>.
 
 Contact: @K3zzi (TG) · @0xKeezy

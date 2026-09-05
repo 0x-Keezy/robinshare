@@ -26,7 +26,7 @@ import { factoryAddress, robinhoodChain } from "@/lib/chain";
 /// mentira de formato — promete un caudal que no existe. Las coordenadas, en cambio, son ciertas
 /// hoy y siguen siendo ciertas con mil vaults.
 const EXPLORER = robinhoodChain.blockExplorers.default.url;
-const REPO = "https://github.com/0x-Keezy/robinshare";
+const REPO = "https://github.com/robinshareapp/robinshare";
 
 /// LA LLAVE DEL ATTESTER, leida de la cadena.
 ///

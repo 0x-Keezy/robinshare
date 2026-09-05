@@ -249,7 +249,7 @@ I also build PonsVault, a competing product on this same chain, and RobinShare l
 
 Live on Robinhood Chain, chain id 4663. The factory is `0xBf25E1d9082B5Ad0b8C68f072E94C797028c6855`. Deploying it and running the pilot was budgeted at about 0.0065 ETH. No usage numbers here, because there are none: the only coin the factory has made so far is the pilot I ran myself.
 
-Site robinshareapp.com. The full mechanics, including the parts this piece had to compress, are at robinshareapp.com/docs. Code at github.com/0x-Keezy/robinshare, and everything above is readable on robinhoodchain.blockscout.com.
+Site robinshareapp.com. The full mechanics, including the parts this piece had to compress, are at robinshareapp.com/docs. Code at github.com/robinshareapp/robinshare, and everything above is readable on robinhoodchain.blockscout.com.
 
 These are memecoins on a bonding curve. They can go to zero and most do, none of this is investment advice, and RobinShare is not affiliated with Robinhood, pons or Flap.
 

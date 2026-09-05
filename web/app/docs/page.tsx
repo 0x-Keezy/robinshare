@@ -34,7 +34,7 @@ import { RSShell, RS } from "@/components/RSShell";
  */
 
 const EXPLORER = robinhoodChain.blockExplorers.default.url;
-const REPO = "https://github.com/0x-Keezy/robinshare";
+const REPO = "https://github.com/robinshareapp/robinshare";
 const labelStyle = { fontFamily: "var(--f-mono)", color: RS.FAINT, letterSpacing: "0.16em" } as const;
 
 const SECTIONS = [
@@ -306,7 +306,7 @@ export default function DocsPage() {
                     className="rs-focus underline decoration-1 underline-offset-4"
                     style={{ color: RS.INK }}
                   >
-                    github.com/0x-Keezy/robinshare
+                    github.com/robinshareapp/robinshare
                   </a>
                 </Row>
               </dl>

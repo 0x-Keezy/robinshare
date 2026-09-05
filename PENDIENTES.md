@@ -167,7 +167,7 @@ qué palabras. No es una decisión técnica y no la puede tomar un agente por é
 
 ## 6. Push del repo (menor, pero sigue abierto)
 
-`0x-Keezy/robinshare` es **público**. Sin pushear hoy:
+`robinshareapp/robinshare` es **público**. Sin pushear hoy:
 
 - la rama **`flap-rail`** (`c512884`) — solo local, guarda el producto entero sobre Flap;
 - la rama **`feat/pons-web`** — todo el port a pons;
