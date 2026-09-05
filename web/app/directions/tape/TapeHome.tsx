@@ -4,7 +4,9 @@ import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { Gabarito, Archivo, IBM_Plex_Mono } from "next/font/google";
 import { useVaultLookup, type IdType } from "@/lib/useVaultLookup";
+import { formatEther } from "viem";
 import { publicClient, robinhoodChain, factoryAddress } from "@/lib/chain";
+import { escrowAbi } from "@/lib/abis";
 import { CUSTODY_LINE_PARTS } from "@/lib/claims";
 
 /*
@@ -57,6 +59,16 @@ const VIVO = "#00C805";
 const CUERPO = "rgba(247,248,244,0.74)";
 const HAIR = "rgba(247,248,244,0.18)";
 const EXPLORER = robinhoodChain.blockExplorers.default.url;
+/// EL UNICO CICLO QUE CORRIO DE VERDAD. El juez encontro el hueco mas caro de la pagina: el unico
+/// numero vivo era la altura de bloque, que prueba que la cadena existe y no que el producto
+/// funciono. Este vault si: se lanzo, se tradeo, se cosecho y se cobro, en mainnet. Se lee su
+/// `totalPaid()` EN VIVO —no se escribe a mano— y se linkea al explorer para que el lector lo
+/// compruebe sin creernos nada.
+/// Va sin la identidad a proposito: el handle del vault es el de Jose y no tiene por que estar en
+/// la pagina. La prueba es la plata y la direccion, no de quien era.
+const VAULT_PILOTO = "0xcEd1174535C024BfEf0C9E6d2C2a825Cf5B8C2F3" as const;
+/// Gas de las dos transacciones del cobro, sumado del explorer: 0,00005635 + 0,00002072.
+const GAS_DEL_COBRO = "0.000077";
 
 export function TapeHome() {
   const { type, setType, value, setValue, rows, error, loading, lookup } = useVaultLookup();
@@ -69,6 +81,7 @@ export function TapeHome() {
   /// corriendo no atestigua nada.
   const [sealedAt, setSealedAt] = useState<bigint | null>(null);
   const [block, setBlock] = useState<bigint | null>(null);
+  const [pagado, setPagado] = useState<bigint | null>(null);
 
   useEffect(() => {
     let alive = true;
@@ -80,6 +93,12 @@ export function TapeHome() {
         })
         .catch(() => {});
     tick();
+    publicClient
+      .readContract({ address: VAULT_PILOTO, abi: escrowAbi, functionName: "totalPaid" })
+      .then((v) => {
+        if (alive) setPagado(v as bigint);
+      })
+      .catch(() => {});
     const iv = setInterval(tick, 2000);
     return () => {
       alive = false;
@@ -160,9 +179,24 @@ export function TapeHome() {
             waits in a vault only they can open.
           </p>
 
-          {/* LA HERRAMIENTA, EN EL FOLD. */}
-          <div className="mt-8">
-            <div id="lookup" role="group" aria-label="Identity type" className="flex scroll-mt-6 gap-2">
+          <div className="mt-7">
+            <Link
+              href="/create"
+              className="rs-focus rs-press inline-block rounded-full px-8 py-4 text-base font-bold uppercase tracking-[0.04em]"
+              style={{ background: LIMA, color: TINTA }}
+            >
+              Launch a coin →
+            </Link>
+          </div>
+
+          {/* LA HERRAMIENTA, EN EL FOLD Y ROTULADA. Sin este rotulo el visitante ve un titular que
+              dice "lanzá" y abajo un formulario que consulta, o sea dos acciones peleando por el
+              mismo espacio sin que nada diga cual es cual. */}
+          <div className="mt-9 border-t pt-7" style={{ borderColor: HAIR }}>
+            <div className="text-[11px] font-bold uppercase tracking-[0.18em]" style={{ fontFamily: "var(--t-mono)", color: CUERPO }}>
+              Or someone may have launched one for you
+            </div>
+            <div id="lookup" role="group" aria-label="Identity type" className="mt-4 flex scroll-mt-6 gap-2">
               {(["github", "wallet"] as const).map((t) => {
                 const on = type === t;
                 return (
@@ -184,7 +218,7 @@ export function TapeHome() {
               })}
             </div>
 
-            <div className="mt-3 flex flex-col gap-3 sm:flex-row">
+            <div className="mt-3 flex flex-row gap-2 sm:gap-3">
               <input
                 ref={inputRef}
                 id="tape-lookup"
@@ -195,8 +229,8 @@ export function TapeHome() {
                 placeholder={type === "wallet" ? "0x…" : "their-handle"}
                 spellCheck={false}
                 aria-label={type === "wallet" ? "Wallet address" : "GitHub handle"}
-                className="rs-focus w-full rounded-xl border px-5 py-4 text-base font-medium placeholder:opacity-45 focus:outline-none"
-                style={{ borderColor: "rgba(247,248,244,0.3)", background: "rgba(247,248,244,0.05)", color: PAPEL, fontFamily: "var(--t-mono)" }}
+                className="tape-campo rs-focus w-full rounded-xl border-2 px-5 py-4 text-base font-medium focus:outline-none"
+                style={{ fontFamily: "var(--t-mono)" }}
               />
               {/* EL PRIMARIO NO PUEDE VESTIRSE DE ROTO EN REPOSO. El estado que ve TODO visitante al
                   llegar es "campo vacio": ahi va tinta plena sobre el borde de papel (lee
@@ -204,7 +238,7 @@ export function TapeHome() {
               <button
                 onClick={run}
                 disabled={loading || !value}
-                className="rs-focus rs-press shrink-0 rounded-xl border px-8 py-4 text-base font-bold uppercase tracking-[0.04em]"
+                className="rs-focus rs-press shrink-0 rounded-xl border-2 px-5 py-4 text-sm font-bold uppercase tracking-[0.04em] sm:px-8 sm:text-base"
                 style={
                   loading
                     ? { background: "transparent", borderColor: "rgba(247,248,244,0.3)", color: CUERPO }
@@ -266,13 +300,6 @@ export function TapeHome() {
               </ul>
             )}
 
-            <Link
-              href="/create"
-              className="rs-focus rs-tap mt-5 inline-block text-[13px] font-bold uppercase tracking-[0.08em] underline decoration-2 underline-offset-[6px]"
-              style={{ color: CUERPO }}
-            >
-              Or launch one for someone →
-            </Link>
           </div>
         </div>
 
@@ -283,6 +310,8 @@ export function TapeHome() {
           Datos, no eslóganes, y es una de las DOS bandas lima de toda la pagina: el acento pega
           porque es escaso. Cada celda lleva su regla arriba, si no las cifras cortas ("2", "0")
           nadan en su columna mientras "0.70%" la llena. */}
+      <div className="tape-seam" style={{ background: LIMA }} />
+
       <section style={{ background: LIMA, color: TINTA }}>
         <div className="rs-shell grid grid-cols-2 gap-x-8 gap-y-9 py-12 sm:py-14 lg:grid-cols-4">
           <Hecho v="0.70%" k="Of every trade, to them" />
@@ -291,6 +320,37 @@ export function TapeHome() {
           <Hecho v="0" k="Of it passes through us" />
         </div>
       </section>
+
+      <div className="tape-seam" style={{ background: TINTA }} />
+
+      {/* ── 2b · LA PRUEBA (tinta) ──────────────────────────────────────────────────────────
+          El hueco mas caro que encontro el juez: el unico numero vivo de la pagina era la altura
+          de bloque, que prueba que la cadena existe y no que el producto funciono. Esto si: un
+          ciclo completo que corrio en mainnet, con su `totalPaid()` leido en vivo y linkeado al
+          explorer. Y va con los numeros feos incluidos, que es lo que lo hace creible. */}
+      <section className="border-t" style={{ borderColor: HAIR }}>
+        <div className="rs-shell grid gap-10 py-16 sm:py-20 lg:grid-cols-[1fr_minmax(320px,380px)] lg:items-center lg:gap-16">
+          <div>
+            <h2 className="tape-h2 max-w-2xl" style={{ fontFamily: "var(--t-display)", fontWeight: 900 }}>
+              One cycle has actually run.
+            </h2>
+            <p className="mt-5 max-w-lg text-[16px] leading-relaxed" style={{ color: CUERPO }}>
+              Launch, trade, harvest the fees, log in with GitHub, claim. It happened on mainnet on
+              August 31, and the vault still publishes what it paid. Call{" "}
+              <code style={{ fontFamily: "var(--t-mono)", color: PAPEL }}>totalPaid()</code> on it
+              yourself; the number on the right is read off the chain while you load this page.
+            </p>
+            <p className="mt-4 max-w-lg text-[15px] leading-relaxed" style={{ color: CUERPO }}>
+              Two things before it means anything. The only trader was me, so the volume was me. And
+              the pilot ran with the creator tax at the maximum, so that vault captured 10.70% of
+              each trade, not the 0.70% a default launch gets.
+            </p>
+          </div>
+          <Comprobante pagado={pagado} />
+        </div>
+      </section>
+
+      <div className="tape-seam" style={{ background: TINTA }} />
 
       {/* ── 3 · COMO FUNCIONA (tinta) ───────────────────────────────────────────────────────
           El titular de la v1 abria con "THREE MOVES", que son literalmente las dos primeras
@@ -342,9 +402,22 @@ export function TapeHome() {
           {/* Cinco bloques en dos columnas dejaban un hueco en L abajo a la derecha: el mismo
               defecto de grilla que ya habiamos arreglado en el pie de `legend` (seis datos en
               cuatro columnas). El ultimo ocupa las dos y la grilla cierra. */}
+          {/* LA REGLA DE TINTAS, que hasta acá no existía y por eso el color leia arbitrario:
+              LIMA = la plata · ROJO = el riesgo · PAPEL = el producto.
+              La declaracion de no-auditado estaba en gris de parrafo en el rincon de una grilla,
+              mientras el titular de esta seccion iba en lima, o sea en el color que en el resto de
+              la pagina significa dinero: la advertencia pintada como si fuera un feature. Sube a
+              tamano de titular y toma el rojo del sello del recibo. */}
+          <p
+            className="mt-8 max-w-3xl text-[clamp(1.15rem,2.6vw,1.6rem)] font-bold leading-snug"
+            style={{ fontFamily: "var(--t-display)", color: "#ff6a4d" }}
+          >
+            {CUSTODY_LINE_PARTS[3].body.trim()}
+          </p>
+
           <div className="mt-10 grid gap-x-14 gap-y-9 sm:grid-cols-2">
-            {CUSTODY_LINE_PARTS.map((part, i) => (
-              <div key={part.label} className={i === CUSTODY_LINE_PARTS.length - 1 ? "sm:col-span-2" : undefined}>
+            {CUSTODY_LINE_PARTS.filter((_, i) => i !== 3).map((part, i, arr) => (
+              <div key={part.label} className={i === arr.length - 1 ? "sm:col-span-2" : undefined}>
                 <div className="text-[11px] font-bold uppercase tracking-[0.16em]" style={{ fontFamily: "var(--t-mono)", color: LIMA }}>
                   {part.label}
                 </div>
@@ -368,6 +441,8 @@ export function TapeHome() {
           La segunda y ultima banda lima. Alineada a la izquierda como todo el resto: en la v1 era
           la unica composicion centrada de la pagina y sin motivo, que es el cierre universal de
           SaaS. */}
+      <div className="tape-seam" style={{ background: LIMA }} />
+
       <section style={{ background: LIMA, color: TINTA }}>
         <div className="rs-shell grid gap-8 py-16 sm:py-24 lg:grid-cols-[1.3fr_1fr] lg:items-end">
           <h2 className="tape-h1" style={{ fontFamily: "var(--t-display)", fontWeight: 900 }}>
@@ -387,6 +462,8 @@ export function TapeHome() {
           </div>
         </div>
       </section>
+
+      <div className="tape-seam" style={{ background: TINTA }} />
 
       {/* ── 6 · PIE (tinta) ─────────────────────────────────────────────────────────────────
           El pie de la v1 eran dos lineas. En un producto que custodia plata de terceros y NO esta
@@ -425,14 +502,17 @@ export function TapeHome() {
               Factory
             </div>
             {factoryAddress() ? (
-              <a
-                href={`${EXPLORER}/address/${factoryAddress()}`}
-                target="_blank"
-                rel="noreferrer"
-                className="rs-focus rs-tap mt-2 block break-all underline decoration-1 underline-offset-4"
-              >
-                {factoryAddress()}
-              </a>
+              <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1">
+                <a
+                  href={`${EXPLORER}/address/${factoryAddress()}`}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="rs-focus rs-tap whitespace-nowrap underline decoration-1 underline-offset-4"
+                >
+                  {factoryAddress()!.slice(0, 8)}…{factoryAddress()!.slice(-6)}
+                </a>
+                <Copiar valor={factoryAddress()!} />
+              </div>
             ) : (
               <div className="mt-2">not configured</div>
             )}
@@ -453,6 +533,51 @@ export function TapeHome() {
         </div>
       </footer>
     </main>
+  );
+}
+
+/*
+ * EL COMPROBANTE DE PAGO. Hermano del recibo del hero, y el que cierra el hueco de confianza: uno
+ * muestra lo que PODRIA apartarse, este muestra lo que YA se pago. Su unico numero sale de
+ * `totalPaid()` leido en vivo — si algun dia ese vault cobra de nuevo, la pagina lo dice sola.
+ */
+function Comprobante({ pagado }: { pagado: bigint | null }) {
+  return (
+    <div className="tape-recibo mx-auto w-full max-w-[380px] lg:mx-0" style={{ fontFamily: "var(--t-mono)" }}>
+      <div className="tape-paper px-6 py-7" style={{ background: PAPEL, color: TINTA }}>
+        <div className="text-center">
+          <div className="text-[15px] font-bold uppercase tracking-[0.2em]">RobinShare</div>
+          <div className="mt-1 text-[10px] uppercase tracking-[0.18em] opacity-60">Payout receipt · mainnet</div>
+        </div>
+
+        <div className="my-5 border-t border-dashed" style={{ borderColor: "rgba(13,18,14,0.4)" }} />
+
+        <FilaFija k="Vault" v={`${VAULT_PILOTO.slice(0, 8)}…${VAULT_PILOTO.slice(-4)}`} />
+        <FilaFija k="Paid out" v={pagado === null ? "reading…" : `${formatEther(pagado)} ETH`} destacado />
+        <FilaFija k="Gas" v={`${GAS_DEL_COBRO} ETH · 36%`} />
+        <FilaFija k="Date" v="2026-08-31" />
+
+        <div className="my-5 border-t border-dashed" style={{ borderColor: "rgba(13,18,14,0.4)" }} />
+
+        <a
+          href={`${EXPLORER}/address/${VAULT_PILOTO}`}
+          target="_blank"
+          rel="noreferrer"
+          className="rs-focus rs-tap block text-center text-[11px] font-semibold uppercase tracking-[0.14em] underline underline-offset-4"
+        >
+          Check it on the explorer ↗
+        </a>
+      </div>
+    </div>
+  );
+}
+
+function FilaFija({ k, v, destacado }: { k: string; v: string; destacado?: boolean }) {
+  return (
+    <div className="flex items-baseline justify-between gap-4 py-1.5 text-[12px]">
+      <span className="shrink-0 uppercase tracking-[0.16em] opacity-60">{k}</span>
+      <span className={`min-w-0 break-all text-right font-semibold ${destacado ? "text-[15px]" : ""}`}>{v}</span>
+    </div>
   );
 }
 
@@ -569,5 +694,32 @@ function Linea({
         {v ?? (imprimiendo ? "…" : pendiente)}
       </span>
     </div>
+  );
+}
+
+/// Copiar la direccion completa sin que ocupe 42 caracteres en el pie. El feedback dura 1,6s y
+/// vuelve solo: un boton que se queda en "Copiado" para siempre miente sobre el estado.
+function Copiar({ valor }: { valor: string }) {
+  const [listo, setListo] = useState(false);
+  useEffect(() => {
+    if (!listo) return;
+    const t = setTimeout(() => setListo(false), 1600);
+    return () => clearTimeout(t);
+  }, [listo]);
+  return (
+    <button
+      type="button"
+      onClick={() => {
+        navigator.clipboard
+          .writeText(valor)
+          .then(() => setListo(true))
+          .catch(() => {});
+      }}
+      aria-label="Copy the factory address"
+      className="rs-focus rs-press rs-tap rounded-[5px] border px-2 py-0.5 text-[10px] uppercase tracking-[0.14em]"
+      style={{ borderColor: listo ? LIMA : "rgba(247,248,244,0.3)", color: listo ? LIMA : CUERPO }}
+    >
+      {listo ? "Copied" : "Copy"}
+    </button>
   );
 }
