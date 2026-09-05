@@ -21,6 +21,14 @@ import { DIRECTIONS } from "@/lib/directions";
  * si no, la vista tendria tres pastillas encimadas.
  */
 
+/// Las tres tintas de `tape` no son direcciones distintas (es el mismo componente con otro bloque
+/// de variables), asi que entran al selector como opciones propias con su query.
+const OPCIONES = [
+  ...DIRECTIONS.map((d) => ({ v: d.code, nombre: d.name, tag: d.tag, url: `/v/${d.code}` })),
+  { v: "tape:rojo", nombre: "Tape · tinta roja", tag: "afiche · negro y rojo", url: "/v/tape?tinta=rojo" },
+  { v: "tape:papel", nombre: "Tape · impresa", tag: "afiche · papel", url: "/v/tape?tinta=papel" },
+];
+
 const ANCHOS = [
   { k: "desktop", label: "Escritorio", w: 1440 },
   { k: "tablet", label: "Tablet", w: 834 },
@@ -28,8 +36,8 @@ const ANCHOS = [
 ] as const;
 
 export default function CompararPage() {
-  const [izq, setIzq] = useState("legend");
-  const [der, setDer] = useState("tape");
+  const [izq, setIzq] = useState("tape");
+  const [der, setDer] = useState("tape:rojo");
   const [ancho, setAncho] = useState<(typeof ANCHOS)[number]["k"]>("desktop");
   const [sync, setSync] = useState(true);
   /// La escala se MIDE, no se hardcodea: con un factor fijo el iframe queda flotando en el medio
@@ -140,11 +148,11 @@ export default function CompararPage() {
           ["izq", izq, refIzq],
           ["der", der, refDer],
         ] as const).map(([lado, code, ref]) => {
-          const d = DIRECTIONS.find((x) => x.code === code);
+          const d = OPCIONES.find((x) => x.v === code);
           return (
             <section key={lado} className="min-w-0">
               <div className="mb-2 flex items-baseline justify-between gap-3">
-                <div className="text-sm font-semibold">{d?.name ?? code}</div>
+                <div className="text-sm font-semibold">{d?.nombre ?? code}</div>
                 <div className="truncate text-[11px]" style={{ color: "rgba(255,255,255,0.45)" }}>
                   {d?.tag}
                 </div>
@@ -161,8 +169,8 @@ export default function CompararPage() {
                   <iframe
                     ref={ref}
                     key={`${code}-${ancho}`}
-                    src={`/v/${code}?embed=1`}
-                    title={d?.name ?? code}
+                    src={`${d?.url ?? `/v/${code}`}${(d?.url ?? "").includes("?") ? "&" : "?"}embed=1`}
+                    title={d?.nombre ?? code}
                     style={{
                       width: w,
                       // `flexShrink: 0` no es cosmetico: como item de un flex, el iframe se
@@ -180,7 +188,7 @@ export default function CompararPage() {
                 </div>
               </div>
               <a
-                href={`/v/${code}`}
+                href={d?.url ?? `/v/${code}`}
                 target="_blank"
                 rel="noreferrer"
                 className="rs-focus mt-2 inline-block text-[11px] underline underline-offset-4"
@@ -208,9 +216,9 @@ function Selector({ label, value, onChange }: { label: string; value: string; on
         className="rs-focus rounded-md border px-2 py-1 text-[12px]"
         style={{ background: "#12160f", color: "#edf1ea", borderColor: "rgba(255,255,255,0.22)" }}
       >
-        {DIRECTIONS.map((d) => (
-          <option key={d.code} value={d.code}>
-            {d.name}
+        {OPCIONES.map((o) => (
+          <option key={o.v} value={o.v}>
+            {o.nombre}
           </option>
         ))}
       </select>

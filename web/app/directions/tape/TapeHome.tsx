@@ -49,15 +49,20 @@ const display = Gabarito({ subsets: ["latin"], weight: ["800", "900"], variable:
 const body = Archivo({ subsets: ["latin"], variable: "--t-body" });
 const mono = IBM_Plex_Mono({ weight: ["400", "500", "600"], subsets: ["latin"], variable: "--t-mono" });
 
-const TINTA = "#0D120E";
-const PAPEL = "#F7F8F4";
-const LIMA = "#CCFF00";
-/// Verde de la cadena. Lockeado: SOLO dato en vivo (la altura de bloque). Nunca decorativo.
+/// Los colores salen de variables CSS y no de literales: las tres variantes de tinta (lima, rojo y
+/// papel) son el MISMO componente con otro bloque de variables — ver `.tape-lima` / `.tape-rojo` /
+/// `.tape-papel` en globals.css. Tres copias del archivo se desincronizan a la primera correccion.
+const TINTA = "var(--tp-campo)";
+const PAPEL = "var(--tp-papel)";
+const PAPEL_TINTA = "var(--tp-papel-tinta)";
+/// El acento: en `lima` es el #CCFF00 de RobinShare, en las otras dos el rojo de recibo termico.
+const LIMA = "var(--tp-acento)";
+const ACENTO_TEXTO = "var(--tp-acento-texto)";
+/// Verde de la cadena. Lockeado: SOLO dato en vivo (la altura de bloque). Nunca decorativo, y por
+/// eso es el unico color que NO cambia entre variantes.
 const VIVO = "#00C805";
-/// Cuerpo sobre tinta. Token propio y no un gris por defecto: un juez marco que la superficie mas
-/// grande de la pagina era la menos decidida.
-const CUERPO = "rgba(247,248,244,0.74)";
-const HAIR = "rgba(247,248,244,0.18)";
+const CUERPO = "var(--tp-cuerpo)";
+const HAIR = "var(--tp-hair)";
 const EXPLORER = robinhoodChain.blockExplorers.default.url;
 /// EL UNICO CICLO QUE CORRIO DE VERDAD. El juez encontro el hueco mas caro de la pagina: el unico
 /// numero vivo era la altura de bloque, que prueba que la cadena existe y no que el producto
@@ -70,7 +75,9 @@ const VAULT_PILOTO = "0xcEd1174535C024BfEf0C9E6d2C2a825Cf5B8C2F3" as const;
 /// Gas de las dos transacciones del cobro, sumado del explorer: 0,00005635 + 0,00002072.
 const GAS_DEL_COBRO = "0.000077";
 
-export function TapeHome() {
+export type VarianteTape = "lima" | "rojo" | "papel";
+
+export function TapeHome({ variante = "lima" }: { variante?: VarianteTape } = {}) {
   const { type, setType, value, setValue, rows, error, loading, lookup } = useVaultLookup();
 
   /// Lo que se busco DE VERDAD, que no es `value` (eso cambia con cada tecla). El recibo se imprime
@@ -117,8 +124,8 @@ export function TapeHome() {
 
   return (
     <main
-      className={`${display.variable} ${body.variable} ${mono.variable}`}
-      style={{ background: TINTA, color: PAPEL, fontFamily: "var(--t-body)" }}
+      className={`tape-${variante} ${display.variable} ${body.variable} ${mono.variable}`}
+      style={{ background: "var(--tp-campo)", color: "var(--tp-tinta)", fontFamily: "var(--t-body)" }}
     >
       {/* ── NAV ─────────────────────────────────────────────────────────────────────────────
           No es `fixed` a proposito: en un afiche la barra es parte de la hoja, no una capa que
@@ -142,7 +149,7 @@ export function TapeHome() {
             <Link
               href="/create"
               className="rs-focus rs-press rounded-full px-5 py-3 text-[13px] font-bold uppercase tracking-[0.06em] sm:py-2.5 sm:text-sm"
-              style={{ background: LIMA, color: TINTA }}
+              style={{ background: LIMA, color: ACENTO_TEXTO }}
             >
               Launch
             </Link>
@@ -183,7 +190,7 @@ export function TapeHome() {
             <Link
               href="/create"
               className="rs-focus rs-press inline-block rounded-full px-8 py-4 text-base font-bold uppercase tracking-[0.04em]"
-              style={{ background: LIMA, color: TINTA }}
+              style={{ background: LIMA, color: ACENTO_TEXTO }}
             >
               Launch a coin →
             </Link>
@@ -211,8 +218,8 @@ export function TapeHome() {
                     className="rs-focus rs-press rs-tap rounded-full border px-5 py-2.5 text-[13px] font-bold uppercase tracking-[0.06em]"
                     style={
                       on
-                        ? { background: PAPEL, color: TINTA, borderColor: PAPEL }
-                        : { background: "transparent", color: CUERPO, borderColor: "rgba(247,248,244,0.3)" }
+                        ? { background: "var(--tp-tinta)", color: "var(--tp-campo)", borderColor: "var(--tp-tinta)" }
+                        : { background: "transparent", color: CUERPO, borderColor: "color-mix(in srgb, var(--tp-tinta) 30%, transparent)" }
                     }
                   >
                     {t === "github" ? "GitHub" : "Wallet"}
@@ -244,9 +251,9 @@ export function TapeHome() {
                 className="rs-focus rs-press shrink-0 rounded-xl border-2 px-5 py-4 text-sm font-bold uppercase tracking-[0.04em] sm:px-8 sm:text-base"
                 style={
                   loading
-                    ? { background: "transparent", borderColor: "rgba(247,248,244,0.3)", color: CUERPO }
+                    ? { background: "transparent", borderColor: "color-mix(in srgb, var(--tp-tinta) 30%, transparent)", color: CUERPO }
                     : !value
-                      ? { background: "transparent", borderColor: PAPEL, color: PAPEL }
+                      ? { background: "transparent", borderColor: "var(--tp-tinta)", color: "var(--tp-tinta)" }
                       : { background: LIMA, borderColor: LIMA, color: TINTA }
                 }
               >
@@ -275,7 +282,7 @@ export function TapeHome() {
                   <li
                     key={r.vault}
                     className="flex flex-wrap items-center justify-between gap-4 rounded-xl border px-5 py-3.5"
-                    style={{ borderColor: "rgba(247,248,244,0.3)" }}
+                    style={{ borderColor: "color-mix(in srgb, var(--tp-tinta) 30%, transparent)" }}
                   >
                     <div className="min-w-0">
                       <a
@@ -294,7 +301,7 @@ export function TapeHome() {
                     <Link
                       href={`/claim/${r.vault}`}
                       className="rs-focus rs-press rounded-full px-5 py-2.5 text-[13px] font-bold uppercase"
-                      style={{ background: LIMA, color: TINTA }}
+                      style={{ background: LIMA, color: ACENTO_TEXTO }}
                     >
                       Open
                     </Link>
@@ -317,7 +324,7 @@ export function TapeHome() {
           nadan en su columna mientras "0.70%" la llena. */}
       <div className="tape-seam" style={{ background: LIMA }} />
 
-      <section style={{ background: LIMA, color: TINTA }}>
+      <section style={{ background: LIMA, color: ACENTO_TEXTO }}>
         <div className="rs-shell grid grid-cols-2 gap-x-8 gap-y-9 py-12 sm:py-14 lg:grid-cols-4">
           <Hecho v="0.70%" k="Of every trade, to them" />
           <Hecho v="100%" k="Of the vault pays out" />
@@ -386,7 +393,7 @@ export function TapeHome() {
               <li
                 key={n}
                 className={`tape-paper px-6 py-7 ${i > 0 ? "border-t border-dashed md:border-l md:border-t-0" : ""}`}
-                style={{ background: PAPEL, color: TINTA, borderColor: "rgba(13,18,14,0.35)" }}
+                style={{ background: PAPEL, color: PAPEL_TINTA, borderColor: "color-mix(in srgb, var(--tp-papel-tinta) 35%, transparent)" }}
               >
                 <div className="text-[11px] uppercase tracking-[0.2em] opacity-55" style={{ fontFamily: "var(--t-mono)" }}>
                   Step {n}
@@ -457,7 +464,7 @@ export function TapeHome() {
           SaaS. */}
       <div className="tape-seam" style={{ background: LIMA }} />
 
-      <section style={{ background: LIMA, color: TINTA }}>
+      <section style={{ background: LIMA, color: ACENTO_TEXTO }}>
         <div className="rs-shell grid gap-8 py-16 sm:py-24 lg:grid-cols-[1.3fr_1fr] lg:items-end">
           <h2 className="tape-h1" style={{ fontFamily: "var(--t-display)", fontWeight: 900 }}>
             BACK THE ONE WHO SHIPS.
@@ -558,20 +565,20 @@ export function TapeHome() {
 function Comprobante({ pagado }: { pagado: bigint | null }) {
   return (
     <div className="tape-recibo mx-auto w-full max-w-[380px] lg:mx-0" style={{ fontFamily: "var(--t-mono)" }}>
-      <div className="tape-paper px-6 py-7" style={{ background: PAPEL, color: TINTA }}>
+      <div className="tape-paper px-6 py-7" style={{ background: PAPEL, color: PAPEL_TINTA }}>
         <div className="text-center">
           <div className="text-[15px] font-bold uppercase tracking-[0.2em]">RobinShare</div>
           <div className="mt-1 text-[10px] uppercase tracking-[0.18em] opacity-60">Payout receipt · mainnet</div>
         </div>
 
-        <div className="my-5 border-t border-dashed" style={{ borderColor: "rgba(13,18,14,0.4)" }} />
+        <div className="my-5 border-t border-dashed" style={{ borderColor: "color-mix(in srgb, var(--tp-papel-tinta) 40%, transparent)" }} />
 
         <FilaFija k="Vault" v={`${VAULT_PILOTO.slice(0, 8)}…${VAULT_PILOTO.slice(-4)}`} />
         <FilaFija k="Paid out" v={pagado === null ? "reading…" : `${formatEther(pagado)} ETH`} destacado />
         <FilaFija k="Gas" v={`${GAS_DEL_COBRO} ETH · 36% of it`} />
         <FilaFija k="Date" v="2026-08-31" />
 
-        <div className="my-5 border-t border-dashed" style={{ borderColor: "rgba(13,18,14,0.4)" }} />
+        <div className="my-5 border-t border-dashed" style={{ borderColor: "color-mix(in srgb, var(--tp-papel-tinta) 40%, transparent)" }} />
 
         <a
           href={`${EXPLORER}/address/${VAULT_PILOTO}`}
@@ -653,7 +660,7 @@ function Recibo({
 
   return (
     <div className="tape-recibo mx-auto w-full max-w-[380px] lg:mx-0" style={{ fontFamily: "var(--t-mono)" }}>
-      <div className="tape-paper px-6 py-7" style={{ background: PAPEL, color: TINTA }}>
+      <div className="tape-paper px-6 py-7" style={{ background: PAPEL, color: PAPEL_TINTA }}>
         <div className="text-center">
           <div className="text-[15px] font-bold uppercase tracking-[0.2em]">RobinShare</div>
           <div className="mt-1 text-[10px] uppercase tracking-[0.18em] opacity-60">
@@ -661,7 +668,7 @@ function Recibo({
           </div>
         </div>
 
-        <div className="my-5 border-t border-dashed" style={{ borderColor: "rgba(13,18,14,0.4)" }} />
+        <div className="my-5 border-t border-dashed" style={{ borderColor: "color-mix(in srgb, var(--tp-papel-tinta) 40%, transparent)" }} />
 
         {estado === "reposo" && (
           <p className="py-1 text-center text-[12px] leading-relaxed opacity-55">
@@ -692,7 +699,7 @@ function Recibo({
             <Linea k="Identity" v={idLabel} orden={0} />
             <Linea k="Rate" v="0.70% of every trade" orden={1} />
             <Linea k="Vault" v={`${vault.vault.slice(0, 8)}…${vault.vault.slice(-4)}`} orden={2} />
-            <div className="my-4 border-t border-dashed" style={{ borderColor: "rgba(13,18,14,0.25)" }} />
+            <div className="my-4 border-t border-dashed" style={{ borderColor: "color-mix(in srgb, var(--tp-papel-tinta) 25%, transparent)" }} />
             <div className="tape-print flex items-baseline justify-between gap-4" style={{ animationDelay: "270ms" }}>
               <span className="shrink-0 text-[12px] uppercase tracking-[0.16em] opacity-60">Waiting</span>
               <span className="text-right text-[20px] font-semibold tabular-nums">
@@ -702,7 +709,7 @@ function Recibo({
           </>
         )}
 
-        <div className="my-5 border-t border-dashed" style={{ borderColor: "rgba(13,18,14,0.4)" }} />
+        <div className="my-5 border-t border-dashed" style={{ borderColor: "color-mix(in srgb, var(--tp-papel-tinta) 40%, transparent)" }} />
 
         {/* EL UNICO DATO REALMENTE VIVO DE LA PAGINA, y el unico uso del verde de la cadena.
             Antes de buscar corre; al buscar se CONGELA, porque un comprobante con un numero que
@@ -717,7 +724,7 @@ function Recibo({
 
         {/* Sube de 10 a 11px y el rojo se oscurece: a #a3311f sobre papel crema la frase mas
             importante del artefacto era la menos legible de el. #7a1f12 sobre #F7F8F4 da ~8:1. */}
-        <div className="mt-6 text-center text-[11px] font-bold uppercase tracking-[0.16em]" style={{ color: "#7a1f12" }}>
+        <div className="mt-6 text-center text-[11px] font-bold uppercase tracking-[0.16em]" style={{ color: "var(--tp-alarma)" }}>
           This contract has not been audited
         </div>
       </div>

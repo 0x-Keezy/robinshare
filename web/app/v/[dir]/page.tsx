@@ -35,17 +35,19 @@ export default async function DirectionPreview({
   searchParams,
 }: {
   params: Promise<{ dir: string }>;
-  searchParams: Promise<{ embed?: string }>;
+  searchParams: Promise<{ embed?: string; tinta?: string }>;
 }) {
   const { dir } = await params;
-  const { embed } = await searchParams;
+  const { embed, tinta } = await searchParams;
   const Comp = DIRS[dir];
   if (!Comp) notFound();
   // `?embed=1` lo usa /v/compare, que mete dos direcciones en iframes: adentro no puede dibujarse
   // el switcher flotante o quedarian tres pastillas encimadas en la misma pantalla.
+  const esTape = dir === "tape";
+  const variante = tinta === "rojo" || tinta === "papel" ? tinta : "lima";
   return (
     <>
-      <Comp />
+      {esTape ? <TapeHome variante={variante} /> : <Comp />}
       {embed !== "1" && <VersionSwitcher current={dir} />}
     </>
   );

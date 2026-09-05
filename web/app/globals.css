@@ -411,6 +411,51 @@ body::after {
    juez lo leyo, con razon, como una sombra borrosa — o sea el efecto barato que esta pagina jura
    no tener. */
 
+/* LAS TRES TINTAS DE `tape`. Dos jueces distintos marcaron que el lima choca con el competidor
+   directo (misma cadena, mismo launchpad, mismo verde acido). El lima igual es de RobinShare desde
+   antes —esta en `legend`, en produccion— asi que la decision es de Jose y no de un juez: las tres
+   se ven al mismo tiempo en /v/compare y elige mirando.
+   Todo lo que pinta la direccion sale de estas variables; el componente es uno solo. */
+.tape-lima {
+  --tp-campo: #0d120e;
+  --tp-tinta: #f7f8f4;
+  --tp-acento: #ccff00;
+  --tp-acento-texto: #0d120e;
+  --tp-cuerpo: rgba(247, 248, 244, 0.74);
+  --tp-hair: rgba(247, 248, 244, 0.18);
+  --tp-papel: #f7f8f4;
+  --tp-papel-tinta: #0d120e;
+  --tp-alarma: #7a1f12;
+}
+
+/* TINTA DE RECIBO TERMICO: negro y rojo, que es con lo que imprime un recibo de verdad. El rojo ya
+   existia en la pagina para el riesgo, asi que el sistema se cierra en vez de sumar un color. */
+.tape-rojo {
+  --tp-campo: #0d0c0b;
+  --tp-tinta: #f4f1ea;
+  --tp-acento: #e8321a;
+  --tp-acento-texto: #fff8f4;
+  --tp-cuerpo: rgba(244, 241, 234, 0.74);
+  --tp-hair: rgba(244, 241, 234, 0.18);
+  --tp-papel: #f4f1ea;
+  --tp-papel-tinta: #14100c;
+  --tp-alarma: #b02a14;
+}
+
+/* LA PAGINA ENTERA IMPRESA: el campo deja de ser negro y pasa a ser el papel. El recibo entonces no
+   puede seguir siendo papel sobre papel — se distingue por su canto y su sombra, no por el color. */
+.tape-papel {
+  --tp-campo: #ece9df;
+  --tp-tinta: #14100c;
+  --tp-acento: #e8321a;
+  --tp-acento-texto: #fff8f4;
+  --tp-cuerpo: rgba(20, 16, 12, 0.72);
+  --tp-hair: rgba(20, 16, 12, 0.2);
+  --tp-papel: #fbfaf6;
+  --tp-papel-tinta: #14100c;
+  --tp-alarma: #b02a14;
+}
+
 /* La escalera del titular, con la leccion que costo el pase responsive de `legend`: rampa monotona
    (nunca se achica al crecer el ancho) y un segundo techo atado al ALTO del viewport, que es lo
    unico que salva al telefono acostado.
@@ -441,7 +486,7 @@ body::after {
 /* La plancha lima del titular, fuera de registro. */
 .tape-ghost {
   transform: translate(4px, 4px);
-  color: #ccff00;
+  color: var(--tp-acento);
   pointer-events: none;
 }
 
@@ -454,7 +499,7 @@ body::after {
    parecia un recorte mal hecho. Ahora la sombra es la misma plancha lima del titular. */
 .tape-recibo {
   transform: rotate(-1.4deg);
-  filter: drop-shadow(6px 7px 0 #ccff00);
+  filter: drop-shadow(6px 7px 0 var(--tp-acento));
 }
 
 .tape-paper {
@@ -486,13 +531,13 @@ body::after {
    llamo regresion directa de la inversion, con razon. Ahora es papel: se escribe SOBRE el papel y
    el papel imprime, que ademas es el concepto de la pagina. */
 .tape-campo {
-  background: #f7f8f4;
-  color: #0d120e;
-  border-color: #f7f8f4;
+  background: var(--tp-papel);
+  color: var(--tp-papel-tinta);
+  border-color: var(--tp-papel);
 }
 
 .tape-campo::placeholder {
-  color: rgba(13, 18, 14, 0.42);
+  color: color-mix(in srgb, var(--tp-papel-tinta) 45%, transparent);
 }
 
 /* La impresion, linea por linea. Es el wow y responde al INPUT: no pasa nada hasta que alguien
