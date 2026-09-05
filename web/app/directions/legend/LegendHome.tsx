@@ -17,6 +17,7 @@ import { Signature } from "@/components/Signature";
 import { LivingField } from "@/components/LivingField";
 import { publicClient, robinhoodChain } from "@/lib/chain";
 import { CUSTODY_LINE_PARTS } from "@/lib/claims";
+import { OFFICIAL_X_HANDLE, OFFICIAL_X_URL } from "@/lib/social";
 
 /*
  * ROBINSHARE (ex-Legend, ganadora del bake-off) — el BROKERAGE.
@@ -894,6 +895,12 @@ export function LegendHome() {
                 <Link href="/docs" className="rs-focus inline-block py-1 underline decoration-1 underline-offset-4 transition-opacity hover:opacity-70">
                   Read the docs →
                 </Link>
+                <Link href="/article" className="rs-focus inline-block py-1 underline decoration-1 underline-offset-4 transition-opacity hover:opacity-70">
+                  Read the article →
+                </Link>
+                <a href={OFFICIAL_X_URL} target="_blank" rel="noreferrer" className="rs-focus inline-block py-1 underline decoration-1 underline-offset-4 transition-opacity hover:opacity-70">
+                  {OFFICIAL_X_HANDLE} →
+                </a>
                 <a href="#ledger" className="rs-focus inline-block py-1 underline decoration-1 underline-offset-4 transition-opacity hover:opacity-70">
                   Check a balance →
                 </a>

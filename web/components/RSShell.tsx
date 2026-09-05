@@ -5,6 +5,7 @@ import { Fraunces, Archivo, IBM_Plex_Mono } from "next/font/google";
 import { Wordmark } from "@/components/Wordmark";
 import { useTheme } from "@/lib/useTheme";
 import { CUSTODY_LINE_PARTS } from "@/lib/claims";
+import { OFFICIAL_X_HANDLE, OFFICIAL_X_URL } from "@/lib/social";
 
 /*
  * Shell de RobinShare para las páginas de utilidad (/create, /claim):
@@ -53,6 +54,13 @@ export function RSShell({ children }: { children: React.ReactNode }) {
           <Wordmark size={20} />
           <div className="flex items-center gap-4">
             <Link
+              href="/article"
+              className="rs-focus hidden text-sm font-medium underline-offset-4 transition-opacity hover:underline sm:block"
+              style={{ color: RS.DIM }}
+            >
+              Article
+            </Link>
+            <Link
               href="/docs"
               className="rs-focus text-sm font-medium underline-offset-4 transition-opacity hover:underline"
               style={{ color: RS.DIM }}
@@ -99,6 +107,15 @@ export function RSShell({ children }: { children: React.ReactNode }) {
               </p>
             </div>
           ))}
+          <a
+            href={OFFICIAL_X_URL}
+            target="_blank"
+            rel="noreferrer"
+            className="rs-focus text-sm font-medium underline underline-offset-4"
+            style={{ color: RS.INK }}
+          >
+            {OFFICIAL_X_HANDLE}
+          </a>
         </div>
       </footer>
     </div>
