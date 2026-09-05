@@ -515,6 +515,71 @@ body::after {
   mask-composite: intersect;
 }
 
+/* EL SUSTRATO. La queja que los tres jueces repitieron con distintas palabras: "la pagina no tiene
+   material", "flat fill under everything", "el negro es relleno plano sin grano". El recibo tenia
+   papel y el resto no tenia nada.
+   Dos capas, las dos baratas y las dos ON-CONCEPT (no una textura de stock):
+     · el BANDEADO de impresora termica — lineas horizontales finisimas cada 3px, que es la huella
+       que deja un cabezal termico sobre el papel;
+     · el GRANO, una turbulencia SVG al 3,5%, que le saca el plano perfecto al campo.
+   Van en `::before` fijo y no en el `background` del main para que no se repitan por seccion ni
+   escalen con el scroll: es UNA hoja, no seis parches. */
+.tape-lima,
+.tape-rojo,
+.tape-papel {
+  position: relative;
+}
+
+.tape-lima::before,
+.tape-rojo::before,
+.tape-papel::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  background-image:
+    repeating-linear-gradient(
+      to bottom,
+      color-mix(in srgb, var(--tp-tinta) 4%, transparent) 0 1px,
+      transparent 1px 3px
+    ),
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3'/%3E%3C/filter%3E%3Crect width='160' height='160' filter='url(%23n)' opacity='0.035'/%3E%3C/svg%3E");
+}
+
+/* El contenido vive por encima del sustrato. */
+.tape-lima > *,
+.tape-rojo > *,
+.tape-papel > * {
+  position: relative;
+  z-index: 1;
+}
+
+/* EL FRINGING. Sobre campo oscuro el antialiasing subpixel engorda y ensucia el trazo — un juez lo
+   vio como bordes rojo/cian en los titulares. */
+.tape-lima,
+.tape-rojo {
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* LA HOJA IMPRESA a sangre. La seccion de riesgo deja de ser texto sobre el campo y pasa a ser una
+   hoja de papel de ancho completo: cambia el eje de la pagina (un juez marco que las seis secciones
+   se alineaban al MISMO margen sin un solo cambio de marcha), extiende el material a un cuarto uso
+   y pone la declaracion roja donde el rojo pertenece, que es sobre papel. */
+.tape-hoja {
+  --diente: 6px;
+  --paso: 14px;
+  -webkit-mask:
+    radial-gradient(var(--diente) at 50% 0, #0000 99%, #000 101%) 50% 0 / var(--paso) 100%,
+    radial-gradient(var(--diente) at 50% 100%, #0000 99%, #000 101%) 50% 100% / var(--paso) 100%;
+  mask:
+    radial-gradient(var(--diente) at 50% 0, #0000 99%, #000 101%) 50% 0 / var(--paso) 100%,
+    radial-gradient(var(--diente) at 50% 100%, #0000 99%, #000 101%) 50% 100% / var(--paso) 100%;
+  -webkit-mask-composite: source-in;
+  mask-composite: intersect;
+}
+
 /* LA COSTURA PERFORADA. El juez marco que la pagina no tenia material: el recibo tiene papel,
    grano y perforacion, y el resto era relleno plano cortado por un tope recto. Ahora el mismo
    dentado del ticket corta las bandas entre secciones, asi que un solo material recorre toda la

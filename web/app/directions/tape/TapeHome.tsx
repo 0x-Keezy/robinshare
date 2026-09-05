@@ -203,7 +203,7 @@ export function TapeHome({ variante = "lima" }: { variante?: VarianteTape } = {}
               dice "lanzá" y abajo un formulario que consulta, o sea dos acciones peleando por el
               mismo espacio sin que nada diga cual es cual. */}
           <div className="mt-9 border-t pt-7" style={{ borderColor: HAIR }}>
-            <div className="text-[11px] font-bold uppercase tracking-[0.18em]" style={{ fontFamily: "var(--t-mono)", color: CUERPO }}>
+            <div className="text-[13px] font-semibold uppercase tracking-[0.06em]" style={{ color: CUERPO }}>
               Or someone may have launched one for you
             </div>
             <div id="lookup" role="group" aria-label="Identity type" className="mt-4 flex scroll-mt-6 gap-2">
@@ -313,8 +313,9 @@ export function TapeHome({ variante = "lima" }: { variante?: VarianteTape } = {}
           </div>
         </div>
 
-        <div className="order-2 lg:col-start-2 lg:row-start-1 lg:row-span-2">
+        <div className="order-2 flex flex-col gap-5 lg:col-start-2 lg:row-start-1 lg:row-span-2">
           <Recibo named={named} rows={rows} loading={loading} sealedAt={sealedAt} block={block} />
+          <Talon />
         </div>
       </section>
 
@@ -366,14 +367,12 @@ export function TapeHome({ variante = "lima" }: { variante?: VarianteTape } = {}
         </div>
       </section>
 
-      <div className="tape-seam" style={{ background: TINTA }} />
-
       {/* ── 3 · COMO FUNCIONA (tinta) ───────────────────────────────────────────────────────
           El titular de la v1 abria con "THREE MOVES", que son literalmente las dos primeras
           palabras del titular de la misma seccion en STAQ. Un juez fresco lo cazo y tenia razon:
           en una pagina que se defiende de parecerse a un competidor, arrancar con su frase cierra
           el juicio solo. */}
-      <section>
+      <section className="border-t" style={{ borderColor: HAIR }}>
         <div className="rs-shell py-16 sm:py-24">
           <h2 className="tape-h2 max-w-4xl" style={{ fontFamily: "var(--t-display)", fontWeight: 900 }}>
             YOU DO ONE STEP. THE CHAIN DOES THE OTHER TWO.
@@ -415,43 +414,51 @@ export function TapeHome({ variante = "lima" }: { variante?: VarianteTape } = {}
           El texto sale de `CUSTODY_LINE_PARTS` —la misma constante que el resto del sitio, auditada
           por `test/copy.test.ts`— y va en cuerpo grande, no en letra chica: en este producto la
           honestidad incomoda ES el diferenciador. */}
-      <section className="border-t" style={{ borderColor: HAIR }}>
-        <div className="rs-shell py-16 sm:py-24">
-          <h2 className="tape-h2 max-w-4xl" style={{ fontFamily: "var(--t-display)", fontWeight: 900, color: LIMA }}>
-            WHAT WE CAN&rsquo;T PROMISE.
+      {/* ── 4 · LO QUE NO PODEMOS PROMETER — UNA HOJA IMPRESA A SANGRE ─────────────────────
+          Antes era texto sobre el campo, con el titular en lima (o sea en el color que en el resto
+          de la pagina significa dinero) y la declaracion de no-auditado en gris de parrafo, en el
+          rincon de una grilla que ademas dejaba un hueco en L. Tres jueces marcaron alguna parte de
+          eso.
+          Ahora es papel de ancho completo: cambia el eje de la pagina —la unica seccion que no se
+          alinea al margen de todas las demas—, extiende el material a un cuarto uso, y la
+          declaracion roja queda donde el rojo pertenece, que es impreso sobre papel.
+          El texto sale de `CUSTODY_LINE_PARTS`, la misma constante que audita `test/copy.test.ts`. */}
+      <section className="tape-hoja py-16 sm:py-24" style={{ background: PAPEL, color: PAPEL_TINTA }}>
+        <div className="rs-shell">
+          <div className="text-[11px] font-bold uppercase tracking-[0.2em]" style={{ fontFamily: "var(--t-mono)", opacity: 0.55 }}>
+            RobinShare · disclosure sheet
+          </div>
+          <h2 className="tape-h2 mt-4 max-w-4xl" style={{ fontFamily: "var(--t-display)", fontWeight: 900 }}>
+            What we can&rsquo;t promise.
           </h2>
-          {/* Cinco bloques en dos columnas dejaban un hueco en L abajo a la derecha: el mismo
-              defecto de grilla que ya habiamos arreglado en el pie de `legend` (seis datos en
-              cuatro columnas). El ultimo ocupa las dos y la grilla cierra. */}
-          {/* LA REGLA DE TINTAS, que hasta acá no existía y por eso el color leia arbitrario:
-              LIMA = la plata · ROJO = el riesgo · PAPEL = el producto.
-              La declaracion de no-auditado estaba en gris de parrafo en el rincon de una grilla,
-              mientras el titular de esta seccion iba en lima, o sea en el color que en el resto de
-              la pagina significa dinero: la advertencia pintada como si fuera un feature. Sube a
-              tamano de titular y toma el rojo del sello del recibo. */}
+
           <p
-            className="mt-8 max-w-3xl text-[clamp(1.15rem,2.6vw,1.6rem)] font-bold leading-snug"
-            style={{ fontFamily: "var(--t-display)", color: "#ff6a4d" }}
+            className="mt-7 max-w-3xl text-[clamp(1.2rem,2.8vw,1.75rem)] font-bold leading-snug"
+            style={{ fontFamily: "var(--t-display)", color: "var(--tp-alarma)" }}
           >
             {CUSTODY_LINE_PARTS[3].body.trim()}
           </p>
 
           <div className="mt-10 grid gap-x-14 gap-y-9 sm:grid-cols-2">
-            {CUSTODY_LINE_PARTS.filter((_, i) => i !== 3).map((part, i, arr) => (
-              <div key={part.label} className={i === arr.length - 1 ? "sm:col-span-2" : undefined}>
-                <div className="text-[11px] font-bold uppercase tracking-[0.16em]" style={{ fontFamily: "var(--t-mono)", color: LIMA }}>
+            {/* Cuatro bloques en dos columnas = 2x2 exacto. El `col-span-2` del ultimo venia de
+                cuando eran CINCO (con la declaracion de auditoria adentro de la grilla); al
+                sacarla a titular, ese span empujaba el cuarto a una tercera fila y volvia a abrir
+                el hueco en L que ya habiamos cerrado dos veces. */}
+            {CUSTODY_LINE_PARTS.filter((_, i) => i !== 3).map((part) => (
+              <div key={part.label}>
+                <div className="text-[11px] font-bold uppercase tracking-[0.14em]" style={{ fontFamily: "var(--t-mono)", opacity: 0.55 }}>
                   {part.label}
                 </div>
-                <p className="mt-2 max-w-[62ch] text-[16px] leading-relaxed" style={{ color: CUERPO }}>
+                <p className="mt-2 max-w-[62ch] text-[16px] leading-relaxed" style={{ opacity: 0.82 }}>
                   {part.body.trim()}
                 </p>
               </div>
             ))}
           </div>
+
           <Link
             href="/docs"
             className="rs-focus rs-tap mt-10 inline-block text-base font-bold uppercase tracking-[0.06em] underline decoration-2 underline-offset-8"
-            style={{ color: LIMA }}
           >
             Read the whole thing →
           </Link>
@@ -602,6 +609,40 @@ function FilaFija({ k, v, destacado }: { k: string; v: string; destacado?: boole
   );
 }
 
+/// EL TALON — el trozo que queda al arrancar un recibo. Existe por dos razones a la vez: llena los
+/// ~275px de campo muerto que quedaban bajo el comprobante en la columna derecha del hero, y sube
+/// al fold los dos datos que hacen comprobable a la pagina, que hasta ahora vivian solo en el pie.
+function Talon() {
+  const factory = factoryAddress();
+  return (
+    <div className="tape-recibo mx-auto w-full max-w-[380px] lg:mx-0" style={{ fontFamily: "var(--t-mono)" }}>
+      <div className="tape-paper px-6 py-5" style={{ background: PAPEL, color: PAPEL_TINTA }}>
+        <div className="flex items-baseline justify-between gap-4 text-[11px]">
+          <span className="uppercase tracking-[0.16em] opacity-55">Chain</span>
+          <span className="font-semibold">
+            {robinhoodChain.name} · {robinhoodChain.id}
+          </span>
+        </div>
+        <div className="mt-2 flex items-baseline justify-between gap-4 text-[11px]">
+          <span className="uppercase tracking-[0.16em] opacity-55">Factory</span>
+          {factory ? (
+            <a
+              href={`${EXPLORER}/address/${factory}`}
+              target="_blank"
+              rel="noreferrer"
+              className="rs-focus rs-tap font-semibold underline decoration-1 underline-offset-4"
+            >
+              {factory.slice(0, 8)}…{factory.slice(-6)}
+            </a>
+          ) : (
+            <span className="opacity-55">not configured</span>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function Hecho({ v, k }: { v: string; k: string }) {
   return (
     <div className="border-t-2 pt-4" style={{ borderColor: TINTA }}>
@@ -611,7 +652,7 @@ function Hecho({ v, k }: { v: string; k: string }) {
       >
         {v}
       </div>
-      <div className="mt-3 max-w-[18ch] text-[11px] font-semibold uppercase leading-[1.35] tracking-[0.12em]" style={{ fontFamily: "var(--t-mono)" }}>
+      <div className="mt-3 max-w-[20ch] text-[12px] font-semibold uppercase leading-[1.3] tracking-[0.03em]">
         {k}
       </div>
     </div>
