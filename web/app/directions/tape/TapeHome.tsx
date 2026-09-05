@@ -313,9 +313,24 @@ export function TapeHome({ variante = "lima" }: { variante?: VarianteTape } = {}
           </div>
         </div>
 
-        <div className="order-2 flex flex-col gap-5 lg:col-start-2 lg:row-start-1 lg:row-span-2">
-          <Recibo named={named} rows={rows} loading={loading} sealedAt={sealedAt} block={block} />
-          <Talon />
+        {/* Medido a 390x844: con el talon entre el comprobante y la herramienta, el buscador caia
+            a y=914 y su rotulo a 1087 — o sea que quien llega por "me apartaron algo" tenia que
+            scrollear una pantalla entera para encontrarlo. El talon es lo menos urgente de los
+            tres, asi que en telefono baja al final; en escritorio no se mueve, sigue debajo del
+            comprobante en la columna derecha. */}
+        {/* Los dos papeles tienen que ir PEGADOS en escritorio y SEPARADOS en telefono, y eso no
+            sale de un solo arbol: como hermanos del grid, el talon caia en la fila 2 y quedaba a
+            250px del comprobante; como hijos de un wrapper, en telefono no podian ordenarse por
+            separado. `display: contents` resuelve las dos: abajo de lg el wrapper desaparece y sus
+            hijos entran al flex de la seccion con su propio `order`; de lg para arriba vuelve a ser
+            una columna dentro de una sola celda. */}
+        <div className="contents lg:col-start-2 lg:row-span-2 lg:flex lg:flex-col lg:gap-5">
+          <div className="order-2 lg:order-none">
+            <Recibo named={named} rows={rows} loading={loading} sealedAt={sealedAt} block={block} />
+          </div>
+          <div className="order-4 lg:order-none">
+            <Talon />
+          </div>
         </div>
       </section>
 
